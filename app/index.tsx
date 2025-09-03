@@ -1,4 +1,4 @@
-import { Book, searchBooks } from "@/api/nhentai";
+import { Book, getBook, searchBooks } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import PaginationBar from "@/components/PaginationBar";
 import { useSort } from "@/context/SortContext";
@@ -18,6 +18,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Svg, { Circle } from "react-native-svg";
+
+const ENV_IDS = (process.env.EXPO_PUBLIC_HOME_IDS || "")
+  .split(",")
+  .map((s) => parseInt(s.trim(), 10))
+  .filter((n) => Number.isFinite(n));
+
+const SHOWCASE_IDS: number[] = ENV_IDS.length
+  ? ENV_IDS
+  : [
+      // 594428,594853,594709,416364, 867,590764,570095,250889,231917,157815,499794,81238,397016,361518,328504,328532
+    ];
 
 export default function HomeScreen() {
   const { colors } = useTheme();
@@ -25,6 +37,8 @@ export default function HomeScreen() {
   const { includes, excludes, filtersReady } = useFilterTags();
   const incStr = JSON.stringify(includes);
   const excStr = JSON.stringify(excludes);
+
+  const showcaseActive = SHOWCASE_IDS.length > 0;
 
   const [books, setBooks] = useState<Book[]>([]);
   const [totalPages, setTotal] = useState(1);
@@ -38,7 +52,6 @@ export default function HomeScreen() {
 
   const { update, progress, downloadAndInstall, checkUpdate } =
     useUpdateCheck();
-
   const { t } = useI18n();
 
   const accent = colors.accent;
@@ -87,6 +100,7 @@ export default function HomeScreen() {
       </Svg>
     );
   };
+
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem("bookFavorites").then(
@@ -95,6 +109,7 @@ export default function HomeScreen() {
     }, [])
   );
 
+  // — обычная пагинация
   const fetchPage = useCallback(
     async (pageNum: number) => {
       try {
@@ -116,20 +131,55 @@ export default function HomeScreen() {
     [sort, incStr, excStr]
   );
 
-  useEffect(() => {
-    if (filtersReady) fetchPage(1);
-  }, [filtersReady, fetchPage]);
+  const fetchShowcase = useCallback(async () => {
+    setRef(true);
+    try {
+      const results = await Promise.all(
+        SHOWCASE_IDS.map(async (id) => {
+          try {
+            const b = await getBook(id);
+            return b as Book;
+          } catch (e) {
+            console.warn("[home:showcase] failed to load id", id, e);
+            return null;
+          }
+        })
+      );
+      const onlyOk = results.filter(Boolean) as Book[];
+      setBooks(onlyOk);
+      setTotal(1);
+      setPage(1);
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    } finally {
+      setRef(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (filtersReady) setPage(1);
-  }, [sort, incStr, excStr, filtersReady]);
+    if (showcaseActive) {
+      fetchShowcase();
+    } else if (filtersReady) {
+      fetchPage(1);
+    }
+  }, [filtersReady, fetchPage, fetchShowcase, showcaseActive]);
+
+  useEffect(() => {
+    if (!showcaseActive && filtersReady) setPage(1);
+  }, [sort, incStr, excStr, filtersReady, showcaseActive]);
 
   const onRefresh = useCallback(async () => {
     setRef(true);
-    await fetchPage(currentPage);
-    await checkUpdate();
-    setRef(false);
-  }, [currentPage, fetchPage, checkUpdate]);
+    try {
+      if (showcaseActive) {
+        await fetchShowcase();
+      } else {
+        await fetchPage(currentPage);
+      }
+      await checkUpdate();
+    } finally {
+      setRef(false);
+    }
+  }, [currentPage, fetchPage, fetchShowcase, checkUpdate, showcaseActive]);
 
   const toggleFav = useCallback((id: number, next: boolean) => {
     setFav((prev) => {
@@ -172,10 +222,28 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {showcaseActive && (
+        <View
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            backgroundColor: colors.accent + "14",
+          }}
+        >
+          <Text
+            style={{ color: colors.accent, fontWeight: "800", fontSize: 12 }}
+          >
+            Showcase mode • IDs: {SHOWCASE_IDS.join(", ")}
+          </Text>
+        </View>
+      )}
+
       <BookList
-        key={`page-${currentPage}`}
+        key={showcaseActive ? `showcase` : `page-${currentPage}`}
         data={books}
-        loading={books.length === 0 && currentPage === 1}
+        loading={
+          books.length === 0 && (!showcaseActive ? currentPage === 1 : true)
+        }
         refreshing={refreshing}
         onRefresh={onRefresh}
         isFavorite={(id) => favorites.has(id)}
@@ -192,16 +260,16 @@ export default function HomeScreen() {
         gridConfig={{ default: gridConfig }}
       />
 
-      <PaginationBar
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onChange={fetchPage}
-      />
+      {!showcaseActive && (
+        <PaginationBar
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onChange={fetchPage}
+        />
+      )}
     </View>
   );
 }
-
-import Svg, { Circle } from "react-native-svg";
 
 const styles = StyleSheet.create({
   container: { flex: 1, width: "100%" },
