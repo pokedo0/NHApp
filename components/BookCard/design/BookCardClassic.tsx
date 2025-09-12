@@ -84,7 +84,7 @@ export default function BookCardClassic({
   })();
   const flagSrc = langName ? FLAG_MAP[langName] : undefined;
 
-  const sources = buildImageFallbacks(book.thumbnail);
+  const sources = buildImageFallbacks(book.cover);
 
   const handlePressCard = () => onPress?.(book.id);
 
@@ -117,12 +117,25 @@ export default function BookCardClassic({
 
   return (
     <Pressable
-      style={[styles.card, background ? { backgroundColor: background } : undefined]}
+      style={[
+        styles.card,
+        background ? { backgroundColor: background } : undefined,
+      ]}
       onPress={handlePressCard}
     >
       {/* Обложка */}
       <View style={styles.imageWrap}>
-        <SmartImage sources={sources} style={styles.cover} />
+        <SmartImage
+          sources={sources}
+          style={styles.cover}
+          recyclingKey={String(book.id)}
+          priority="high"
+          deferUntilIdle
+          clientCompress
+          maxTargetWidth={520}
+          compressQuality={0.68}
+          compressFormat="jpeg"
+        />
 
         {flagSrc && (
           <View style={[styles.langBadge]} pointerEvents="none">
@@ -130,7 +143,13 @@ export default function BookCardClassic({
           </View>
         )}
 
-        <Animated.View style={[styles.classicBarBase, styles.classicBarAbs, { height: hAnim }]}>
+        <Animated.View
+          style={[
+            styles.classicBarBase,
+            styles.classicBarAbs,
+            { height: hAnim },
+          ]}
+        >
           <Pressable
             onPress={(e: any) => {
               e?.stopPropagation?.();
@@ -138,11 +157,17 @@ export default function BookCardClassic({
             }}
             style={[
               styles.classicInner,
-              { paddingHorizontal: padX, paddingVertical: expanded ? padY : oneLinePad },
+              {
+                paddingHorizontal: padX,
+                paddingVertical: expanded ? padY : oneLinePad,
+              },
             ]}
           >
             <Text
-              style={[styles.classicTitle, { fontSize: titleFontSize, lineHeight: lineH }]}
+              style={[
+                styles.classicTitle,
+                { fontSize: titleFontSize, lineHeight: lineH },
+              ]}
               numberOfLines={expanded ? undefined : 1}
               ellipsizeMode="tail"
             >

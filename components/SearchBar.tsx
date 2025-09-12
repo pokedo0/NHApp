@@ -180,10 +180,6 @@ export function SearchBar() {
               <Feather name="search" size={18} color={colors.searchTxt} />
             </IconBtn>
 
-            <IconBtn onPress={() => setDateModalOpen(true)}>
-              <Feather name="calendar" size={18} color={colors.accent} />
-            </IconBtn>
-
             <IconBtn onPress={openSort}>
               <Feather name="filter" size={18} color={colors.accent} />
             </IconBtn>

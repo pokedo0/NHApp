@@ -240,8 +240,8 @@ function BookCardStableInner({
   );
 
   const variants = useMemo(
-    () => buildImageFallbacks(book.thumbnail),
-    [book.thumbnail]
+    () => buildImageFallbacks(book.cover),
+    [book.cover]
   );
 
   const primaryLang = useMemo(() => {
@@ -332,12 +332,12 @@ function BookCardStableInner({
           sources={variants}
           style={cover}
           recyclingKey={String(book.id)}
-          priority="low"
+          priority="high"
           deferUntilIdle
           clientCompress
-          maxTargetWidth={320}
+          maxTargetWidth={520}
           compressQuality={0.68}
-          compressFormat="webp"
+          compressFormat="jpeg"
         />
         <LinearGradient
           colors={["#00000000", `${colors.bg}40`, `${colors.bg}99`]}

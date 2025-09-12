@@ -28,18 +28,32 @@ export default function BookCardImage({
     [colors, cardWidth, contentScale]
   );
 
-  const variants = buildImageFallbacks(book.thumbnail || book.thumbnail);
+  const variants = buildImageFallbacks(book.cover || book.cover);
 
   return (
     <Pressable
       onPress={() => onPress?.(book.id)}
       style={[
-        { width: cardWidth, borderRadius: styles.card.borderRadius as number, overflow: "hidden" },
+        {
+          width: cardWidth,
+          borderRadius: styles.card.borderRadius as number,
+          overflow: "hidden",
+        },
         background ? { backgroundColor: background } : null,
       ]}
     >
       <View style={styles.imageWrap}>
-        <SmartImage sources={variants} style={styles.cover} />
+        <SmartImage
+          sources={variants}
+          style={styles.cover}
+          recyclingKey={String(book.id)}
+          priority="high"
+          deferUntilIdle
+          clientCompress
+          maxTargetWidth={520}
+          compressQuality={0.68}
+          compressFormat="jpeg"
+        />
       </View>
     </Pressable>
   );
