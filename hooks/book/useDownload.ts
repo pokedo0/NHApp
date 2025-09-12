@@ -1,7 +1,7 @@
 import type { Book } from "@/api/nhentai";
 import { sanitize } from "@/utils/book/sanitize";
 import { useThrottle } from "@/utils/book/useThrottle";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Platform, ToastAndroid } from "react-native";

@@ -1,5 +1,5 @@
 // app/(tabs)/downloaded.tsx
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Text } from "react-native";

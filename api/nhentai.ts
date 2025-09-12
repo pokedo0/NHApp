@@ -1,5 +1,5 @@
 import axios from "axios";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Image, Platform } from "react-native";
 
 const corsProxy = "https://thingproxy.freeboard.io/fetch/";

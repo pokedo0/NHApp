@@ -1,6 +1,6 @@
 // components/BookCard/design/BookCardStable.tsx
 import { useI18n } from "@/lib/i18n/I18nContext";
-import { AntDesign, Feather } from "@expo/vector-icons";
+import { Feather, FontAwesome } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { format } from "date-fns";
 import { enUS, ja, ru, zhCN } from "date-fns/locale";
@@ -76,10 +76,20 @@ function BookCardStableInner({
 }: BookCardStableProps) {
   const router = useRouter();
   const { colors } = useTheme();
-  const styles = useMemo(() => makeCardStyles(colors, cardWidth, contentScale), [colors, cardWidth, contentScale]);
+  const styles = useMemo(
+    () => makeCardStyles(colors, cardWidth, contentScale),
+    [colors, cardWidth, contentScale]
+  );
 
   const { t, resolved } = useI18n();
-  const dateLocale = resolved === "ru" ? ru : resolved === "zh" ? zhCN : resolved === "ja" ? ja : enUS;
+  const dateLocale =
+    resolved === "ru"
+      ? ru
+      : resolved === "zh"
+      ? zhCN
+      : resolved === "ja"
+      ? ja
+      : enUS;
 
   const TAG_COLORS = useMemo<Record<string, string>>(
     () => ({
@@ -100,7 +110,9 @@ function BookCardStableInner({
   const initialLiked = favoritesSet ? favoritesSet.has(book.id) : isFavorite;
   const [liked, setLiked] = useState<boolean>(initialLiked);
   const [showAllTags, setShowAllTags] = useState(false);
-  const [rh, setRh] = useState<HistoryState>(() => (historyMap && historyMap[book.id] ? historyMap[book.id] : null));
+  const [rh, setRh] = useState<HistoryState>(() =>
+    historyMap && historyMap[book.id] ? historyMap[book.id] : null
+  );
 
   useEffect(() => {
     if (favoritesSet) setLiked(favoritesSet.has(book.id));
@@ -116,7 +128,10 @@ function BookCardStableInner({
     const task = InteractionManager.runAfterInteractions(async () => {
       try {
         if (cancelled) return;
-        const [favRaw, histRaw] = await Promise.all([AsyncStorage.getItem(FAV_KEY), AsyncStorage.getItem(READ_HISTORY_KEY)]);
+        const [favRaw, histRaw] = await Promise.all([
+          AsyncStorage.getItem(FAV_KEY),
+          AsyncStorage.getItem(READ_HISTORY_KEY),
+        ]);
         if (cancelled) return;
         const favArr: number[] = favRaw ? JSON.parse(favRaw) : [];
         setLiked(favArr.includes(book.id));
@@ -160,23 +175,37 @@ function BookCardStableInner({
       const raw = await AsyncStorage.getItem(FAV_KEY);
       const arr: number[] = raw ? JSON.parse(raw) : [];
       const has = arr.includes(book.id);
-      const nextArr = has ? arr.filter((x) => x !== book.id) : [...arr, book.id];
+      const nextArr = has
+        ? arr.filter((x) => x !== book.id)
+        : [...arr, book.id];
       await AsyncStorage.setItem(FAV_KEY, JSON.stringify(nextArr));
     } catch {}
   }, [book.id, liked, onToggleFavorite, favoritesSet]);
 
-  const maxTags = cardWidth < 110 ? 1 : cardWidth < 250 ? 2 : cardWidth < 400 ? 3 : 4;
+  const maxTags =
+    cardWidth < 110 ? 1 : cardWidth < 250 ? 2 : cardWidth < 400 ? 3 : 4;
 
   const { filters } = useFilterTags();
   const filtersLookup = useMemo(() => {
     const m = new Map<string, "include" | "exclude" | undefined>();
-    for (const f of filters) m.set(`${f.type}:${f.name}`, f.mode === "include" ? "include" : f.mode === "exclude" ? "exclude" : undefined);
+    for (const f of filters)
+      m.set(
+        `${f.type}:${f.name}`,
+        f.mode === "include"
+          ? "include"
+          : f.mode === "exclude"
+          ? "exclude"
+          : undefined
+      );
     return m;
   }, [filters]);
 
-  const modeOf = useCallback((t: { type: string; name: string }): "include" | "exclude" | undefined => {
-    return filtersLookup.get(`${t.type}:${t.name}`);
-  }, [filtersLookup]);
+  const modeOf = useCallback(
+    (t: { type: string; name: string }): "include" | "exclude" | undefined => {
+      return filtersLookup.get(`${t.type}:${t.name}`);
+    },
+    [filtersLookup]
+  );
 
   const orderedTags = useMemo(() => {
     if (!book.tags?.length) return [] as Tag[];
@@ -189,24 +218,37 @@ function BookCardStableInner({
     return res;
   }, [book.tags]);
 
-  const visibleTags = useMemo(() => (showAllTags ? orderedTags : orderedTags.slice(0, maxTags)), [orderedTags, showAllTags, maxTags]);
+  const visibleTags = useMemo(
+    () => (showAllTags ? orderedTags : orderedTags.slice(0, maxTags)),
+    [orderedTags, showAllTags, maxTags]
+  );
 
-  const selectedIdSet = useMemo(() => new Set(selectedTags.map((t) => t.id)), [selectedTags]);
+  const selectedIdSet = useMemo(
+    () => new Set(selectedTags.map((t) => t.id)),
+    [selectedTags]
+  );
   const capFirstTwo = !showAllTags && visibleTags.length >= 2;
 
-  const collapsedMaxFor = useCallback((index: number, len: number) => {
-    if (len <= 1) return Math.max(90, Math.round(cardWidth * 0.88));
-    if (len === 2) return Math.max(90, Math.round(cardWidth * 0.44));
-    if (index < 2) return Math.max(90, Math.round(cardWidth * 0.4));
-    return Math.max(70, Math.round(cardWidth * 0.28));
-  }, [cardWidth]);
+  const collapsedMaxFor = useCallback(
+    (index: number, len: number) => {
+      if (len <= 1) return Math.max(90, Math.round(cardWidth * 0.88));
+      if (len === 2) return Math.max(90, Math.round(cardWidth * 0.44));
+      if (index < 2) return Math.max(90, Math.round(cardWidth * 0.4));
+      return Math.max(70, Math.round(cardWidth * 0.28));
+    },
+    [cardWidth]
+  );
 
-  const variants = useMemo(() => buildImageFallbacks(book.thumbnail), [book.thumbnail]);
+  const variants = useMemo(
+    () => buildImageFallbacks(book.thumbnail),
+    [book.thumbnail]
+  );
 
   const primaryLang = useMemo(() => {
     if (!book.languages?.length) return undefined;
     const base = book.languages[0].name.toLowerCase();
-    if (base === "translated" && book.languages[1]) return book.languages[1].name.toLowerCase();
+    if (base === "translated" && book.languages[1])
+      return book.languages[1].name.toLowerCase();
     return base;
   }, [book.languages]);
 
@@ -219,7 +261,13 @@ function BookCardStableInner({
     if (!rh) return null;
     const done = rh.current >= rh.total - 1;
     const ratio = Math.max(0, Math.min(1, (rh.current + 1) / rh.total));
-    return { done, ratio, currentDisp: rh.current + 1, total: rh.total, ts: rh.ts };
+    return {
+      done,
+      ratio,
+      currentDisp: rh.current + 1,
+      total: rh.total,
+      ts: rh.ts,
+    };
   }, [rh]);
 
   const isNew = useMemo(() => {
@@ -227,7 +275,10 @@ function BookCardStableInner({
     return uploaded > Date.now() - 86_400_000;
   }, [book.uploaded]);
 
-  const dateText = useMemo(() => format(new Date(book.uploaded), "d MMM yyyy", { locale: dateLocale }), [book.uploaded, dateLocale]);
+  const dateText = useMemo(
+    () => format(new Date(book.uploaded), "d MMM yyyy", { locale: dateLocale }),
+    [book.uploaded, dateLocale]
+  );
 
   const cardWrap = useMemo<StyleProp<ViewStyle>>(() => {
     const out: Array<StyleProp<ViewStyle>> = [styles.card];
@@ -237,19 +288,38 @@ function BookCardStableInner({
   }, [styles.card, background, isSingleCol]);
 
   const imageWrap = useMemo<StyleProp<ViewStyle>>(() => {
-    if (isSingleCol) return [styles.imageWrap, { aspectRatio: 0.7, height: undefined }];
+    if (isSingleCol)
+      return [styles.imageWrap, { aspectRatio: 0.7, height: undefined }];
     return styles.imageWrap;
   }, [isSingleCol, styles.imageWrap]);
 
   const cover = useMemo<StyleProp<ImageStyle>>(() => {
-    if (isSingleCol) return [styles.cover, { aspectRatio: 0.68, height: undefined }];
+    if (isSingleCol)
+      return [styles.cover, { aspectRatio: 0.68, height: undefined }];
     return styles.cover;
   }, [isSingleCol, styles.cover]);
 
-  const progressTrack = useMemo<ViewStyle>(() => ({ position: "absolute", left: 0, right: 0, bottom: 0, height: 4, backgroundColor: "#00000055" }), []);
+  const progressTrack = useMemo<ViewStyle>(
+    () => ({
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 4,
+      backgroundColor: "#00000055",
+    }),
+    []
+  );
 
   const progressFill = useCallback(
-    (ratio: number): ViewStyle => ({ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(ratio * 100)}%`, backgroundColor: colors.accent }),
+    (ratio: number): ViewStyle => ({
+      position: "absolute",
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: `${Math.round(ratio * 100)}%`,
+      backgroundColor: colors.accent,
+    }),
     [colors.accent]
   );
 
@@ -258,8 +328,22 @@ function BookCardStableInner({
   return (
     <Pressable style={cardWrap} onPress={onPressCard}>
       <View style={imageWrap}>
-        <SmartImage sources={variants} style={cover} />
-        <LinearGradient colors={["#00000000", `${colors.bg}40`, `${colors.bg}99`]} style={styles.coverGradient} pointerEvents="none" />
+        <SmartImage
+          sources={variants}
+          style={cover}
+          recyclingKey={String(book.id)}
+          priority="low"
+          deferUntilIdle
+          clientCompress
+          maxTargetWidth={320}
+          compressQuality={0.68}
+          compressFormat="webp"
+        />
+        <LinearGradient
+          colors={["#00000000", `${colors.bg}40`, `${colors.bg}99`]}
+          style={styles.coverGradient}
+          pointerEvents="none"
+        />
         {isNew && <Text style={styles.newBadge}>{t("book.new")}</Text>}
         {flagSrc && (
           <View style={styles.langBadge}>
@@ -269,7 +353,11 @@ function BookCardStableInner({
         {onToggleFavorite && (
           <View style={styles.favWrap}>
             <Pressable style={styles.favBtn} hitSlop={6} onPress={toggleLike}>
-              <AntDesign name={liked ? "heart" : "hearto"} size={heartSize} color={liked ? "#ff5a5f" : "#fff"} />
+              <FontAwesome
+                name={liked ? "heart" : "heart-o"}
+                size={heartSize}
+                color={liked ? "#ff5a5f" : "#fff"}
+              />
             </Pressable>
             <Text style={styles.favCount}>{favsDisplay}</Text>
           </View>
@@ -290,16 +378,28 @@ function BookCardStableInner({
 
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
-            <Feather name="calendar" size={styles.metaIcon.fontSize as number} color={styles.metaIcon.color as string} />
+            <Feather
+              name="calendar"
+              size={styles.metaIcon.fontSize as number}
+              color={styles.metaIcon.color as string}
+            />
             <Text style={styles.metaText}>{dateText}</Text>
           </View>
           <View style={styles.metaItem}>
-            <Feather name="book-open" size={styles.metaIcon.fontSize as number} color={styles.metaIcon.color as string} />
+            <Feather
+              name="book-open"
+              size={styles.metaIcon.fontSize as number}
+              color={styles.metaIcon.color as string}
+            />
             <Text style={styles.metaText}>{book.pagesCount}</Text>
           </View>
           {!onToggleFavorite && (
             <View style={styles.metaItem}>
-              <Feather name="heart" size={styles.metaIcon.fontSize as number} color={styles.metaIcon.color as string} />
+              <Feather
+                name="heart"
+                size={styles.metaIcon.fontSize as number}
+                color={styles.metaIcon.color as string}
+              />
               <Text style={styles.metaText}>{book.favorites}</Text>
             </View>
           )}
@@ -307,18 +407,47 @@ function BookCardStableInner({
 
         {visibleTags.length > 0 && (
           <View style={styles.tagsRow}>
-            <View style={[styles.tagsWrap, showAllTags && styles.tagsWrapExpanded]}>
+            <View
+              style={[styles.tagsWrap, showAllTags && styles.tagsWrapExpanded]}
+            >
               {visibleTags.map((tag, i) => {
                 const mode = modeOf({ type: tag.type, name: tag.name });
-                const borderColor = mode === "include" ? incColor : mode === "exclude" ? excColor : "transparent";
-                const maxPx = !showAllTags ? collapsedMaxFor(i, visibleTags.length) : undefined;
+                const borderColor =
+                  mode === "include"
+                    ? incColor
+                    : mode === "exclude"
+                    ? excColor
+                    : "transparent";
+                const maxPx = !showAllTags
+                  ? collapsedMaxFor(i, visibleTags.length)
+                  : undefined;
                 const showRibbon = typeof score === "number" && i === 0;
 
                 return (
                   <React.Fragment key={tag.id}>
                     {showRibbon && (
-                      <View style={[styles.ribbon, score! >= 80 ? styles.ribbonBorderGood : score! >= 60 ? styles.ribbonBorderOk : styles.ribbonBorderWarn]}>
-                        <Text style={[styles.ribbonText, score! >= 80 ? styles.ribbonGood : score! >= 60 ? styles.ribbonOk : styles.ribbonWarn]}>{score}%</Text>
+                      <View
+                        style={[
+                          styles.ribbon,
+                          score! >= 80
+                            ? styles.ribbonBorderGood
+                            : score! >= 60
+                            ? styles.ribbonBorderOk
+                            : styles.ribbonBorderWarn,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.ribbonText,
+                            score! >= 80
+                              ? styles.ribbonGood
+                              : score! >= 60
+                              ? styles.ribbonOk
+                              : styles.ribbonWarn,
+                          ]}
+                        >
+                          {score}%
+                        </Text>
                       </View>
                     )}
 
@@ -327,7 +456,12 @@ function BookCardStableInner({
                         e?.stopPropagation?.();
                         router.push({
                           pathname: "/explore",
-                          params: { query: tag.name, solo: "1", id: String(book.id), title: book.title.pretty },
+                          params: {
+                            query: tag.name,
+                            solo: "1",
+                            id: String(book.id),
+                            title: book.title.pretty,
+                          },
                         });
                       }}
                       onLongPress={() => Clipboard.setStringAsync(tag.name)}
@@ -335,14 +469,26 @@ function BookCardStableInner({
                       <View
                         style={[
                           styles.tagPill,
-                          showAllTags ? [styles.tagExpanded, styles.tapPillOpen] : styles.tagOneLine,
+                          showAllTags
+                            ? [styles.tagExpanded, styles.tapPillOpen]
+                            : styles.tagOneLine,
                           !showAllTags && { maxWidth: maxPx },
-                          !showAllTags && capFirstTwo && i < 2 && styles.tagCap50,
+                          !showAllTags &&
+                            capFirstTwo &&
+                            i < 2 &&
+                            styles.tagCap50,
                           { borderWidth: 1, borderColor },
                           selectedIdSet.has(tag.id) && styles.tagSelected,
                         ]}
                       >
-                        <Text numberOfLines={showAllTags ? undefined : 1} ellipsizeMode={showAllTags ? undefined : "tail"} style={[styles.tagText, { color: TAG_COLORS[tag.type] ?? TAG_COLORS.tag }]}>
+                        <Text
+                          numberOfLines={showAllTags ? undefined : 1}
+                          ellipsizeMode={showAllTags ? undefined : "tail"}
+                          style={[
+                            styles.tagText,
+                            { color: TAG_COLORS[tag.type] ?? TAG_COLORS.tag },
+                          ]}
+                        >
                           {tag.name}
                         </Text>
                       </View>
@@ -360,7 +506,10 @@ function BookCardStableInner({
                   setShowAllTags(true);
                 }}
               >
-                <Text numberOfLines={1} style={[styles.tagPlus, { color: TAG_COLORS.tag }]}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.tagPlus, { color: TAG_COLORS.tag }]}
+                >
                   +{book.tags.length - maxTags}
                 </Text>
               </Pressable>
@@ -381,15 +530,23 @@ const areEqual = (prev: BookCardStableProps, next: BookCardStableProps) => {
   if (prev.score !== next.score) return false;
   if (prev.showProgressOnCard !== next.showProgressOnCard) return false;
 
-  const prevFav = prev.favoritesSet ? prev.favoritesSet.has(prev.book.id) : prev.isFavorite;
-  const nextFav = next.favoritesSet ? next.favoritesSet.has(next.book.id) : next.isFavorite;
+  const prevFav = prev.favoritesSet
+    ? prev.favoritesSet.has(prev.book.id)
+    : prev.isFavorite;
+  const nextFav = next.favoritesSet
+    ? next.favoritesSet.has(next.book.id)
+    : next.isFavorite;
   if (prevFav !== nextFav) return false;
 
   const prevHist = prev.historyMap?.[prev.book.id];
   const nextHist = next.historyMap?.[next.book.id];
   const histChanged =
     (!!prevHist || !!nextHist) &&
-    (!prevHist || !nextHist || prevHist.current !== nextHist.current || prevHist.total !== nextHist.total || prevHist.ts !== nextHist.ts);
+    (!prevHist ||
+      !nextHist ||
+      prevHist.current !== nextHist.current ||
+      prevHist.total !== nextHist.total ||
+      prevHist.ts !== nextHist.ts);
   if (histChanged) return false;
 
   if (prev.selectedTags?.length !== next.selectedTags?.length) return false;

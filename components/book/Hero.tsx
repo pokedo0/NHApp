@@ -3,7 +3,7 @@ import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { timeAgo } from "@/utils/book/timeAgo";
-import { AntDesign, Feather } from "@expo/vector-icons";
+import { Feather, FontAwesome } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import { Image as ExpoImage } from "expo-image";
@@ -402,8 +402,8 @@ export default function Hero({
                     liked ? "Убрать из избранного" : "Добавить в избранное"
                   }
                 >
-                  <AntDesign
-                    name={liked ? "heart" : "hearto"}
+                  <FontAwesome
+                    name={liked ? "heart" : "heart-o"}
                     size={20}
                     color={liked ? "#FF5A5F" : colors.accent}
                   />
@@ -657,8 +657,8 @@ export default function Hero({
                 liked ? "Убрать из избранного" : "Добавить в избранное"
               }
             >
-              <AntDesign
-                name={liked ? "heart" : "hearto"}
+              <FontAwesome
+                name={liked ? "heart" : "heart-o"}
                 size={20}
                 color={liked ? "#FF5A5F" : colors.accent}
               />
