@@ -130,7 +130,7 @@ export default function BookCardClassic({
           style={styles.cover}
           recyclingKey={String(book.id)}
           priority="high"
-          deferUntilIdle
+          deferUntilIdle={false}
           clientCompress
           maxTargetWidth={520}
           compressQuality={0.68}

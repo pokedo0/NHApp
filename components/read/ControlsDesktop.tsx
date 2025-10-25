@@ -19,6 +19,8 @@ export function ControlsDesktop({
   jumpNext,
   onBack,
   isSingleFrame,
+  continuous,
+  toggleContinuous,
 }: {
   colors: any;
   canDual: boolean;
@@ -40,7 +42,33 @@ export function ControlsDesktop({
   jumpNext: () => void;
   onBack: () => void;
   isSingleFrame: boolean;
+  continuous: boolean;
+  toggleContinuous: () => void;
 }) {
+  if (continuous) {
+    return (
+      <View
+        style={[
+          styles.topLeftBar,
+          { backgroundColor: colors.searchBg, borderColor: colors.page },
+        ]}
+      >
+        <IconBtn
+          onPress={onBack}
+          name="corner-up-left"
+          color={colors.searchTxt}
+        />
+        <ToggleBtn
+          active={true}
+          onToggle={toggleContinuous}
+          name="align-justify"
+          activeColor={colors.accent}
+          color={colors.searchTxt}
+        />
+      </View>
+    );
+  }
+
   return (
     <View
       style={[
@@ -112,6 +140,13 @@ export function ControlsDesktop({
           color={colors.searchTxt}
         />
       )}
+      <ToggleBtn
+        active={false}
+        onToggle={toggleContinuous}
+        name="align-justify"
+        activeColor={colors.accent}
+        color={colors.searchTxt}
+      />
     </View>
   );
 }

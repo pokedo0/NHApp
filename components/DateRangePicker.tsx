@@ -1,49 +1,91 @@
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
-
+type Strings = {
+  weekShort: string[];
+  months: string[];
+  todayDot?: string;
+  actions: { reset: string; apply: string; cancel: string; done: string };
+  titles: { monthYear: string; range: string; single: string };
+  labels: { select: string };
+};
+const STRINGS_RU: Strings = {
+  weekShort: ["Вск", "Пнд", "Втр", "Срд", "Чтв", "Птн", "Сбт"],
+  months: [
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
+  ],
+  actions: {
+    reset: "Сбросить",
+    apply: "Применить",
+    cancel: "Отмена",
+    done: "Готово",
+  },
+  titles: { monthYear: "Месяц и год", range: "Диапазон дат", single: "Дата" },
+  labels: { select: "Выбрать" },
+};
+const STRINGS_EN: Strings = {
+  weekShort: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  months: [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ],
+  actions: { reset: "Reset", apply: "Apply", cancel: "Cancel", done: "Done" },
+  titles: { monthYear: "Month & Year", range: "Date range", single: "Date" },
+  labels: { select: "Select" },
+};
 type Dateish = Date | null;
-
-const WEEK = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 const dayStart = (d: Date) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const monthStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
-
 const addMonths = (d: Date, m: number) =>
   new Date(d.getFullYear(), d.getMonth() + m, 1);
-
+const clampMonth = (d: Date, minM: Date, maxM: Date) =>
+  new Date(
+    Math.max(
+      monthStart(minM).getTime(),
+      Math.min(monthStart(maxM).getTime(), monthStart(d).getTime())
+    )
+  );
 const daysMatrix = (year: number, month: number) => {
   const first = new Date(year, month, 1);
   const startWeekDay = first.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const prevDays = new Date(year, month, 0).getDate();
-
   const cells: { date: Date; inMonth: boolean }[] = [];
   for (let i = 0; i < startWeekDay; i++) {
     const d = new Date(year, month - 1, prevDays - (startWeekDay - 1 - i));
@@ -63,198 +105,57 @@ const daysMatrix = (year: number, month: number) => {
   }
   return cells;
 };
-
 export type DateRangeValue = { from: Dateish; to: Dateish };
-
-export default function DateRangePicker({
-  initialFrom,
-  initialTo,
-  minDate: minDateProp = new Date(2014, 5, 28),
-  onApply,
-  onClear,
-}: {
-  initialFrom?: Dateish;
-  initialTo?: Dateish;
-  minDate?: Date;
-  onApply: (range: DateRangeValue) => void;
-  onCancel?: () => void;
-  onClear?: () => void;
-}) {
+type MonthViewProps = {
+  y: number;
+  m: number;
+  CELL: number;
+  strings: Strings;
+  today: Date;
+  minDate: Date;
+  maxDate: Date;
+  range: { start: Dateish; end: Dateish };
+  selectingSecond: boolean;
+  onPick: (d: Date) => void;
+};
+function MonthView({
+  y,
+  m,
+  CELL,
+  strings,
+  today,
+  minDate,
+  maxDate,
+  range,
+  selectingSecond,
+  onPick,
+}: MonthViewProps) {
   const { colors } = useTheme();
-  const { width, height } = useWindowDimensions();
-  const isTablet = Math.min(width, height) >= 720;
-
-  const today = dayStart(new Date());
-  const MIN_DATE = dayStart(minDateProp);
-  const minYear = MIN_DATE.getFullYear();
-  const minMonth = MIN_DATE.getMonth();
-
-  const clampToBounds = (d: Date) => {
-    const t0 = new Date(minYear, minMonth, 1).getTime();
-    const t1 = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
-    const t = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
-    const clamped = Math.max(t0, Math.min(t1, t));
-    const cd = new Date(clamped);
-    return new Date(cd.getFullYear(), cd.getMonth(), 1);
-  };
-
-  const H_PAD = isTablet ? 24 : 10;
-  const GRID_W = Math.max(300, Math.min(680, width - H_PAD * 2));
-  const CELL = useMemo(() => {
-    const cw = Math.floor(GRID_W / 7);
-    const clampMin = isTablet ? 54 : 42;
-    const clampMax = isTablet ? 68 : 50;
-    return Math.max(clampMin, Math.min(clampMax, cw));
-  }, [GRID_W, isTablet]);
-
-  const [cursor, setCursor] = useState<Date>(() => {
-    const base =
-      initialTo ??
-      initialFrom ??
-      new Date(today.getFullYear(), today.getMonth(), 1);
-    const b = new Date(
-      Math.max(
-        new Date(minYear, minMonth, 1).getTime(),
-        new Date(
-          (base as Date).getFullYear(),
-          (base as Date).getMonth(),
-          1
-        ).getTime()
-      )
-    );
-    return b;
-  });
-
-  const [from, setFrom] = useState<Dateish>(
-    initialFrom ? dayStart(initialFrom as Date) : null
-  );
-  const [to, setTo] = useState<Dateish>(
-    initialTo ? dayStart(initialTo as Date) : null
-  );
-
-  const year = cursor.getFullYear();
-  const month = cursor.getMonth();
-  const cells = useMemo(() => daysMatrix(year, month), [year, month]);
-
-  const allowNextMonth =
-    year < today.getFullYear() ||
-    (year === today.getFullYear() && month < today.getMonth());
-
-  const allowPrevMonth =
-    year > minYear || (year === minYear && month > minMonth);
-
-  const norm = useMemo((): { start: Dateish; end: Dateish } => {
-    const a = from ? (from as Date) : null;
-    const b = to ? (to as Date) : null;
-    if (a && b) {
-      return a.getTime() <= b.getTime()
-        ? { start: a, end: b }
-        : { start: b, end: a };
-    }
-    if (a && !b) return { start: a, end: null };
-    return { start: null, end: null };
-  }, [from, to]);
-
-  const isFuture = (d: Date) => d.getTime() > today.getTime();
-  const isBeforeMin = (d: Date) => d.getTime() < MIN_DATE.getTime();
-
-  const isStart = (d: Date) => !!norm.start && isSameDay(d, norm.start as Date);
-  const isEnd = (d: Date) => !!norm.end && isSameDay(d, norm.end as Date);
+  const cells = useMemo(() => daysMatrix(y, m), [y, m]);
+  const isOutOfBounds = (d: Date) =>
+    d.getTime() < dayStart(minDate).getTime() ||
+    d.getTime() > dayStart(maxDate).getTime();
+  const isStart = (d: Date) =>
+    !!range.start && isSameDay(d, range.start as Date);
+  const isEnd = (d: Date) => !!range.end && isSameDay(d, range.end as Date);
   const isInside = (d: Date) =>
-    !!norm.start &&
-    !!norm.end &&
-    d.getTime() > (norm.start as Date).getTime() &&
-    d.getTime() < (norm.end as Date).getTime();
-
-  const pick = (d0: Date) => {
-    const d = dayStart(d0);
-    if (isFuture(d) || isBeforeMin(d)) return;
-    if (!from || (from && to)) {
-      setFrom(d);
-      setTo(null);
-      return;
-    }
-    if (from && !to && isSameDay(d, from)) return;
-    setTo(d);
-  };
-
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [tmpMonth, setTmpMonth] = useState(month);
-  const [tmpYear, setTmpYear] = useState(year);
-  const years = useMemo(() => {
-    const arr: number[] = [];
-    for (let y = today.getFullYear(); y >= minYear; y--) arr.push(y);
-    return arr;
-  }, [minYear, today]);
-
-  const openWheel = () => {
-    setTmpMonth(month);
-    setTmpYear(year);
-    setPickerOpen(true);
-  };
-  const applyWheel = () => {
-    let y = tmpYear;
-    let m = tmpMonth;
-    if (y < minYear) y = minYear;
-    if (y === minYear && m < minMonth) m = minMonth;
-    if (y > today.getFullYear()) y = today.getFullYear();
-    if (y === today.getFullYear() && m > today.getMonth()) m = today.getMonth();
-    setCursor(new Date(y, m, 1));
-    setPickerOpen(false);
-  };
-
-  const canApply = !!from && !!to && !isSameDay(from as Date, to as Date);
-
-  const selectingSecond = !!from && !to;
-
+    !!range.start &&
+    !!range.end &&
+    d.getTime() > (range.start as Date).getTime() &&
+    d.getTime() < (range.end as Date).getTime();
+  const bothSelected = !!range.start && !!range.end;
+  const isValidRange =
+    bothSelected && !isSameDay(range.start as Date, range.end as Date);
+  const isToday = (d: Date) => isSameDay(d, today);
   return (
-    <View style={{ paddingHorizontal: H_PAD, paddingBottom: 8 }}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => allowPrevMonth && setCursor(addMonths(cursor, -1))}
-          onLongPress={() =>
-            allowPrevMonth && setCursor(clampToBounds(addMonths(cursor, -12)))
-          }
-          style={[styles.navBtn, !allowPrevMonth && { opacity: 0.4 }]}
-          hitSlop={8}
-        >
-          <Feather name="chevron-left" size={24} color={colors.searchTxt} />
-        </Pressable>
-
-        <View style={styles.headerCenter}>
-          <Pressable style={styles.headerChip} onPress={openWheel}>
-            <Text style={[styles.chipTxt, { color: colors.searchTxt }]}>
-              {MONTH_NAMES[month]}
-            </Text>
-            <Feather name="chevron-down" size={16} color={colors.sub} />
-          </Pressable>
-          <Pressable style={styles.headerChip} onPress={openWheel}>
-            <Text style={[styles.chipTxt, { color: colors.searchTxt }]}>
-              {year}
-            </Text>
-            <Feather name="chevron-down" size={16} color={colors.sub} />
-          </Pressable>
-        </View>
-
-        <Pressable
-          onPress={() => allowNextMonth && setCursor(addMonths(cursor, +1))}
-          onLongPress={() =>
-            allowNextMonth && setCursor(clampToBounds(addMonths(cursor, +12)))
-          }
-          style={[styles.navBtn, !allowNextMonth && { opacity: 0.4 }]}
-          hitSlop={8}
-        >
-          <Feather name="chevron-right" size={24} color={colors.searchTxt} />
-        </Pressable>
-      </View>
-
+    <View>
       <View
         style={[
           styles.weekRow,
           { width: CELL * 7, alignSelf: "center", marginBottom: 6 },
         ]}
       >
-        {WEEK.map((w) => (
+        {strings.weekShort.map((w) => (
           <Text
             key={w}
             style={[styles.weekCell, { width: CELL, color: colors.sub }]}
@@ -263,49 +164,50 @@ export default function DateRangePicker({
           </Text>
         ))}
       </View>
-
       <View style={[styles.grid, { width: CELL * 7, alignSelf: "center" }]}>
         {cells.map(({ date, inMonth }, idx) => {
-          const disabledBase = isFuture(date) || isBeforeMin(date) || !inMonth;
+          const disabledBase = !inMonth || isOutOfBounds(date);
           const disabledSame =
-            selectingSecond && from && isSameDay(date, from as Date);
+            selectingSecond &&
+            range.start &&
+            isSameDay(date, range.start as Date);
           const disabled = disabledBase || disabledSame;
           const start = isStart(date);
           const end = isEnd(date);
           const inside = isInside(date);
-          const isToday = isSameDay(date, today);
-          const circleSize = CELL - (isTablet ? 12 : 10);
+          const todayHit = isToday(date);
+          const circleSize = CELL - 10;
           const circleR = Math.round(circleSize / 2);
-
           return (
             <Pressable
               key={idx}
-              onPress={() => !disabled && pick(date)}
+              onPress={() => !disabled && onPick(date)}
               disabled={disabled}
               style={[
                 styles.dayCell,
                 { width: CELL, height: CELL, marginVertical: 3 },
                 !inMonth && { opacity: 0.35 },
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={`${date.getDate()}.${m + 1}.${y}`}
             >
-              {(inside || start || end) && (
+              {(inside || start || end) && isValidRange && (
                 <View
                   style={[
                     styles.rangeBg,
                     { backgroundColor: colors.accent + "22" },
                     start && {
-                      borderTopLeftRadius: 16,
-                      borderBottomLeftRadius: 16,
+                      borderTopLeftRadius: 216,
+                      borderBottomLeftRadius: 216,
                     },
                     end && {
-                      borderTopRightRadius: 16,
-                      borderBottomRightRadius: 16,
+                      borderTopRightRadius: 216,
+                      borderBottomRightRadius: 216,
                     },
-                    start && end && { borderRadius: 16 },
+                    start && end && { borderRadius: 216 },
                   ]}
                 />
               )}
-
               {(start || end) && (
                 <View
                   style={{
@@ -318,7 +220,6 @@ export default function DateRangePicker({
                   }}
                 />
               )}
-
               <View
                 style={{
                   width: circleSize,
@@ -333,13 +234,13 @@ export default function DateRangePicker({
                   style={[
                     styles.dayText,
                     { color: start || end ? colors.bg : colors.searchTxt },
-                    isTablet && { fontSize: 17 },
+                    { fontSize: 15, fontWeight: "700" },
                     disabled && !start && !end && { opacity: 0.35 },
                   ]}
                 >
                   {date.getDate()}
                 </Text>
-                {isToday && !(start || end) && (
+                {todayHit && !(start || end) && (
                   <View
                     style={{
                       width: 5,
@@ -356,8 +257,360 @@ export default function DateRangePicker({
           );
         })}
       </View>
-
-      <View style={[styles.footer, { marginTop: isTablet ? 14 : 10 }]}>
+    </View>
+  );
+}
+function WheelPicker({
+  items,
+  selectedIndex,
+  onChangeFinal,
+  onHoverChange,
+  itemHeight = 40,
+  visibleCount = 5,
+  width = 140,
+}: {
+  items: string[];
+  selectedIndex: number;
+  onChangeFinal: (index: number) => void;
+  onHoverChange?: (index: number) => void;
+  itemHeight?: number;
+  visibleCount?: number;
+  width?: number;
+}) {
+  const { colors } = useTheme();
+  const listRef = useRef<FlatList<string>>(null);
+  const [hoverIndex, setHoverIndex] = useState(selectedIndex);
+  useEffect(() => {
+    listRef.current?.scrollToOffset({
+      offset: selectedIndex * itemHeight,
+      animated: false,
+    });
+    setHoverIndex(selectedIndex);
+  }, [selectedIndex, itemHeight]);
+  const pad = Math.floor(visibleCount / 2) * itemHeight;
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const idx = Math.round(y / itemHeight);
+    if (idx !== hoverIndex) {
+      setHoverIndex(idx);
+      onHoverChange?.(Math.max(0, Math.min(items.length - 1, idx)));
+    }
+  };
+  const onEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const idx = Math.max(
+      0,
+      Math.min(items.length - 1, Math.round(y / itemHeight))
+    );
+    onChangeFinal(idx);
+  };
+  return (
+    <View
+      style={[styles.wheelWrap, { height: visibleCount * itemHeight, width }]}
+    >
+      <FlatList
+        ref={listRef}
+        data={items}
+        keyExtractor={(_, i) => String(i)}
+        initialScrollIndex={selectedIndex}
+        getItemLayout={(_, i) => ({
+          length: itemHeight,
+          offset: i * itemHeight,
+          index: i,
+        })}
+        snapToInterval={itemHeight}
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: pad }}
+        onScroll={onScroll}
+        onMomentumScrollEnd={onEnd}
+        onScrollEndDrag={onEnd}
+        scrollEventThrottle={16}
+        renderItem={({ item, index }) => {
+          const selected = index === hoverIndex;
+          return (
+            <View
+              style={[
+                styles.wheelItem,
+                { height: itemHeight, justifyContent: "center" },
+              ]}
+            >
+              <Text
+                style={{
+                  textAlign: "center",
+                  fontSize: 16,
+                  fontWeight: selected ? "800" : "600",
+                  color: selected ? colors.bg : colors.searchTxt,
+                }}
+              >
+                {item}
+              </Text>
+            </View>
+          );
+        }}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.wheelHighlight,
+          {
+            top: (visibleCount * itemHeight) / 2 - itemHeight / 2,
+            height: itemHeight,
+            backgroundColor: colors.accent,
+            borderColor: colors.accent,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+export default function DateRangePicker({
+  initialFrom,
+  initialTo,
+  minDate: minDateProp = new Date(2014, 5, 28),
+  maxDate: maxDateProp,
+  strings: stringsProp,
+  onApply,
+  onClear,
+}: {
+  initialFrom?: Dateish;
+  initialTo?: Dateish;
+  minDate?: Date;
+  maxDate?: Date;
+  strings?: Partial<Strings>;
+  onApply: (range: DateRangeValue) => void;
+  onClear?: () => void;
+}) {
+  const { colors } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const strings: Strings = useMemo(
+    () => ({ ...STRINGS_RU, ...(stringsProp || {}) }),
+    [stringsProp]
+  );
+  const today = dayStart(new Date());
+  const MAX_DATE = dayStart(maxDateProp ?? today);
+  const MIN_DATE = dayStart(minDateProp);
+  const minYear = MIN_DATE.getFullYear();
+  const minMonth = MIN_DATE.getMonth();
+  const isLandscape = width > height;
+  const isTablet = Math.min(width, height) >= 720;
+  const dualMode = isLandscape || isTablet;
+  const GAP = 16;
+  const H_PAD = 10;
+  const availWidthPerMonth = dualMode
+    ? Math.floor((width - H_PAD * 2 - GAP) / 2)
+    : Math.floor(width - H_PAD * 2);
+  const headerH = 48 + 26;
+  const footerH = 52;
+  const availHeightForGrid = Math.max(220, height - headerH - footerH - 80);
+  const cellByWidth = Math.floor(availWidthPerMonth / 7) - 2;
+  const cellByHeight = Math.floor(availHeightForGrid / 7) - 2;
+  const CELL = Math.max(34, Math.min(64, Math.min(cellByWidth, cellByHeight)));
+  const initBase = monthStart((initialTo ?? initialFrom ?? today) as Date);
+  const [cursor, setCursor] = useState<Date>(() =>
+    clampMonth(initBase, MIN_DATE, MAX_DATE)
+  );
+  const [from, setFrom] = useState<Dateish>(
+    initialFrom ? dayStart(initialFrom as Date) : null
+  );
+  const [to, setTo] = useState<Dateish>(
+    initialTo ? dayStart(initialTo as Date) : null
+  );
+  const range = useMemo((): { start: Dateish; end: Dateish } => {
+    const a = from ? (from as Date) : null;
+    const b = to ? (to as Date) : null;
+    if (a && b)
+      return a.getTime() <= b.getTime()
+        ? { start: a, end: b }
+        : { start: b, end: a };
+    if (a && !b) return { start: a, end: null };
+    return { start: null, end: null };
+  }, [from, to]);
+  const selectingSecond = !!from && !to;
+  const clampForDual = (base: Date) => {
+    const left = clampMonth(base, MIN_DATE, MAX_DATE);
+    if (!dualMode) return left;
+    const right = addMonths(left, 1);
+    if (right.getTime() > monthStart(MAX_DATE).getTime()) {
+      return clampMonth(
+        addMonths(monthStart(MAX_DATE), -1),
+        MIN_DATE,
+        MAX_DATE
+      );
+    }
+    if (left.getTime() < monthStart(MIN_DATE).getTime()) {
+      return monthStart(MIN_DATE);
+    }
+    return left;
+  };
+  const goPrev = () => setCursor((c) => clampForDual(addMonths(c, -1)));
+  const goNext = () => setCursor((c) => clampForDual(addMonths(c, +1)));
+  const goPrevYear = () => setCursor((c) => clampForDual(addMonths(c, -12)));
+  const goNextYear = () => setCursor((c) => clampForDual(addMonths(c, +12)));
+  const canPrev = () => {
+    const left = monthStart(cursor);
+    return left.getTime() > monthStart(MIN_DATE).getTime();
+  };
+  const canNext = () => {
+    const right = dualMode ? addMonths(cursor, 1) : cursor;
+    return right.getTime() < monthStart(MAX_DATE).getTime();
+  };
+  const pick = (d0: Date) => {
+    const d = dayStart(d0);
+    if (d.getTime() < MIN_DATE.getTime() || d.getTime() > MAX_DATE.getTime())
+      return;
+    if (!from || (from && to)) {
+      setFrom(d);
+      setTo(null);
+      return;
+    }
+    if (from && !to && isSameDay(d, from)) return;
+    setTo(d);
+  };
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [tmpMonth, setTmpMonth] = useState(cursor.getMonth());
+  const [tmpYear, setTmpYear] = useState(cursor.getFullYear());
+  const years = useMemo(() => {
+    const arr: number[] = [];
+    for (let y = MAX_DATE.getFullYear(); y >= MIN_DATE.getFullYear(); y--)
+      arr.push(y);
+    return arr;
+  }, [MIN_DATE, MAX_DATE]);
+  const openWheel = () => {
+    setTmpMonth(cursor.getMonth());
+    setTmpYear(cursor.getFullYear());
+    setPickerOpen(true);
+  };
+  const applyWheel = () => {
+    let y = tmpYear;
+    let m = tmpMonth;
+    const minY = MIN_DATE.getFullYear();
+    const minM = MIN_DATE.getMonth();
+    const maxY = MAX_DATE.getFullYear();
+    const maxM = MAX_DATE.getMonth();
+    if (y < minY) y = minY;
+    if (y === minY && m < minM) m = minM;
+    if (y > maxY) y = maxY;
+    if (y === maxY && m > maxM) m = maxM;
+    const base = new Date(y, m, 1);
+    setCursor(clampForDual(base));
+    setPickerOpen(false);
+  };
+  const onMonthHover = (i: number) => {
+    const minY = MIN_DATE.getFullYear();
+    const minM = MIN_DATE.getMonth();
+    const maxY = MAX_DATE.getFullYear();
+    const maxM = MAX_DATE.getMonth();
+    let m = i;
+    if (tmpYear === minY && m < minM) m = minM;
+    if (tmpYear === maxY && m > maxM) m = maxM;
+    setTmpMonth(m);
+  };
+  const onYearHover = (i: number) => {
+    const y = years[i];
+    const minY = MIN_DATE.getFullYear();
+    const minM = MIN_DATE.getMonth();
+    const maxY = MAX_DATE.getFullYear();
+    const maxM = MAX_DATE.getMonth();
+    let m = tmpMonth;
+    if (y === minY && m < minM) m = minM;
+    if (y === maxY && m > maxM) m = maxM;
+    setTmpYear(y);
+    setTmpMonth(m);
+  };
+  const titleSingle = `${
+    strings.months[cursor.getMonth()]
+  } ${cursor.getFullYear()}`;
+  const rightMonth = addMonths(cursor, 1);
+  const titleDual = (() => {
+    const lY = cursor.getFullYear(),
+      rY = rightMonth.getFullYear();
+    const l = strings.months[cursor.getMonth()];
+    const r = strings.months[rightMonth.getMonth()];
+    return lY === rY ? `${l} — ${r} ${lY}` : `${l} ${lY} — ${r} ${rY}`;
+  })();
+  const fmt = (d?: any) => (d ? new Date(d).toLocaleDateString() : "—");
+  const rangeLabel = `${fmt(range.start)} • ${fmt(range.end)}`;
+  const canApply =
+    !!range.start &&
+    !!range.end &&
+    !isSameDay(range.start as Date, range.end as Date);
+  return (
+    <View style={{ paddingHorizontal: H_PAD, paddingBottom: 8 }}>
+      <View style={styles.header}>
+        <Pressable
+          onPress={() => canPrev() && goPrev()}
+          onLongPress={() => canPrev() && goPrevYear()}
+          style={[styles.navBtn, !canPrev() && { opacity: 0.4 }]}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Prev"
+        >
+          <Feather name="chevron-left" size={24} color={colors.searchTxt} />
+        </Pressable>
+        <View style={styles.headerCenter}>
+          <Pressable
+            style={styles.headerChip}
+            onPress={openWheel}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.headerTitle, { color: colors.searchTxt }]}>
+              {dualMode ? titleDual : titleSingle}
+            </Text>
+            <Feather name="chevron-down" size={16} color={colors.sub} />
+          </Pressable>
+        </View>
+        <Pressable
+          onPress={() => canNext() && goNext()}
+          onLongPress={() => canNext() && goNextYear()}
+          style={[styles.navBtn, !canNext() && { opacity: 0.4 }]}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Next"
+        >
+          <Feather name="chevron-right" size={24} color={colors.searchTxt} />
+        </Pressable>
+      </View>
+      <View style={[styles.dualWrap, dualMode && { gap: GAP }]}>
+        <View style={{ alignItems: "center" }}>
+          <MonthView
+            y={cursor.getFullYear()}
+            m={cursor.getMonth()}
+            CELL={CELL}
+            strings={strings}
+            today={today}
+            minDate={MIN_DATE}
+            maxDate={MAX_DATE}
+            range={range}
+            selectingSecond={selectingSecond}
+            onPick={pick}
+          />
+        </View>
+        {dualMode && (
+          <View style={{ alignItems: "center" }}>
+            <MonthView
+              y={rightMonth.getFullYear()}
+              m={rightMonth.getMonth()}
+              CELL={CELL}
+              strings={strings}
+              today={today}
+              minDate={MIN_DATE}
+              maxDate={MAX_DATE}
+              range={range}
+              selectingSecond={selectingSecond}
+              onPick={pick}
+            />
+          </View>
+        )}
+      </View>
+      <View style={[styles.footer, { marginTop: 12 }]}>
+        <Text
+          style={{ flex: 1, color: colors.sub, fontSize: 12 }}
+          numberOfLines={1}
+          accessibilityLabel="selected-range"
+        >
+          {range.start || range.end ? rangeLabel : strings.titles.range}
+        </Text>
         <Pressable
           style={[styles.btn, { borderColor: colors.page }]}
           onPress={() => {
@@ -365,9 +618,10 @@ export default function DateRangePicker({
             setTo(null);
             onClear && onClear();
           }}
+          accessibilityRole="button"
         >
           <Text style={[styles.btnTxt, { color: colors.searchTxt }]}>
-            Сбросить
+            {strings.actions.reset}
           </Text>
         </Pressable>
         <View style={{ width: 10 }} />
@@ -375,23 +629,23 @@ export default function DateRangePicker({
           disabled={!canApply}
           style={[
             styles.btn,
-            {
-              backgroundColor: canApply ? colors.accent : colors.sub + "55",
-            },
+            { backgroundColor: canApply ? colors.accent : colors.sub + "55" },
           ]}
           onPress={() => {
             if (!canApply) return;
-            const A = dayStart(from as Date);
-            const B = dayStart(to as Date);
+            const A = dayStart(range.start as Date);
+            const B = dayStart(range.end as Date);
             const lo = B.getTime() < A.getTime() ? B : A;
             const hi = B.getTime() < A.getTime() ? A : B;
             onApply({ from: lo, to: hi });
           }}
+          accessibilityRole="button"
         >
-          <Text style={[styles.btnTxt, { color: colors.bg }]}>Применить</Text>
+          <Text style={[styles.btnTxt, { color: colors.bg }]}>
+            {strings.actions.apply}
+          </Text>
         </Pressable>
       </View>
-
       {pickerOpen && (
         <View style={[styles.sheetBackdrop, { backgroundColor: "#00000066" }]}>
           <View
@@ -401,40 +655,33 @@ export default function DateRangePicker({
             ]}
           >
             <Text style={[styles.sheetTitle, { color: colors.searchTxt }]}>
-              Месяц и год
+              {strings.titles.monthYear}
             </Text>
-
             <View style={styles.wheelRow}>
               <WheelPicker
-                items={MONTH_NAMES}
+                items={strings.months}
                 selectedIndex={tmpMonth}
-                onChange={(i) => {
-                  if (tmpYear === minYear && i < minMonth)
-                    setTmpMonth(minMonth);
-                  else setTmpMonth(i);
+                onHoverChange={onMonthHover}
+                onChangeFinal={(i) => {
+                  onMonthHover(i);
                 }}
+                width={160}
               />
               <WheelPicker
                 items={years.map(String)}
                 selectedIndex={years.indexOf(tmpYear)}
-                onChange={(i) => {
-                  const y = years[i];
-                  setTmpYear(y);
-                  if (y === minYear && tmpMonth < minMonth)
-                    setTmpMonth(minMonth);
-                  if (y === today.getFullYear() && tmpMonth > today.getMonth())
-                    setTmpMonth(today.getMonth());
-                }}
+                onHoverChange={(i) => onYearHover(i)}
+                onChangeFinal={(i) => onYearHover(i)}
+                width={120}
               />
             </View>
-
             <View style={styles.sheetBtns}>
               <Pressable
                 style={[styles.sheetBtn, { borderColor: colors.page }]}
                 onPress={() => setPickerOpen(false)}
               >
                 <Text style={{ color: colors.searchTxt, fontWeight: "700" }}>
-                  Отмена
+                  {strings.actions.cancel}
                 </Text>
               </Pressable>
               <Pressable
@@ -445,7 +692,7 @@ export default function DateRangePicker({
                 onPress={applyWheel}
               >
                 <Text style={{ color: colors.bg, fontWeight: "800" }}>
-                  Готово
+                  {strings.actions.done}
                 </Text>
               </Pressable>
             </View>
@@ -455,84 +702,6 @@ export default function DateRangePicker({
     </View>
   );
 }
-
-function WheelPicker({
-  items,
-  selectedIndex,
-  onChange,
-  itemHeight = 40,
-  visibleCount = 5,
-}: {
-  items: string[];
-  selectedIndex: number;
-  onChange: (index: number) => void;
-  itemHeight?: number;
-  visibleCount?: number;
-}) {
-  const { colors } = useTheme();
-  const snap = itemHeight;
-  const halfPad = Math.floor(visibleCount / 2) * itemHeight;
-
-  return (
-    <View
-      style={[
-        styles.wheelWrap,
-        { height: visibleCount * itemHeight, width: 140 },
-      ]}
-    >
-      <FlatList
-        data={items}
-        keyExtractor={(_, i) => String(i)}
-        initialScrollIndex={selectedIndex}
-        getItemLayout={(_, i) => ({
-          length: itemHeight,
-          offset: i * itemHeight,
-          index: i,
-        })}
-        snapToInterval={snap}
-        decelerationRate="fast"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: halfPad }}
-        onMomentumScrollEnd={(e) => {
-          const i = Math.round(e.nativeEvent.contentOffset.y / itemHeight);
-          const clamped = Math.max(0, Math.min(items.length - 1, i));
-          onChange(clamped);
-        }}
-        renderItem={({ item, index }) => (
-          <View
-            style={[
-              styles.wheelItem,
-              { height: itemHeight, justifyContent: "center" },
-            ]}
-          >
-            <Text
-              style={{
-                textAlign: "center",
-                fontSize: 16,
-                color: index === selectedIndex ? colors.searchTxt : colors.sub,
-                fontWeight: index === selectedIndex ? "800" : "600",
-              }}
-            >
-              {item}
-            </Text>
-          </View>
-        )}
-      />
-      <View
-        pointerEvents="none"
-        style={[
-          styles.wheelHighlight,
-          {
-            top: (visibleCount * itemHeight) / 2 - itemHeight / 2,
-            height: itemHeight,
-            borderColor: colors.accent + "55",
-          },
-        ]}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
@@ -557,7 +726,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
   },
-  chipTxt: { fontWeight: "800", fontSize: 15 },
+  headerTitle: { fontWeight: "900", fontSize: 16, letterSpacing: 0.2 },
   weekRow: { flexDirection: "row" },
   weekCell: { textAlign: "center", fontSize: 11, fontWeight: "700" },
   grid: { flexDirection: "row", flexWrap: "wrap" },
@@ -568,7 +737,8 @@ const styles = StyleSheet.create({
   },
   rangeBg: { ...StyleSheet.absoluteFillObject },
   dayText: { fontSize: 15, fontWeight: "700" },
-  footer: { flexDirection: "row", justifyContent: "flex-end" },
+  dualWrap: { flexDirection: "row", justifyContent: "center" },
+  footer: { flexDirection: "row", alignItems: "center" },
   btn: {
     paddingVertical: 10,
     paddingHorizontal: 14,

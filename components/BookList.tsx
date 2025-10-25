@@ -272,18 +272,26 @@ export default function BookList<T extends Book = Book>({
     ? `row-${Math.round(cardWidth)}-${chosenDesign}`
     : `cols-${cols}-${chosenDesign}`;
 
+  // === ВАЖНО: фикс «телепортов» ===
+  // Используем фиксированный getItemLayout только там, где высота карточек предсказуема.
+  // Для вертикальной сетки c дизайнами "classic"/"stable" высота переменная → отключаем.
+  const canUseFixedLayout = horizontal || chosenDesign === "image";
+
   const rowHeight = estCardH + (horizontal ? 0 : columnGap);
-  const getItemLayout = !horizontal
-    ? (_: any, index: number) => {
-        const row = Math.floor(index / cols);
-        const offset = paddingHorizontal / 2 + row * rowHeight;
-        return { length: rowHeight, offset, index };
-      }
-    : (_: any, index: number) => ({
-        length: cardWidth + columnGap,
-        offset: (cardWidth + columnGap) * index,
-        index,
-      });
+  const getItemLayout =
+    canUseFixedLayout && !horizontal
+      ? (_: any, index: number) => {
+          const row = Math.floor(index / cols);
+          const offset = paddingHorizontal / 2 + row * rowHeight;
+          return { length: rowHeight, offset, index };
+        }
+      : horizontal
+      ? (_: any, index: number) => ({
+          length: cardWidth + columnGap,
+          offset: (cardWidth + columnGap) * index,
+          index,
+        })
+      : undefined;
 
   const topPad = paddingHorizontal / 2;
   const bottomPad = paddingHorizontal / 2;
@@ -342,7 +350,7 @@ export default function BookList<T extends Book = Book>({
             }}
             onScroll={horizontal ? onScroll : undefined}
             scrollEventThrottle={16}
-            removeClippedSubviews
+            removeClippedSubviews={!!canUseFixedLayout}
             windowSize={7}
             maxToRenderPerBatch={10}
             initialNumToRender={Math.min(12, uniqueData.length)}

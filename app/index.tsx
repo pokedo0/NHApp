@@ -7,7 +7,11 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import {
@@ -19,13 +23,17 @@ import {
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
 import PaginationBar from "@/components/PaginationBar";
+import WhatsNewModal from "@/components/WhatsNewModal";
 import { useDateRange } from "@/context/DateRangeContext";
 import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
+import { useUpdateCheck } from "@/hooks/useUpdateCheck";
 import { useTheme } from "@/lib/ThemeContext";
 
-const EXPLORE_CACHE = new Map<string, { books: Book[]; totalPages: number }>();
+type CacheEntry = { books: Book[]; totalPages: number; ts: number };
+const EXPLORE_CACHE = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 30_000;
 
 type ProbeNow = {
   which: "start" | "end";
@@ -57,11 +65,8 @@ export default function HomeScreen() {
 
   const [query, setQuery] = useState(urlQ ?? "");
   const { sort, setSort } = useSort();
-  const {
-    includes,
-    excludes,
-    clearAll: clearAllTagFilters,
-  } = useFilterTags() as any;
+  const { includes, excludes, clearAll: clearAllTagFilters } =
+    useFilterTags() as any;
   const { from: dateFrom, to: dateTo, clearRange, isHydrated } = useDateRange();
   const dateFilterActive = !!dateFrom || !!dateTo;
 
@@ -92,8 +97,11 @@ export default function HomeScreen() {
   const [isPaginating, setPaginating] = useState(false);
 
   const searching = dateFilterActive && stage !== "idle" && stage !== "done";
-  const reqIdRef = useRef(0);
   const gridConfig = useGridConfig();
+  const reqIdRef = useRef(0);
+
+  const { update, checkUpdate } = useUpdateCheck();
+  const [showNotes, setShowNotes] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem("bookFavorites").then(
@@ -212,7 +220,6 @@ export default function HomeScreen() {
         style={{
           backgroundColor: colors.accent + "10",
           borderBottomColor: colors.page,
-          borderBottomWidth: StyleSheet.hairlineWidth,
         }}
       >
         <View
@@ -245,21 +252,88 @@ export default function HomeScreen() {
     );
   };
 
+  const UpdateBanner = () => {
+    return null;
+    // if (!update) return null;
+    // return (
+    //   <View
+    //     style={{
+    //       backgroundColor: colors.accent + "10",
+    //       borderBottomColor: colors.page,
+    //     }}
+    //   >
+    //     <View
+    //       style={{
+    //         paddingHorizontal: 12,
+    //         paddingVertical: 10,
+    //         flexDirection: "row",
+    //         alignItems: "center",
+    //         gap: 10,
+    //       }}
+    //     >
+    //       <View style={{ flex: 1, minWidth: 0 }}>
+    //         <Text style={{ color: colors.txt, fontWeight: "700" }}>
+    //           Доступно обновление: {update.versionName}
+    //         </Text>
+    //         {!!update.notes?.trim() && (
+    //           <TouchableOpacity onPress={() => setShowNotes(true)}>
+    //             <Text
+    //               style={{
+    //                 color: colors.txt,
+    //                 opacity: 0.8,
+    //                 marginTop: 2,
+    //                 textDecorationLine: "underline",
+    //               }}
+    //               numberOfLines={1}
+    //             >
+    //               Показать «Что нового»
+    //             </Text>
+    //           </TouchableOpacity>
+    //         )}
+    //       </View>
+
+    //       <TouchableOpacity
+    //         onPress={() =>
+    //           Linking.openURL(
+    //             "https://github.com/e18lab/NHAppAndroid/releases/latest"
+    //           )
+    //         }
+    //         style={[
+    //           styles.ctaBtn,
+    //           { backgroundColor: colors.accent + "33", borderColor: colors.accent },
+    //         ]}
+    //       >
+    //         <Text style={{ color: colors.accent, fontWeight: "700" }}>
+    //           Обновить
+    //         </Text>
+    //       </TouchableOpacity>
+    //     </View>
+    //   </View>
+    // );
+  };
+
   const fetchPage = useCallback(
-    async (page: number, keyForCache: string) => {
+    async (page: number, keyForCache: string, force = false, swr = false) => {
       const q = query.trim();
       const myReqId = ++reqIdRef.current;
       const isFirstLoad = books.length === 0;
 
-      if (!dateFilterActive) {
+      if (!dateFilterActive && !force) {
         const cached = EXPLORE_CACHE.get(keyForCache);
-        if (cached) {
-          if (myReqId !== reqIdRef.current) return;
+        const freshEnough =
+          cached &&
+          (page !== 1 || sort !== "date"
+            ? true
+            : Date.now() - cached.ts < CACHE_TTL_MS);
+
+        if (cached && (freshEnough || swr)) {
           setBooks(cached.books);
           setTotal(cached.totalPages);
           setResultState(cached.books.length ? "idle" : "no-results");
-          setPaginating(false);
-          return;
+          if (!swr && freshEnough) {
+            setPaginating(false);
+            return;
+          }
         }
       }
 
@@ -268,18 +342,18 @@ export default function HomeScreen() {
         setStage("meta");
         setProbeNow(null);
         setWindowInfo(null);
-      } else {
-        setResultState(isFirstLoad ? "loading" : "idle");
+      } else if (isFirstLoad && !swr) {
+        setResultState("loading");
       }
 
       let timeoutHit = false;
       const timer = setTimeout(() => {
         timeoutHit = true;
-        if (!dateFilterActive && isFirstLoad) setResultState("timeout");
+        if (!dateFilterActive && (isFirstLoad || swr)) setResultState("timeout");
       }, 15000);
 
       try {
-        const res = await searchBooks({
+        const res = await (searchBooks as any)({
           query: q || "",
           sort,
           page,
@@ -309,6 +383,7 @@ export default function HomeScreen() {
                 setStage(pr.phase);
               }
             : undefined,
+          force: force || (page === 1 && sort === "date"),
         });
 
         clearTimeout(timer);
@@ -319,15 +394,17 @@ export default function HomeScreen() {
         EXPLORE_CACHE.set(keyForCache, {
           books: res.books,
           totalPages: res.totalPages,
+          ts: Date.now(),
         });
 
-        if (!dateFilterActive)
+        if (!dateFilterActive) {
           setResultState(res.books.length ? "idle" : "no-results");
-        else
+        } else {
           setTimeout(() => {
             setStage("done");
             setProbeNow(null);
           }, 200);
+        }
       } catch (e: any) {
         clearTimeout(timer);
         if (myReqId !== reqIdRef.current) return;
@@ -354,20 +431,18 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    fetchPage(currentPage, cacheKey);
-  }, [isHydrated, cacheKey, currentPage, fetchPage]);
+    const wantFresh = !dateFilterActive && currentPage === 1 && sort === "date";
+    fetchPage(currentPage, cacheKey, wantFresh, wantFresh);
+  }, [isHydrated, cacheKey, currentPage, fetchPage, dateFilterActive, sort]);
 
-  useEffect(() => {
-    setQuery(urlQ ?? "");
-  }, [urlQ]);
-  useEffect(() => {
-    setPage(1);
-  }, [query, sort, incStr, excStr, dateFrom, dateTo]);
+  useEffect(() => setQuery(urlQ ?? ""), [urlQ]);
+  useEffect(() => setPage(1), [query, sort, incStr, excStr, dateFrom, dateTo]);
 
   const onRefresh = useCallback(async () => {
     if (!isHydrated) return;
-    await fetchPage(currentPage, cacheKey);
-  }, [isHydrated, currentPage, cacheKey, fetchPage]);
+    await fetchPage(currentPage, cacheKey, true, false);
+    checkUpdate();
+  }, [isHydrated, currentPage, cacheKey, fetchPage, checkUpdate]);
 
   const toggleFav = useCallback(
     (id: number, next: boolean) => {
@@ -396,6 +471,7 @@ export default function HomeScreen() {
           EXPLORE_CACHE.set(cacheKey, {
             books: patched,
             totalPages: cached.totalPages,
+            ts: cached.ts,
           });
         return patched;
       });
@@ -458,6 +534,13 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <UpdateBanner />
+      <WhatsNewModal
+        visible={!!update && showNotes}
+        onClose={() => setShowNotes(false)}
+        notes={update?.notes ?? ""}
+      />
+
       {dateFilterActive && searching && <DateSearchPanel />}
 
       {showNoResults && (
@@ -514,4 +597,9 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  ctaBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
 });

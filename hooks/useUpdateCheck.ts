@@ -1,4 +1,3 @@
-// hooks/useUpdateCheck.ts
 import * as Application from "expo-application";
 import Constants from "expo-constants";
 import * as FileSystem from "expo-file-system/legacy";
@@ -16,7 +15,6 @@ export function useUpdateCheck() {
   const [update,   setUpdate]   = useState<UpdateInfo | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
 
-  /* ---------- единая функция проверки ---------- */
   const checkUpdate = useCallback(async () => {
     try {
       const res = await fetch(
@@ -41,7 +39,6 @@ export function useUpdateCheck() {
     }
   }, []);
 
-  /* --- запускаем при маунте --- */
   useEffect(() => { checkUpdate(); }, [checkUpdate]);
 
   const launchInstaller = async (file: string) => {
@@ -49,22 +46,19 @@ export function useUpdateCheck() {
     await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
       data : uri,
       type : "application/vnd.android.package-archive",
-      flags: 1 | 0x10000000, // GRANT_READ + NEW_TASK
+      flags: 1 | 0x10000000,
     });
   };
 
-  /* ---------- скачать и установить ---------- */
   const downloadAndInstall = useCallback(async () => {
     if (!update || progress !== null) return;
 
-    /* Android 8+ — открываем браузер */
     if (Platform.OS === "android" && (Platform.Version as number) >= 26) {
       ToastAndroid.show("Скачивание через браузер…", ToastAndroid.SHORT);
       Linking.openURL(update.apkUrl);
       return;
     }
 
-    /* Android ≤ 7.1 — скачиваем сами */
     try {
       const dest = `${FileSystem.documentDirectory}NHApp_update.apk`;
       setProgress(0);

@@ -579,25 +579,21 @@ async function fetchSearchPage(
   nhQuery: string,
   sort?: string,
   p?: number,
-  per?: number
+  per?: number,
+  force = false
 ): Promise<readonly Book[]> {
   const sortKey = sort && sort.trim() ? sort : undefined;
   const key = `${nhQuery}||${sortKey ?? "default"}||${p}`;
-  if (PAGE_CACHE.has(key)) return PAGE_CACHE.get(key)!;
-
+  if (!force && PAGE_CACHE.has(key)) return PAGE_CACHE.get(key)!;
   const { data } = await api.get("/galleries/search", {
-    params: {
-      query: nhQuery,
-      page: p,
-      ...(sortKey ? { sort: sortKey } : {}),
-      ...(per ? { per_page: per } : {}),
-    },
+    params: { query: nhQuery, page: p, ...(sortKey ? { sort: sortKey } : {}), ...(per ? { per_page: per } : {}) },
   });
   const arr = Array.isArray(data?.result) ? data.result : [];
   const books = arr.map(parseBookData) as Book[];
-  putLRU(PAGE_CACHE, PAGE_ORDER, PAGE_LIMIT, key, books);
+  putLRU(PAGE_CACHE, PAGE_ORDER, PAGE_LIMIT, key, books); // перезапись свежими
   return books;
 }
+
 
 async function probePageDates(
   nhQuery: string,
@@ -795,6 +791,7 @@ interface SearchParams {
   dateTo?: string | number | Date;
   onProgress?: (p: DateSearchProgress) => void;
   sessionKey?: string;
+  force?: boolean;
 }
 
 export const searchBooks = async (
@@ -812,7 +809,8 @@ export const searchBooks = async (
     dateTo,
     onProgress,
     sessionKey,
-  } = params;
+    force = false,
+  } = params as SearchParams & { force?: boolean };
 
   const includePart = includeTags.length
     ? includeTags
@@ -896,7 +894,8 @@ export const searchBooks = async (
           nhQuery,
           realSort || "",
           startServerPage + i,
-          serverPerPage
+          serverPerPage,
+          force
         )
       )
     );
@@ -910,8 +909,16 @@ export const searchBooks = async (
 
     pageItems = dedupBooks(pageItems);
 
-    void fetchSearchPage(nhQuery, realSort || "", Math.max(1, endServerPage + 1));
-    void fetchSearchPage(nhQuery, realSort || "", Math.max(1, startServerPage - 1));
+    void fetchSearchPage(
+      nhQuery,
+      realSort || "",
+      Math.max(1, endServerPage + 1)
+    );
+    void fetchSearchPage(
+      nhQuery,
+      realSort || "",
+      Math.max(1, startServerPage - 1)
+    );
 
     onProgress?.({ phase: "done" });
     return {
@@ -1037,7 +1044,13 @@ export const searchBooks = async (
 
   const pages = await Promise.all(
     Array.from({ length: endServerPage - startServerPage + 1 }, (_, i) =>
-      fetchSearchPage(nhQuery, realSort, startServerPage + i, serverPerPage)
+      fetchSearchPage(
+        nhQuery,
+        realSort,
+        startServerPage + i,
+        serverPerPage,
+        force
+      )
     )
   );
   let bufferStartPage = startServerPage;
@@ -1045,7 +1058,10 @@ export const searchBooks = async (
 
   const sliceFromBuffer = (absStart: number, absEnd: number) => {
     const offset = absStart - (bufferStartPage - 1) * serverPerPage;
-    return buffer.slice(Math.max(0, offset), Math.max(0, offset) + (absEnd - absStart));
+    return buffer.slice(
+      Math.max(0, offset),
+      Math.max(0, offset) + (absEnd - absStart)
+    );
   };
 
   let pageItems = sliceFromBuffer(gStart, gEnd);
@@ -1071,15 +1087,13 @@ export const searchBooks = async (
       if (addStartPage < bufferStartPage) {
         const addPages = await Promise.all(
           Array.from({ length: bufferStartPage - addStartPage }, (_, i) =>
-            fetchSearchPage(
-              nhQuery,
-              realSort,
-              addStartPage + i,
-              serverPerPage
-            )
+            fetchSearchPage(nhQuery, realSort, addStartPage + i, serverPerPage, force)
           )
         );
-        buffer = ([] as Book[]).concat(([] as Book[]).concat(...addPages), buffer);
+        buffer = ([] as Book[]).concat(
+          ([] as Book[]).concat(...addPages),
+          buffer
+        );
         bufferStartPage = addStartPage;
       }
     }
@@ -1089,8 +1103,18 @@ export const searchBooks = async (
 
   pageItems = dedupBooks(pageItems);
 
-  void fetchSearchPage(nhQuery, realSort, Math.max(1, endServerPage + 1), serverPerPage);
-  void fetchSearchPage(nhQuery, realSort, Math.max(1, startServerPage - 1), serverPerPage);
+  void fetchSearchPage(
+    nhQuery,
+    realSort || "",
+    Math.max(1, endServerPage + 1),
+    serverPerPage
+  ); // без force
+  void fetchSearchPage(
+    nhQuery,
+    realSort || "",
+    Math.max(1, startServerPage - 1),
+    serverPerPage
+  );
 
   onProgress?.({ phase: "done" });
   return {

@@ -1,26 +1,11 @@
-export class RequestPool {
-  private active = 0;
-  private queue: Array<() => void> = [];
-  constructor(private max = 6) {}
+import { Platform } from "react-native";
+import { Pool } from "./Pool";
 
-  acquire(): Promise<() => void> {
-    return new Promise((resolve) => {
-      const tryAcquire = () => {
-        if (this.active < this.max) {
-          this.active += 1;
-          const release = () => {
-            this.active = Math.max(0, this.active - 1);
-            const next = this.queue.shift();
-            next && next();
-          };
-          resolve(release);
-        } else {
-          this.queue.push(tryAcquire);
-        }
-      };
-      tryAcquire();
-    });
-  }
-}
+const DEFAULT_NET = Platform.OS === "android" ? 8 : 6;
 
-export const imageRequestPool = new RequestPool(6);
+const pool = new Pool(DEFAULT_NET);
+
+export const imageRequestPool = {
+  acquire: (pri: "low" | "normal" | "high" = "normal") => pool.acquire(pri),
+  setConcurrency: (n: number) => pool.setSize(n),
+};

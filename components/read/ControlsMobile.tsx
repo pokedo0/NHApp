@@ -18,6 +18,8 @@ export function ControlsMobile({
   toggleInspect,
   onBack,
   isSingleFrame,
+  continuous,
+  toggleContinuous,
 }: {
   colors: any;
   canDual: boolean;
@@ -37,9 +39,42 @@ export function ControlsMobile({
   toggleInspect: () => void;
   onBack: () => void;
   isSingleFrame: boolean;
+  continuous: boolean;
+  toggleContinuous: () => void;
 }) {
   const { t } = useI18n();
   const inspectDisabled = !isSingleFrame;
+
+  if (continuous) {
+    return (
+      <View
+        style={[
+          styles.bottomBar,
+          { backgroundColor: colors.searchBg, borderColor: colors.page },
+        ]}
+      >
+        <View style={styles.slot}>
+          <RowBtn
+            onPress={onBack}
+            icon="corner-up-left"
+            label={t("reader.controls.back")}
+            color={colors.searchTxt}
+          />
+        </View>
+
+        <View style={styles.slot}>
+          <RowToggle
+            active={true}
+            onToggle={toggleContinuous}
+            icon="align-justify"
+            label="Scroll"
+            color={colors.searchTxt}
+            activeColor={colors.accent}
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View
@@ -115,6 +150,17 @@ export function ControlsMobile({
           }}
           icon="search"
           label={t("reader.controls.inspect")}
+          color={colors.searchTxt}
+          activeColor={colors.accent}
+        />
+      </View>
+
+      <View style={styles.slot}>
+        <RowToggle
+          active={false}
+          onToggle={toggleContinuous}
+          icon="align-justify"
+          label="Scroll"
           color={colors.searchTxt}
           activeColor={colors.accent}
         />

@@ -371,6 +371,7 @@ export default function BookListHistory<T extends Book = Book>({
         (ListEmptyComponent as ReactElement) ?? <Empty />
       ) : (
         <SectionList
+          key={`sections-${cols}-${cardDesign}`}
           ref={listRef}
           stickySectionHeadersEnabled={false}
           sections={sections}
@@ -396,7 +397,7 @@ export default function BookListHistory<T extends Book = Book>({
             paddingTop: paddingHorizontal / 2,
             paddingBottom: 16,
           }}
-          removeClippedSubviews
+          removeClippedSubviews={cardDesign === "image"}
           windowSize={7}
           maxToRenderPerBatch={10}
           initialNumToRender={8}

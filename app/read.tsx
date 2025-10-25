@@ -11,8 +11,10 @@ import React, {
 import {
   ActivityIndicator,
   FlatList,
+  ListRenderItemInfo,
   StyleSheet,
   View,
+  ViewToken,
   useWindowDimensions,
 } from "react-native";
 import {
@@ -30,7 +32,6 @@ import {
 
 import { BookPage, getBook, loadBookFromLocal } from "@/api/nhentai";
 import { useTheme } from "@/lib/ThemeContext";
-
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { ControlsDesktop } from "../components/read/ControlsDesktop";
 import { ControlsMobile } from "../components/read/ControlsMobile";
@@ -48,6 +49,7 @@ const G_FIT = "reader_last_fit";
 const G_TAP = "reader_last_tap";
 const G_HAND = "reader_last_hand";
 const G_INSPECT = "reader_last_inspect";
+const G_CONT = "reader_last_continuous";
 
 export type ReadHistoryEntry = [number, number, number, number];
 const READ_HISTORY_KEY = "readHistory";
@@ -119,7 +121,7 @@ export default function ReadScreen() {
 
   const pager = useRef<PagerView>(null);
 
-  const lastVol = useRef<number | null>(null);
+  const [pages, setPages] = useState<BookPage[]>([]);
   const [urls, setUrls] = useState<string[]>([]);
   const [uiVisible, setUI] = useState(true);
   const [ready, setReady] = useState(false);
@@ -127,6 +129,7 @@ export default function ReadScreen() {
   const [tapFlipEnabled, setTapFlip] = useState(true);
   const [handSwap, setHandSwap] = useState(false);
   const [inspect, setInspect] = useState(false);
+  const [continuous, setContinuous] = useState(false);
   const [settings, setSettings] = useState<ReaderSettings>({
     orientation: isLandscape ? "horizontal" : "vertical",
     dualInLandscape: true,
@@ -182,6 +185,7 @@ export default function ReadScreen() {
           AsyncStorage.getItem(G_HAND),
           AsyncStorage.getItem(G_INSPECT),
           AsyncStorage.getItem(RH_KEY),
+          AsyncStorage.getItem(G_CONT),
         ]);
 
         const bookPromise = (async () => {
@@ -190,7 +194,7 @@ export default function ReadScreen() {
           return await getBook(bookId);
         })();
 
-        const [[gOrient, gDual, gFit, gTap, gHand, gInsp, hh], book] =
+        const [[gOrient, gDual, gFit, gTap, gHand, gInsp, hh, gCont], book] =
           await Promise.all([prefsPromise, bookPromise]);
         if (cancelled) return;
 
@@ -206,8 +210,11 @@ export default function ReadScreen() {
         setHandSwap(getBool(gHand, false));
         setInspect(getBool(gInsp, false));
         setHideHints(getBool(hh, false));
+        setContinuous(getBool(gCont, false));
 
-        setUrls(book.pages.map((p: BookPage) => p.url));
+        const bookPages = book.pages as BookPage[];
+        setPages(bookPages);
+        setUrls(bookPages.map((p) => p.url));
         setReady(true);
       } catch {
         router.back();
@@ -242,10 +249,11 @@ export default function ReadScreen() {
   useEffect(() => saveBool(G_TAP, tapFlipEnabled), [tapFlipEnabled]);
   useEffect(() => saveBool(G_HAND, handSwap), [handSwap]);
   useEffect(() => saveBool(G_INSPECT, inspect), [inspect]);
+  useEffect(() => saveBool(G_CONT, continuous), [continuous]);
 
   const isLandscapeNow = isLandscape;
   const canDual = isLandscapeNow && isTablet && urls.length >= 2;
-  const useDualNow = settings.dualInLandscape && canDual;
+  const useDualNow = !continuous && settings.dualInLandscape && canDual;
 
   const frameIdxFromAbs = useCallback(
     (abs: number) => (useDualNow ? Math.floor(abs / 2) : abs),
@@ -265,8 +273,67 @@ export default function ReadScreen() {
   }, [urls, useDualNow]);
 
   useEffect(() => {
-    if (!ready || !frames.length) return;
-    if (didInitRef.current) return;
+    if (!urls.length) return;
+    let i = 0,
+      cancelled = false;
+    const step = () => {
+      for (let k = 0; k < 16 && i < urls.length; k++, i++) {
+        try {
+          (ExpoImage as any).prefetch?.(urls[i]);
+        } catch {}
+      }
+      if (!cancelled && i < urls.length) setTimeout(step, 0);
+    };
+    step();
+    return () => {
+      cancelled = true;
+    };
+  }, [urls]);
+
+  const listRef = useRef<FlatList<number>>(null);
+
+  const knownRatiosRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    knownRatiosRef.current = pages.map((p: any) => {
+      const w = p.width ?? p.w;
+      const h = p.height ?? p.h;
+      return w && h ? h / w : 1.5;
+    });
+  }, [pages]);
+
+  const [prefixHeights, setPrefixHeights] = useState<number[]>([0]);
+  const [ratiosVersion, bumpRatiosVersion] = useState(0);
+
+  const recomputePrefix = useCallback(() => {
+    const ph = new Array(urls.length + 1).fill(0);
+    for (let i = 0; i < urls.length; i++) {
+      const r = knownRatiosRef.current[i] ?? 1.5;
+      ph[i + 1] = ph[i] + Math.max(1, W * r);
+    }
+    setPrefixHeights(ph);
+  }, [W, urls.length, knownRatiosRef]);
+
+  useEffect(() => {
+    recomputePrefix();
+  }, [recomputePrefix, ratiosVersion, W, urls.length]);
+
+  const getItemLayout = useCallback(
+    (_: unknown, index: number) => {
+      const offset = prefixHeights[index] ?? 0;
+      const length =
+        (prefixHeights[index + 1] ??
+          offset + Math.max(1, W * (knownRatiosRef.current[index] ?? 1.5))) - offset;
+      return { index, length, offset };
+    },
+    [prefixHeights, W, knownRatiosRef]
+  );
+
+  const totalPages = urls.length;
+
+  const initialIndexRef = useRef<number>(0);
+  useEffect(() => {
+    if (!ready || !urls.length || didInitRef.current) return;
 
     (async () => {
       const pFromRoute = Math.max(1, parseInt(pageParam ?? "", 10) || 0);
@@ -280,39 +347,25 @@ export default function ReadScreen() {
 
       initialAbs = Math.max(0, Math.min(urls.length - 1, initialAbs));
       absIndexRef.current = initialAbs;
+      initialIndexRef.current = initialAbs;
 
-      const idx = frameIdxFromAbs(initialAbs);
-      setFrameIdx(idx);
-      frameIdxRef.current = idx;
-
-      setTimeout(() => {
-        pager.current?.setPage(idx);
-      }, 0);
-
+      if (!continuous) {
+        const idx = frameIdxFromAbs(initialAbs);
+        setFrameIdx(idx);
+        frameIdxRef.current = idx;
+        setTimeout(() => pager.current?.setPage(idx), 0);
+      }
       didInitRef.current = true;
     })();
-  }, [ready, frames.length, bookId, frameIdxFromAbs, pageParam, urls.length]);
-
-  const totalPages = urls.length;
-
-  const visualFrameIdx = frameIdxFromAbs(absIndexRef.current);
-  const currentPages = frames[visualFrameIdx] ?? [absIndexRef.current];
-
-  const activeAbsPage = currentPages.length
-    ? useDualNow
-      ? Math.max(...currentPages)
-      : currentPages[0]
-    : 0;
-
-  const isSingleFrame = (currentPages.length ?? 1) === 1;
+  }, [ready, urls.length, bookId, pageParam, frameIdxFromAbs, continuous]);
 
   useEffect(() => {
     if (!totalPages) return;
-    absIndexRef.current = Math.min(activeAbsPage, totalPages - 1);
     updateReadHistory(bookId, absIndexRef.current, totalPages);
-  }, [bookId, activeAbsPage, totalPages]);
+  }, [bookId, totalPages]);
 
   useEffect(() => {
+    if (continuous) return;
     const around = [
       ...(frames[frameIdx - 1] ?? []).map((i) => urls[i]),
       ...(frames[frameIdx + 1] ?? []).map((i) => urls[i]),
@@ -322,7 +375,7 @@ export default function ReadScreen() {
         (ExpoImage as any).prefetch?.(u);
       } catch {}
     });
-  }, [frameIdx, frames, urls]);
+  }, [frameIdx, frames, urls, continuous]);
 
   const THUMB_H = 64,
     THUMB_GAP = 12;
@@ -339,14 +392,35 @@ export default function ReadScreen() {
     },
     [railH]
   );
+
+  const visualFrameIdx = frameIdxFromAbs(absIndexRef.current);
+  const currentPages = frames[visualFrameIdx] ?? [absIndexRef.current];
+
+  const activeAbsPage = currentPages.length
+    ? useDualNow
+      ? Math.max(...currentPages)
+      : currentPages[0]
+    : 0;
+
+  const isSingleFrame = (currentPages.length ?? 1) === 1;
+
   useEffect(() => {
-    if (uiVisible && !isPhone) scrollThumbsTo(activeAbsPage);
-  }, [activeAbsPage, uiVisible, isPhone, scrollThumbsTo]);
+    if (uiVisible && !isPhone && !continuous) scrollThumbsTo(activeAbsPage);
+  }, [activeAbsPage, uiVisible, isPhone, scrollThumbsTo, continuous]);
 
   const goToAbs = (abs: number) => {
     const targetAbs = Math.max(0, Math.min(totalPages - 1, abs));
-    const targetFrame = frameIdxFromAbs(targetAbs);
-    pager.current?.setPage(targetFrame);
+    absIndexRef.current = targetAbs;
+    if (!continuous) {
+      const targetFrame = frameIdxFromAbs(targetAbs);
+      pager.current?.setPage(targetFrame);
+    } else {
+      listRef.current?.scrollToIndex({
+        index: targetAbs,
+        animated: true,
+        viewPosition: 0,
+      });
+    }
   };
 
   const [scrubW, setScrubW] = useState(W);
@@ -378,6 +452,10 @@ export default function ReadScreen() {
   const onTapZone = useCallback(
     (side: "left" | "center" | "right") => {
       hideAllHints();
+      if (continuous) {
+        setUI((v) => !v);
+        return;
+      }
       if (side === "center") {
         setUI((v) => !v);
         return;
@@ -391,8 +469,9 @@ export default function ReadScreen() {
       if (real === "prev") jumpPrev();
       else jumpNext();
     },
-    [hideAllHints, tapFlipEnabled, navDir]
+    [hideAllHints, tapFlipEnabled, navDir, continuous]
   );
+
   const tapAnywhere = Gesture.Tap()
     .maxDeltaX(16)
     .maxDeltaY(16)
@@ -419,250 +498,446 @@ export default function ReadScreen() {
     return () => clearTimeout(t);
   }, [hideHints, hints.left, hints.center, hints.right]);
 
-  if (!ready || !urls.length) {
-    return (
-      <View
-        style={{ flex: 1, backgroundColor: "#000", justifyContent: "center" }}
-      >
-        <ActivityIndicator color="#fff" size="large" />
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (!continuous) return;
+    const id = setTimeout(() => {
+      listRef.current?.scrollToIndex({
+        index: absIndexRef.current,
+        animated: false,
+        viewPosition: 0,
+      });
+    }, 0);
+    return () => clearTimeout(id);
+  }, [W, H, continuous]);
 
-  const pagerKey = `${useDualNow ? "dual" : "single"}-${settings.orientation}`;
+  const viewabilityConfigRef = useRef({
+    itemVisiblePercentThreshold: 60,
+    minimumViewTime: 80,
+  });
+  const onViewableChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (!viewableItems?.length) return;
+      const max = viewableItems.reduce((acc, v) => {
+        return typeof v.index === "number" && v.isViewable && v.index > acc
+          ? v.index
+          : acc;
+      }, 0);
+      absIndexRef.current = max;
+      updateReadHistory(bookId, absIndexRef.current, totalPages);
+    }
+  );
 
-  const setOrientation = (nv: Orientation) => {
-    setSettings((s) => ({ ...s, orientation: nv }));
-    saveStr(G_ORIENT, nv);
-    showBanner(
-      t("reader.banner.orientation", {
-        mode:
-          nv === "vertical"
-            ? t("reader.banner.orientationVertical")
-            : t("reader.banner.orientationHorizontal"),
-      })
-    );
-  };
+  const renderItem = useCallback(
+    ({ index }: ListRenderItemInfo<number>) => {
+      const uri = urls[index];
+      const ratio = knownRatiosRef.current[index] ?? 1.5;
+      const h = Math.max(1, W * ratio);
 
-  const toggleDual = () => {
-    const nv = !settings.dualInLandscape;
-    setSettings((s) => ({ ...s, dualInLandscape: nv }));
-    saveBool(G_DUAL, nv);
-    showBanner(
-      t("reader.banner.dual", {
-        state: nv ? t("reader.banner.on") : t("reader.banner.off"),
-      })
-    );
-  };
-
-  const toggleFit = () => {
-    const nv: FitMode = settings.fit === "contain" ? "cover" : "contain";
-    setSettings((s) => ({ ...s, fit: nv }));
-    saveStr(G_FIT, nv);
-    showBanner(
-      t("reader.banner.fit", {
-        mode:
-          nv === "contain"
-            ? t("reader.banner.fitContain")
-            : t("reader.banner.fitCover"),
-      })
-    );
-  };
-
-  const toggleTapFlip = () => {
-    const nv = !tapFlipEnabled;
-    setTapFlip(nv);
-    saveBool(G_TAP, nv);
-    showBanner(
-      t("reader.banner.tap", {
-        state: nv ? t("reader.banner.on") : t("reader.banner.off"),
-      })
-    );
-  };
-
-  const toggleHandSwap = () => {
-    const nv = !handSwap;
-    setHandSwap(nv);
-    saveBool(G_HAND, nv);
-    showBanner(
-      t("reader.banner.hand", {
-        state: nv ? t("reader.banner.on") : t("reader.banner.off"),
-      })
-    );
-  };
-
-  const toggleInspect = () => {
-    const nv = !inspect;
-    setInspect(nv);
-    saveBool(G_INSPECT, nv);
-    showBanner(
-      t("reader.banner.inspect", {
-        state: nv ? t("reader.banner.on") : t("reader.banner.off"),
-      })
-    );
-  };
+      return (
+        <View style={{ width: W, height: h, backgroundColor: colors.bg }}>
+          <ExpoImage
+            source={{ uri }}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="cover"
+            cachePolicy="disk"
+            onLoad={(e: any) => {
+              const w = e?.source?.width;
+              const h2 = e?.source?.height;
+              if (w && h2) {
+                const r = h2 / w;
+                if (Math.abs((knownRatiosRef.current[index] ?? 0) - r) > 0.001) {
+                  knownRatiosRef.current[index] = r;
+                  bumpRatiosVersion((v) => v + 1);
+                }
+              }
+            }}
+          />
+        </View>
+      );
+    },
+    [W, urls, colors.bg, knownRatiosRef]
+  );
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={{ flex: 1 }}>
-        <GestureDetector gesture={tapAnywhere}>
-          <View style={{ flex: 1 }}>
-            <PagerView
-              key={pagerKey}
-              ref={pager}
-              style={{ flex: 1 }}
-              orientation={settings.orientation}
-              initialPage={frameIdxFromAbs(absIndexRef.current)}
-              onPageSelected={(e) => {
-                const pos = e.nativeEvent.position;
-
-                setFrameIdx(pos);
-                frameIdxRef.current = pos;
-
-                const pagesAtPos = frames[pos] ?? [0];
-                const abs = useDualNow
-                  ? Math.max(...pagesAtPos)
-                  : pagesAtPos[0];
-                absIndexRef.current = abs;
-
-                if (uiVisible && !isPhone) scrollThumbsTo(abs);
-              }}
-              scrollEnabled={!inspect}
-            >
-              {frames.map((group, i) => {
-                const dual = group.length === 2;
-                const singleUri = !dual ? urls[group[0]] : undefined;
-                return (
-                  <View
-                    key={i}
-                    style={{ width: W, height: H, backgroundColor: colors.bg }}
-                  >
-                    {inspect && !dual ? (
-                      <InspectCanvas uri={singleUri!} width={W} height={H} />
-                    ) : dual ? (
+      {!ready || !urls.length ? (
+        <View
+          style={{ flex: 1, backgroundColor: "#000", justifyContent: "center" }}
+        >
+          <ActivityIndicator color="#fff" size="large" />
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          <GestureDetector gesture={tapAnywhere}>
+            <View style={{ flex: 1 }}>
+              {!continuous ? (
+                <PagerView
+                  key={`${useDualNow ? "dual" : "single"}-${
+                    settings.orientation
+                  }`}
+                  ref={pager}
+                  style={{ flex: 1 }}
+                  orientation={settings.orientation}
+                  initialPage={frameIdxFromAbs(absIndexRef.current)}
+                  onPageSelected={(e) => {
+                    const pos = e.nativeEvent.position;
+                    setFrameIdx(pos);
+                    frameIdxRef.current = pos;
+                    const pagesAtPos = frames[pos] ?? [0];
+                    const abs = useDualNow
+                      ? Math.max(...pagesAtPos)
+                      : pagesAtPos[0];
+                    absIndexRef.current = abs;
+                    if (uiVisible && !isPhone) scrollThumbsTo(abs);
+                    updateReadHistory(bookId, absIndexRef.current, totalPages);
+                  }}
+                  scrollEnabled={!inspect}
+                >
+                  {frames.map((group, i) => {
+                    const dual = group.length === 2;
+                    const singleUri = !dual ? urls[group[0]] : undefined;
+                    return (
                       <View
+                        key={i}
                         style={{
-                          flex: 1,
-                          flexDirection: "row",
+                          width: W,
+                          height: H,
                           backgroundColor: colors.bg,
                         }}
                       >
-                        {group.map((absIdx, k) => (
+                        {inspect && !dual ? (
+                          <InspectCanvas
+                            uri={singleUri!}
+                            width={W}
+                            height={H}
+                          />
+                        ) : dual ? (
                           <View
-                            key={absIdx}
                             style={{
-                              width: W / 2,
-                              height: H,
+                              flex: 1,
+                              flexDirection: "row",
                               backgroundColor: colors.bg,
-                              borderLeftWidth:
-                                k === 1 ? StyleSheet.hairlineWidth : 0,
-                              borderColor: colors.page,
                             }}
                           >
-                            <ExpoImage
-                              source={{ uri: urls[absIdx] }}
-                              style={{ width: "100%", height: "100%" }}
-                              contentFit={settings.fit}
-                              cachePolicy="disk"
-                            />
+                            {group.map((absIdx, k) => (
+                              <View
+                                key={absIdx}
+                                style={{
+                                  width: W / 2,
+                                  height: H,
+                                  backgroundColor: colors.bg,
+                                  borderLeftWidth:
+                                    k === 1 ? StyleSheet.hairlineWidth : 0,
+                                  borderColor: colors.page,
+                                }}
+                              >
+                                <ExpoImage
+                                  source={{ uri: urls[absIdx] }}
+                                  style={{ width: "100%", height: "100%" }}
+                                  contentFit={settings.fit}
+                                  cachePolicy="disk"
+                                />
+                              </View>
+                            ))}
                           </View>
-                        ))}
+                        ) : (
+                          <ExpoImage
+                            source={{ uri: singleUri! }}
+                            style={{ width: W, height: H }}
+                            contentFit={settings.fit}
+                            cachePolicy="disk"
+                          />
+                        )}
                       </View>
-                    ) : (
-                      <ExpoImage
-                        source={{ uri: singleUri! }}
-                        style={{ width: W, height: H }}
-                        contentFit={settings.fit}
-                        cachePolicy="disk"
-                      />
-                    )}
-                  </View>
+                    );
+                  })}
+                </PagerView>
+              ) : (
+                <FlatList
+                  ref={listRef}
+                  data={urls.map((_, i) => i)}
+                  extraData={ratiosVersion}
+                  renderItem={renderItem}
+                  keyExtractor={(i) => String(i)}
+                  showsVerticalScrollIndicator={false}
+                  initialScrollIndex={initialIndexRef.current}
+                  getItemLayout={getItemLayout}
+                  onScrollToIndexFailed={({ index }) => {
+                    const off = prefixHeights[index] ?? 0;
+                    listRef.current?.scrollToOffset({
+                      offset: off,
+                      animated: false,
+                    });
+                    requestAnimationFrame(() => {
+                      listRef.current?.scrollToIndex({
+                        index,
+                        animated: false,
+                        viewPosition: 0,
+                      });
+                    });
+                  }}
+                  ItemSeparatorComponent={undefined}
+                  ListHeaderComponent={undefined}
+                  ListFooterComponent={undefined}
+                  removeClippedSubviews
+                  windowSize={9}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={14}
+                  onViewableItemsChanged={onViewableChanged.current}
+                  viewabilityConfig={viewabilityConfigRef.current}
+                />
+              )}
+
+              {!continuous && (
+                <HintsOverlay
+                  visible={!hideHints}
+                  isPhone={isPhone}
+                  uiVisible={uiVisible}
+                  phoneBottomInset={8 + 128 + 8}
+                  colors={colors}
+                  hints={hints}
+                  handSwap={handSwap}
+                />
+              )}
+              <Banner
+                banner={banner}
+                colors={colors}
+                animatedStyle={bannerStyle}
+              />
+            </View>
+          </GestureDetector>
+
+          {uiVisible && !isPhone && (
+            <ControlsDesktop
+              colors={colors}
+              canDual={isLandscape && isTablet && urls.length >= 2}
+              settings={settings}
+              setOrientation={(nv) => {
+                setSettings((s) => ({ ...s, orientation: nv }));
+                saveStr(G_ORIENT, nv);
+                showBanner(
+                  t("reader.banner.orientation", {
+                    mode:
+                      nv === "vertical"
+                        ? t("reader.banner.orientationVertical")
+                        : t("reader.banner.orientationHorizontal"),
+                  })
                 );
-              })}
-            </PagerView>
-
-            <HintsOverlay
-              visible={!hideHints}
-              isPhone={isPhone}
-              uiVisible={uiVisible}
-              phoneBottomInset={8 + 128 + 8}
-              colors={colors}
-              hints={hints}
+              }}
+              toggleDual={() => {
+                const nv = !settings.dualInLandscape;
+                setSettings((s) => ({ ...s, dualInLandscape: nv }));
+                saveBool(G_DUAL, nv);
+                showBanner(
+                  t("reader.banner.dual", {
+                    state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+                  })
+                );
+              }}
+              toggleFit={() => {
+                const nv: FitMode =
+                  settings.fit === "contain" ? "cover" : "contain";
+                setSettings((s) => ({ ...s, fit: nv }));
+                saveStr(G_FIT, nv);
+                showBanner(
+                  t("reader.banner.fit", {
+                    mode:
+                      nv === "contain"
+                        ? t("reader.banner.fitContain")
+                        : t("reader.banner.fitCover"),
+                  })
+                );
+              }}
+              tapFlipEnabled={tapFlipEnabled}
+              toggleTapFlip={() => {
+                const nv = !tapFlipEnabled;
+                setTapFlip(nv);
+                saveBool(G_TAP, nv);
+                showBanner(
+                  t("reader.banner.tap", {
+                    state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+                  })
+                );
+              }}
               handSwap={handSwap}
+              toggleHandSwap={() => {
+                const nv = !handSwap;
+                setHandSwap(nv);
+                saveBool(G_HAND, nv);
+                showBanner(
+                  t("reader.banner.hand", {
+                    state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+                  })
+                );
+              }}
+              inspect={inspect}
+              toggleInspect={() => {
+                const nv = !inspect;
+                setInspect(nv);
+                saveBool(G_INSPECT, nv);
+                showBanner(
+                  t("reader.banner.inspect", {
+                    state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+                  })
+                );
+              }}
+              jumpPrev={jumpPrev}
+              jumpNext={jumpNext}
+              onBack={() => router.back()}
+              isSingleFrame={isSingleFrame}
+              continuous={continuous}
+              toggleContinuous={() => {
+                const nv = !continuous;
+                setContinuous(nv);
+                saveBool(G_CONT, nv);
+                showBanner(
+                  nv ? "Continuous scroll: ON" : "Continuous scroll: OFF"
+                );
+                setTimeout(() => {
+                  if (nv) {
+                    listRef.current?.scrollToIndex({
+                      index: absIndexRef.current,
+                      animated: false,
+                      viewPosition: 0,
+                    });
+                  } else {
+                    const f = frameIdxFromAbs(absIndexRef.current);
+                    pager.current?.setPage(f);
+                  }
+                }, 0);
+              }}
             />
-            <Banner
-              banner={banner}
+          )}
+
+          {uiVisible && isPhone && (
+            <ControlsMobile
               colors={colors}
-              animatedStyle={bannerStyle}
+              canDual={isLandscape && isTablet && urls.length >= 2}
+              settings={settings}
+              setOrientation={(nv) => {
+                setSettings((s) => ({ ...s, orientation: nv }));
+                saveStr(G_ORIENT, nv);
+                showBanner(
+                  t("reader.banner.orientation", {
+                    mode:
+                      nv === "vertical"
+                        ? t("reader.banner.orientationVertical")
+                        : t("reader.banner.orientationHorizontal"),
+                  })
+                );
+              }}
+              toggleDual={() => {
+                const nv = !settings.dualInLandscape;
+                setSettings((s) => ({ ...s, dualInLandscape: nv }));
+                saveBool(G_DUAL, nv);
+                showBanner(
+                  t("reader.banner.dual", {
+                    state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+                  })
+                );
+              }}
+              toggleFit={() => {
+                const nv: FitMode =
+                  settings.fit === "contain" ? "cover" : "contain";
+                setSettings((s) => ({ ...s, fit: nv }));
+                saveStr(G_FIT, nv);
+                showBanner(
+                  t("reader.banner.fit", {
+                    mode:
+                      nv === "contain"
+                        ? t("reader.banner.fitContain")
+                        : t("reader.banner.fitCover"),
+                  })
+                );
+              }}
+              tapFlipEnabled={tapFlipEnabled}
+              toggleTapFlip={() => {
+                const nv = !tapFlipEnabled;
+                setTapFlip(nv);
+                saveBool(G_TAP, nv);
+                showBanner(
+                  t("reader.banner.tap", {
+                    state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+                  })
+                );
+              }}
+              handSwap={handSwap}
+              toggleHandSwap={() => {
+                const nv = !handSwap;
+                setHandSwap(nv);
+                saveBool(G_HAND, nv);
+                showBanner(
+                  t("reader.banner.hand", {
+                    state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+                  })
+                );
+              }}
+              inspect={inspect}
+              toggleInspect={() => {
+                const nv = !inspect;
+                setInspect(nv);
+                saveBool(G_INSPECT, nv);
+                showBanner(
+                  t("reader.banner.inspect", {
+                    state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+                  })
+                );
+              }}
+              onBack={() => router.back()}
+              isSingleFrame={isSingleFrame}
+              continuous={continuous}
+              toggleContinuous={() => {
+                const nv = !continuous;
+                setContinuous(nv);
+                saveBool(G_CONT, nv);
+                showBanner(
+                  nv ? "Continuous scroll: ON" : "Continuous scroll: OFF"
+                );
+                setTimeout(() => {
+                  if (nv) {
+                    listRef.current?.scrollToIndex({
+                      index: absIndexRef.current,
+                      animated: false,
+                      viewPosition: 0,
+                    });
+                  } else {
+                    const f = frameIdxFromAbs(absIndexRef.current);
+                    pager.current?.setPage(f);
+                  }
+                }, 0);
+              }}
             />
-          </View>
-        </GestureDetector>
+          )}
 
-        {uiVisible && !isPhone && (
-          <ControlsDesktop
-            colors={colors}
-            canDual={isLandscape && isTablet && urls.length >= 2}
-            settings={settings}
-            setOrientation={setOrientation}
-            toggleDual={toggleDual}
-            toggleFit={toggleFit}
-            tapFlipEnabled={tapFlipEnabled}
-            toggleTapFlip={toggleTapFlip}
-            handSwap={handSwap}
-            toggleHandSwap={toggleHandSwap}
-            inspect={inspect}
-            toggleInspect={toggleInspect}
-            jumpPrev={jumpPrev}
-            jumpNext={jumpNext}
-            onBack={() => router.back()}
-            isSingleFrame={isSingleFrame}
-          />
-        )}
-
-        {uiVisible && isPhone && (
-          <ControlsMobile
-            colors={colors}
-            canDual={isLandscape && isTablet && urls.length >= 2}
-            settings={settings}
-            setOrientation={setOrientation}
-            toggleDual={toggleDual}
-            toggleFit={toggleFit}
-            tapFlipEnabled={tapFlipEnabled}
-            toggleTapFlip={toggleTapFlip}
-            handSwap={handSwap}
-            toggleHandSwap={toggleHandSwap}
-            inspect={inspect}
-            toggleInspect={toggleInspect}
-            onBack={() => router.back()}
-            isSingleFrame={isSingleFrame}
-          />
-        )}
-
-        <ThumbRail
-          visible={uiVisible && !isPhone}
-          colors={colors}
-          urls={urls}
-          firstAbsPage={activeAbsPage}
-          totalPages={totalPages}
-          frames={frames}
-          frameIdx={visualFrameIdx}
-          useDualNow={useDualNow}
-          goToAbs={goToAbs}
-          railH={railH}
-          setRailH={(h) => setRailH(h)}
-          padCenter={Math.max(0, (railH - 64) / 2)}
-          scrollRef={thumbListRef}
-        />
-
-        <BottomScrubber
-          visible={uiVisible && isPhone}
-          colors={colors}
-          progressRatio={(activeAbsPage + 1) / Math.max(1, totalPages)}
-          setWidth={setScrubW}
-          onScrub={onScrub}
-          trackWidthPx={Math.max(0, scrubW - 20)}
-        />
-      </View>
+          {!continuous && (
+            <>
+              <ThumbRail
+                visible={uiVisible && !isPhone}
+                colors={colors}
+                urls={urls}
+                firstAbsPage={activeAbsPage}
+                totalPages={totalPages}
+                frames={frames}
+                frameIdx={visualFrameIdx}
+                useDualNow={useDualNow}
+                goToAbs={goToAbs}
+                railH={railH}
+                setRailH={(h) => setRailH(h)}
+                padCenter={Math.max(0, (railH - 64) / 2)}
+                scrollRef={thumbListRef}
+              />
+              <BottomScrubber
+                visible={uiVisible && isPhone}
+                colors={colors}
+                progressRatio={(activeAbsPage + 1) / Math.max(1, totalPages)}
+                setWidth={setScrubW}
+                onScrub={onScrub}
+                trackWidthPx={Math.max(0, scrubW - 20)}
+              />
+            </>
+          )}
+        </View>
+      )}
     </GestureHandlerRootView>
   );
 }
