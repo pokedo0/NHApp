@@ -1,0 +1,989 @@
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React from "react";
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    ListRenderItem,
+    Modal,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    useWindowDimensions,
+    View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { Book, getFavorites } from "@/api/nhentai";
+import {
+    onlineBulkFavorite,
+    onlineBulkUnfavorite,
+    onlineFavorite,
+    onlineUnfavorite,
+} from "@/api/nhentaiOnline";
+import BookCard from "@/components/BookCard";
+import { CardPressable } from "@/components/ui/CardPressable";
+import { useAutoImport } from "@/context/AutoImportProvider";
+import { useFavHistory } from "@/hooks/useFavHistory";
+import { useTheme } from "@/lib/ThemeContext";
+
+export interface GridConfig {
+  numColumns: number;
+  minColumnWidth?: number;
+  paddingHorizontal?: number;
+  columnGap?: number;
+  cardDesign?: "classic" | "stable" | "image";
+}
+type BreakpointConfig = {
+  phonePortrait?: GridConfig;
+  phoneLandscape?: GridConfig;
+  tabletPortrait?: GridConfig;
+  tabletLandscape?: GridConfig;
+  default?: GridConfig;
+};
+
+type Props = {
+  data: Book[];
+  loading: boolean;
+  refreshing: boolean;
+  onRefresh: () => Promise<void>;
+  onEndReached?: () => void;
+  onPress?: (id: number) => void;
+
+  gridConfig?: BreakpointConfig;
+  ListEmptyComponent?: React.ReactNode;
+  ListFooterComponent?: React.ReactElement | null;
+
+  background?: string;
+  cardDesign?: "classic" | "stable" | "image";
+
+  onAfterUnfavorite?: (removedIds: number[]) => void;
+  onRestoreFavorites?: (books: Book[]) => void;
+};
+
+export default function BookListOnline({
+  data,
+  loading,
+  refreshing,
+  onRefresh,
+  onEndReached,
+  onPress,
+  gridConfig,
+  ListEmptyComponent,
+  ListFooterComponent,
+  background,
+  cardDesign,
+  onAfterUnfavorite,
+  onRestoreFavorites,
+}: Props) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const { favoritesSet, historyMap } = useFavHistory();
+
+  // Глобальный авто-импорт
+  const {
+    enabled: autoImportEnabled,
+    setEnabled: setAutoImportEnabled,
+    isRunning,
+  } = useAutoImport();
+
+  // Локальный список (для мгновенного удаления) + Undo
+  const [items, setItems] = React.useState<Book[]>(data);
+  React.useEffect(() => setItems(data), [data]);
+
+  // ======= РЕЖИМ ВЫБОРА =======
+  const [selectMode, setSelectMode] = React.useState(false);
+  const [selected, setSelected] = React.useState<Set<number>>(new Set());
+  const toggleSelect = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  const clearSelect = () => setSelected(new Set());
+
+  // ======= UNDO =======
+  const [undoStack, setUndoStack] = React.useState<Book[]>([]);
+  const pushUndo = (books: Book[]) =>
+    setUndoStack((prev) => [...books, ...prev]);
+  const clearUndo = () => setUndoStack([]);
+
+  const handleUndo = async () => {
+    if (undoStack.length === 0) return;
+    const toRestore = [...undoStack];
+    const ids = toRestore.map((b) => b.id);
+    try {
+      if (ids.length === 1) await onlineFavorite(ids[0]);
+      else await onlineBulkFavorite(ids);
+    } catch {}
+    setItems((prev) => {
+      const exist = new Set(prev.map((b) => b.id));
+      const restored = toRestore.filter((b) => !exist.has(b.id));
+      return restored.concat(prev);
+    });
+    onRestoreFavorites?.(toRestore);
+    clearUndo();
+  };
+
+  // ======= СЕТКА =======
+  const themeBg =
+    background ??
+    (colors as any).page ??
+    (colors as any).surfaceElevated ??
+    (colors as any).bg ??
+    "#1C1C1C";
+
+  const baseConfig = React.useMemo<GridConfig>(() => {
+    const isPortrait = height > width;
+    const isTablet = width >= 768;
+
+    const pick =
+      (isTablet
+        ? isPortrait
+          ? gridConfig?.tabletPortrait
+          : gridConfig?.tabletLandscape
+        : isPortrait
+        ? gridConfig?.phonePortrait
+        : gridConfig?.phoneLandscape) ?? gridConfig?.default;
+
+    const defaultsPhone: GridConfig = {
+      numColumns: isPortrait ? 2 : 3,
+      minColumnWidth: 128,
+      paddingHorizontal: 12,
+      columnGap: 10,
+      cardDesign: "classic",
+    };
+    const defaultsTablet: GridConfig = {
+      numColumns: isPortrait ? 4 : 5,
+      minColumnWidth: 150,
+      paddingHorizontal: 14,
+      columnGap: 12,
+      cardDesign: "classic",
+    };
+    const def = isTablet ? defaultsTablet : defaultsPhone;
+
+    return {
+      numColumns: Math.max(1, pick?.numColumns ?? def.numColumns!),
+      minColumnWidth: pick?.minColumnWidth ?? def.minColumnWidth,
+      paddingHorizontal: pick?.paddingHorizontal ?? def.paddingHorizontal,
+      columnGap: pick?.columnGap ?? def.columnGap,
+      cardDesign: (cardDesign ?? pick?.cardDesign ?? def.cardDesign) as
+        | "classic"
+        | "stable"
+        | "image",
+    };
+  }, [width, height, gridConfig, cardDesign]);
+
+  const {
+    cols,
+    cardWidth,
+    columnGap,
+    paddingHorizontal,
+    estCardH,
+    chosenDesign,
+  } = React.useMemo(() => {
+    const padH = baseConfig.paddingHorizontal ?? 0;
+    const gap = baseConfig.columnGap ?? 0;
+    const minW = baseConfig.minColumnWidth ?? 120;
+    const avail = Math.max(0, width - padH * 2);
+    const maxByWidth = Math.max(1, Math.floor((avail + gap) / (minW + gap)));
+    const cols = Math.min(maxByWidth, baseConfig.numColumns);
+    const cw = cols > 0 ? (avail - gap * (cols - 1)) / cols : avail;
+    const design = baseConfig.cardDesign ?? "classic";
+    const estH =
+      design === "image" ? Math.round(cw * 1.05) : Math.round(cw * 1.35);
+
+    return {
+      cols,
+      cardWidth: cw,
+      columnGap: gap,
+      paddingHorizontal: padH,
+      estCardH: estH,
+      chosenDesign: design as "classic" | "stable" | "image",
+    };
+  }, [baseConfig, width]);
+
+  const isSingleCol = cols === 1;
+  const contentScale = isSingleCol ? 0.45 : 0.65;
+
+  // ======= УДАЛЕНИЕ =======
+  const removeIdsLocally = (ids: number[]) =>
+    setItems((prev) => prev.filter((b) => !ids.includes(b.id)));
+
+  const handleSingleUnfavorite = async (id: number) => {
+    const b = items.find((x) => x.id === id);
+    if (!b) return;
+    removeIdsLocally([id]);
+    onAfterUnfavorite?.([id]);
+    pushUndo([b]);
+    try {
+      await onlineUnfavorite(id);
+    } catch {}
+  };
+
+  const emptyHistory = React.useMemo(
+    () =>
+      ({} as Record<number, { current: number; total: number; ts: number }>),
+    []
+  );
+
+  const runMassDelete = async (ids: number[]) => {
+    if (!ids.length) return;
+    const removed = items.filter((b) => ids.includes(b.id));
+    removeIdsLocally(ids);
+    onAfterUnfavorite?.(ids);
+    pushUndo(removed);
+    try {
+      if (ids.length === 1) await onlineUnfavorite(ids[0]);
+      else await onlineBulkUnfavorite(ids);
+    } catch {
+    } finally {
+      setSelectMode(false);
+      clearSelect();
+    }
+  };
+
+  // ======= РЕНДЕР КАРТОЧКИ =======
+  const renderItem: ListRenderItem<Book> = React.useCallback(
+    ({ item, index }) => {
+      const id = item.id;
+      const isSelected = selected.has(id);
+      const isLastInRow = (index + 1) % cols === 0;
+
+      return (
+        <View
+          style={{
+            width: cardWidth,
+            marginRight: isLastInRow ? 0 : columnGap,
+            marginBottom: columnGap,
+            ...(isSingleCol && { alignSelf: "center" }),
+          }}
+        >
+          <View style={{ position: "relative" }}>
+            <BookCard
+              design={chosenDesign}
+              book={item}
+              cardWidth={cardWidth}
+              isSingleCol={isSingleCol}
+              contentScale={contentScale}
+              isFavorite
+              onToggleFavorite={(_, next) => {
+                if (!next) handleSingleUnfavorite(id);
+              }}
+              onPress={() => {
+                if (selectMode) toggleSelect(id);
+                else onPress?.(id);
+              }}
+              favoritesSet={favoritesSet}
+              historyMap={historyMap}
+              hydrateFromStorage={false}
+            />
+
+            {selectMode && (
+              <Pressable
+                onPress={() => toggleSelect(id)}
+                style={[StyleSheet.absoluteFill, styles.overlayHit]}
+                accessibilityLabel={isSelected ? "Снять выбор" : "Выбрать"}
+              >
+                <View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: isSelected ? "#00000066" : "#00000022" },
+                  ]}
+                />
+                {isSelected && (
+                  <View style={styles.selectedBadge}>
+                    <Feather name="check" size={16} color={"#000"} />
+                    <Text style={styles.selectedText}>Выбрано</Text>
+                  </View>
+                )}
+              </Pressable>
+            )}
+          </View>
+        </View>
+      );
+    },
+    [
+      cols,
+      cardWidth,
+      columnGap,
+      isSingleCol,
+      chosenDesign,
+      contentScale,
+      selectMode,
+      selected,
+      favoritesSet,
+      historyMap,
+      onPress,
+    ]
+  );
+
+  const keyExtractor = React.useCallback((b: Book) => String(b.id), []);
+  const getItemLayout =
+    chosenDesign === "image"
+      ? (_: any, index: number) => {
+          const row = Math.floor(index / cols);
+          const rowHeight = estCardH + columnGap;
+          const offset = (paddingHorizontal ?? 0) / 2 + row * rowHeight;
+          return { length: rowHeight, offset, index };
+        }
+      : undefined;
+
+  // ======= ИМПОРТ ИЗ ЛОКАЛЬНЫХ (модалка + логика) =======
+  const [importOpen, setImportOpen] = React.useState(false);
+  const [importBusy, setImportBusy] = React.useState(false);
+  const [localBooks, setLocalBooks] = React.useState<Book[]>([]);
+  const [localSelected, setLocalSelected] = React.useState<Set<number>>(
+    new Set()
+  );
+  const [localQuery, setLocalQuery] = React.useState("");
+  const filteredLocal = React.useMemo(() => {
+    const q = localQuery.trim().toLowerCase();
+    if (!q) return localBooks;
+    return localBooks.filter((b) =>
+      (b.title.pretty || "").toLowerCase().includes(q)
+    );
+  }, [localBooks, localQuery]);
+
+  const loadLocalFavorites = React.useCallback(async () => {
+    let localIds: number[] = [];
+    try {
+      const raw = await AsyncStorage.getItem("bookFavorites");
+      localIds = raw ? (JSON.parse(raw) as number[]) : [];
+    } catch {
+      localIds = [];
+    }
+    if (!localIds.length) {
+      Alert.alert("Импорт", "Локальных избранных не найдено.");
+      return;
+    }
+    setImportBusy(true);
+    try {
+      const { books } = await getFavorites({
+        ids: localIds,
+        perPage: Math.max(24, localIds.length),
+      });
+      setLocalBooks(books);
+      setLocalSelected(new Set());
+      setImportOpen(true);
+    } catch {
+      Alert.alert("Импорт", "Не удалось загрузить локальные избранные.");
+    } finally {
+      setImportBusy(false);
+    }
+  }, []);
+
+  const toggleLocalPick = (id: number) =>
+    setLocalSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const importPicked = async () => {
+    const ids = Array.from(localSelected);
+    if (!ids.length) {
+      Alert.alert("Импорт", "Не выбрано ни одной книги.");
+      return;
+    }
+    setImportBusy(true);
+    try {
+      await onlineBulkFavorite(ids);
+      Alert.alert("Готово", `Импортировано: ${ids.length}`);
+      setImportOpen(false);
+    } catch {
+      Alert.alert("Импорт", "Часть элементов не удалось импортировать.");
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  // ======= ПАНЕЛЬ УПРАВЛЕНИЯ (хедер списка) =======
+  const importDisabled = autoImportEnabled;
+  const Header = (
+    <View
+      style={[
+        styles.toolbarWrap,
+        { borderColor: colors.page, backgroundColor: colors.menuBg },
+      ]}
+    >
+      <View style={styles.toolbarTop}>
+        <View style={styles.toolbarRight}>
+          {/* Свитчер авто-импорта */}
+          <View style={styles.switchWrap}>
+            <Text style={{ color: colors.sub, fontSize: 12, marginRight: 6 }}>
+              Авто-импорт (фон)
+            </Text>
+            <Switch
+              value={autoImportEnabled}
+              onValueChange={setAutoImportEnabled}
+              thumbColor={autoImportEnabled ? colors.accent : "#888"}
+              trackColor={{ true: colors.accent + "66", false: "#444" }}
+            />
+            {autoImportEnabled && (
+              <View style={[styles.pillSmall, { borderColor: colors.page }]}>
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: isRunning ? colors.accent : colors.sub,
+                    marginRight: 6,
+                  }}
+                />
+                <Text style={{ color: colors.sub, fontSize: 11 }}>
+                  {isRunning ? "синхронизация…" : "ожидание"}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Кнопка импорта: без undefined в пропсах */}
+          {!importDisabled ? (
+            <CardPressable
+              ripple={colors.accent + "33"}
+              overlayColor={colors.accent + "11"}
+              radius={10}
+              onPress={loadLocalFavorites}
+              pressedScale={0.98}
+            >
+              <View style={[styles.btn, { borderColor: colors.page }]}>
+                <Feather name="upload" size={14} color={colors.accent} />
+                <Text style={[styles.btnTxt, { color: colors.accent }]}>
+                  Импорт из локальных
+                </Text>
+              </View>
+            </CardPressable>
+          ) : (
+            <View style={{ opacity: 0.5 }}>
+              <View style={[styles.btn, { borderColor: colors.page }]}>
+                <Feather name="pause" size={14} color={colors.menuTxt} />
+                <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
+                  Авто-импорт активен
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {!selectMode ? (
+            <CardPressable
+              ripple={colors.accent + "33"}
+              overlayColor={colors.accent + "11"}
+              radius={10}
+              onPress={() => setSelectMode(true)}
+              pressedScale={0.98}
+            >
+              <View style={[styles.btn, { borderColor: colors.page }]}>
+                <Feather name="check-square" size={14} color={colors.menuTxt} />
+                <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
+                  Выбрать для удаления
+                </Text>
+              </View>
+            </CardPressable>
+          ) : (
+            <CardPressable
+              ripple={colors.accent + "22"}
+              overlayColor={colors.accent + "08"}
+              radius={10}
+              onPress={() => {
+                setSelectMode(false);
+                clearSelect();
+              }}
+              pressedScale={0.98}
+            >
+              <View style={[styles.btn, { borderColor: colors.page }]}>
+                <Feather name="x" size={14} color={colors.menuTxt} />
+                <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
+                  Отменить выбор
+                </Text>
+              </View>
+            </CardPressable>
+          )}
+        </View>
+      </View>
+      {/* Текст заголовка, теги и счётчик книг — удалены по ТЗ */}
+    </View>
+  );
+
+  const Empty =
+    !loading && items.length === 0
+      ? (ListEmptyComponent as React.ReactElement) ?? (
+          <Text
+            style={{ color: colors.sub, textAlign: "center", marginTop: 40 }}
+          >
+            Пусто
+          </Text>
+        )
+      : null;
+
+  const contentBottomPad = (paddingHorizontal ?? 0) / 2 + 12 + insets.bottom;
+
+  return (
+    <View style={[styles.root, { backgroundColor: themeBg }]}>
+      <FlatList
+        data={items}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        numColumns={cols}
+        columnWrapperStyle={cols > 1 ? { justifyContent: "center" } : undefined}
+        ListHeaderComponent={Header}
+        contentContainerStyle={{
+          paddingHorizontal,
+          paddingTop: (paddingHorizontal ?? 0) / 2,
+          paddingBottom: contentBottomPad,
+        }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          loading ? (
+            <View style={{ height: 16 }} />
+          ) : (
+            ListFooterComponent ?? null
+          )
+        }
+        ListEmptyComponent={Empty}
+        getItemLayout={getItemLayout as any}
+        windowSize={8}
+        maxToRenderPerBatch={12}
+        initialNumToRender={Math.min(18, items.length)}
+        updateCellsBatchingPeriod={40}
+        removeClippedSubviews={chosenDesign === "image"}
+      />
+
+      {/* ===== Undo ===== */}
+      {undoStack.length > 0 && (
+        <View
+          pointerEvents="box-none"
+          style={[StyleSheet.absoluteFill, { justifyContent: "flex-end" }]}
+        >
+          <View
+            style={[
+              styles.floatingBar,
+              {
+                backgroundColor: colors.menuBg,
+                borderColor: colors.page,
+                marginBottom: (selectMode ? 56 : 0) + insets.bottom + 8,
+              },
+            ]}
+          >
+            <Text style={{ color: colors.menuTxt, fontWeight: "800" }}>
+              Удалено {undoStack.length}
+            </Text>
+            <View style={{ flex: 1 }} />
+            <CardPressable
+              ripple={colors.accent + "33"}
+              overlayColor={colors.accent + "11"}
+              radius={10}
+              onPress={handleUndo}
+              pressedScale={0.98}
+            >
+              <View style={[styles.btnSm, { borderColor: colors.page }]}>
+                <Feather name="rotate-ccw" size={14} color={colors.accent} />
+                <Text style={[styles.btnTxt, { color: colors.accent }]}>
+                  Отменить
+                </Text>
+              </View>
+            </CardPressable>
+            <CardPressable
+              ripple={colors.accent + "22"}
+              overlayColor={colors.accent + "08"}
+              radius={10}
+              onPress={clearUndo}
+              pressedScale={0.98}
+              style={{ marginLeft: 8 }}
+            >
+              <View style={[styles.btnSm, { borderColor: colors.page }]}>
+                <Feather name="x" size={14} color={colors.menuTxt} />
+                <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
+                  Скрыть
+                </Text>
+              </View>
+            </CardPressable>
+          </View>
+        </View>
+      )}
+
+      {/* ===== Панель выбора ===== */}
+      {selectMode && (
+        <View
+          pointerEvents="box-none"
+          style={[StyleSheet.absoluteFill, { justifyContent: "flex-end" }]}
+        >
+          <View
+            style={[
+              styles.selectionBar,
+              {
+                backgroundColor: colors.menuBg,
+                borderColor: colors.page,
+                paddingBottom: 8 + insets.bottom,
+              },
+            ]}
+          >
+            <Text style={{ color: colors.menuTxt, fontWeight: "800" }}>
+              Выбрано: {selected.size}
+            </Text>
+            <View style={{ flex: 1 }} />
+            <CardPressable
+              ripple={colors.accent + "22"}
+              overlayColor={colors.accent + "08"}
+              radius={12}
+              onPress={() => {
+                setSelectMode(false);
+                clearSelect();
+              }}
+              pressedScale={0.98}
+            >
+              <View style={[styles.btnLg, { borderColor: colors.page }]}>
+                <Feather name="x" size={16} color={colors.menuTxt} />
+                <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
+                  Отменить
+                </Text>
+              </View>
+            </CardPressable>
+            <CardPressable
+              ripple={colors.accent + "33"}
+              overlayColor={colors.accent + "11"}
+              radius={12}
+              onPress={() => {
+                const ids = Array.from(selected);
+                if (!ids.length) return;
+                Alert.alert(
+                  "Удалить из онлайн-избранного",
+                  `Выбрано: ${ids.length}. Подтвердить?`,
+                  [
+                    { text: "Отмена", style: "cancel" },
+                    {
+                      text: "Удалить",
+                      style: "destructive",
+                      onPress: () => runMassDelete(ids),
+                    },
+                  ]
+                );
+              }}
+              pressedScale={0.98}
+              style={{ marginLeft: 8 }}
+            >
+              <View style={[styles.btnLg, { borderColor: colors.page }]}>
+                <Feather name="trash-2" size={16} color={colors.accent} />
+                <Text style={[styles.btnTxt, { color: colors.accent }]}>
+                  Удалить
+                </Text>
+              </View>
+            </CardPressable>
+          </View>
+        </View>
+      )}
+
+      {/* ===== МОДАЛКА ИМПОРТА ИЗ ЛОКАЛЬНЫХ ===== */}
+      <Modal
+        visible={importOpen}
+        animationType="slide"
+        onRequestClose={() => setImportOpen(false)}
+      >
+        <View style={[styles.modalRoot, { backgroundColor: colors.page }]}>
+          <View style={{ height: insets.top }} />
+          <View style={[styles.modalHeader, { borderColor: colors.page }]}>
+            <Text style={[styles.title, { color: colors.title }]}>
+              Импорт локальных
+            </Text>
+            <View style={{ flex: 1 }} />
+            <CardPressable
+              ripple={colors.accent + "22"}
+              overlayColor={colors.accent + "08"}
+              radius={10}
+              onPress={() => setImportOpen(false)}
+              pressedScale={0.98}
+            >
+              <View style={[styles.btn, { borderColor: colors.page }]}>
+                <Feather name="x" size={16} color={colors.menuTxt} />
+                <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
+                  Закрыть
+                </Text>
+              </View>
+            </CardPressable>
+          </View>
+
+          <View style={[styles.importControls, { borderColor: colors.page }]}>
+            <View style={styles.searchBox}>
+              <Feather name="search" size={14} color={colors.sub} />
+              <TextInput
+                placeholder="Поиск…"
+                placeholderTextColor={colors.sub}
+                style={{ color: colors.title, flex: 1, paddingVertical: 6 }}
+                value={localQuery}
+                onChangeText={setLocalQuery}
+              />
+            </View>
+
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <CardPressable
+                ripple={colors.accent + "22"}
+                overlayColor={colors.accent + "08"}
+                radius={10}
+                onPress={() =>
+                  setLocalSelected(new Set(filteredLocal.map((b) => b.id)))
+                }
+                pressedScale={0.98}
+              >
+                <View style={[styles.btn, { borderColor: colors.page }]}>
+                  <Feather name="check" size={14} color={colors.menuTxt} />
+                  <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
+                    Выбрать всё
+                  </Text>
+                </View>
+              </CardPressable>
+              <CardPressable
+                ripple={colors.accent + "22"}
+                overlayColor={colors.accent + "08"}
+                radius={10}
+                onPress={() => setLocalSelected(new Set())}
+                pressedScale={0.98}
+              >
+                <View style={[styles.btn, { borderColor: colors.page }]}>
+                  <Feather name="square" size={14} color={colors.menuTxt} />
+                  <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
+                    Снять всё
+                  </Text>
+                </View>
+              </CardPressable>
+              <CardPressable
+                ripple={colors.accent + "33"}
+                overlayColor={colors.accent + "11"}
+                radius={10}
+                onPress={importPicked}
+                pressedScale={0.98}
+              >
+                <View style={[styles.btn, { borderColor: colors.page }]}>
+                  {importBusy ? (
+                    <ActivityIndicator size="small" />
+                  ) : (
+                    <Feather name="upload" size={14} color={colors.accent} />
+                  )}
+                  <Text style={[styles.btnTxt, { color: colors.accent }]}>
+                    Импортировать {localSelected.size || ""}
+                  </Text>
+                </View>
+              </CardPressable>
+            </View>
+          </View>
+
+          <FlatList
+            data={filteredLocal}
+            keyExtractor={(b) => String(b.id)}
+            numColumns={width >= 768 ? 5 : 3}
+            columnWrapperStyle={{ justifyContent: "center" }}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingBottom: 12 + insets.bottom,
+              paddingTop: 8,
+            }}
+            renderItem={({ item }) => {
+              const picked = localSelected.has(item.id);
+              const tileW = Math.min(
+                220,
+                Math.max(
+                  128,
+                  (width - 12 * 2 - 10 * 2) / (width >= 768 ? 5 : 3)
+                )
+              );
+              return (
+                <View style={{ width: tileW, margin: 5 }}>
+                  <View style={{ position: "relative" }}>
+                    <BookCard
+                      design="image"
+                      book={item}
+                      cardWidth={tileW}
+                      isSingleCol={false}
+                      contentScale={0.65}
+                      isFavorite={picked}
+                      onToggleFavorite={() => toggleLocalPick(item.id)}
+                      onPress={() => toggleLocalPick(item.id)}
+                      favoritesSet={new Set()}
+                      historyMap={emptyHistory}
+                      hydrateFromStorage={false}
+                    />
+                    <Pressable
+                      onPress={() => toggleLocalPick(item.id)}
+                      style={[StyleSheet.absoluteFill, styles.overlayHit]}
+                    >
+                      <View
+                        style={[
+                          StyleSheet.absoluteFill,
+                          {
+                            backgroundColor: picked ? "#00000066" : "#00000022",
+                          },
+                        ]}
+                      />
+                      {picked && (
+                        <View style={styles.selectedBadge}>
+                          <Feather name="check" size={16} color={"#000"} />
+                          <Text style={styles.selectedText}>Выбрано</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            }}
+            ListEmptyComponent={
+              importBusy ? (
+                <ActivityIndicator style={{ marginTop: 24 }} />
+              ) : (
+                <Text
+                  style={{
+                    color: colors.sub,
+                    textAlign: "center",
+                    marginTop: 24,
+                  }}
+                >
+                  Ничего не найдено
+                </Text>
+              )
+            }
+          />
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  title: { fontWeight: "900", fontSize: 15, letterSpacing: 0.2 },
+  toolbarWrap: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  toolbarTop: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  toolbarRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginLeft: "auto",
+    flexWrap: "wrap",
+  },
+
+  switchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 6,
+  },
+  pillSmall: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+  },
+  btnSm: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+  },
+  btnLg: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+  },
+  btnTxt: { fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
+
+  overlayHit: { justifyContent: "center", alignItems: "center" },
+  selectedBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  selectedText: {
+    color: "#000",
+    fontWeight: "900",
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
+
+  floatingBar: {
+    marginHorizontal: 10,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+  },
+
+  selectionBar: {
+    marginHorizontal: 10,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+  },
+
+  modalRoot: { flex: 1 },
+  modalHeader: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  importControls: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+});

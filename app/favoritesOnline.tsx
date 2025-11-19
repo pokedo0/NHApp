@@ -1,10 +1,10 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { Book } from "@/api/nhentai";
 import { getFavoritesOnline, getMe } from "@/api/nhentaiOnline";
-import BookList from "@/components/BookList";
+import BookListOnline from "@/components/BookListOnline";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
 
@@ -18,9 +18,8 @@ export default function FavoritesOnlineScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
 
-  // auth
   const [hasAuth, setHasAuth] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false); // чтобы не показывать «требуется вход» до завершения проверки
+  const [authChecked, setAuthChecked] = useState(false);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -37,7 +36,7 @@ export default function FavoritesOnlineScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setAuthChecked(false); // перезапускаем индикатор проверки
+      setAuthChecked(false);
       checkAuth();
     }, [checkAuth])
   );
@@ -50,7 +49,9 @@ export default function FavoritesOnlineScreen() {
         setTotalPages(1);
         return;
       }
-      const { books: fetched, totalPages: tp } = await getFavoritesOnline({ page: pageNum });
+      const { books: fetched, totalPages: tp } = await getFavoritesOnline({
+        page: pageNum,
+      });
       setBooks((prev) => (pageNum === 1 ? fetched : [...prev, ...fetched]));
       setTotalPages(tp);
       setPage(pageNum);
@@ -72,40 +73,30 @@ export default function FavoritesOnlineScreen() {
     setRefreshing(false);
   }, [loadPage]);
 
-  const isFavorite = useCallback(() => true, []);
-  const onToggleFavorite = useCallback(() => {
-    // no-op
+  const onAfterUnfavorite = useCallback((removedIds: number[]) => {
+    if (!removedIds?.length) return;
+    setBooks((prev) => prev.filter((b) => !removedIds.includes(b.id)));
   }, []);
-
-  const Empty =
-    !authChecked
-      ? undefined
-      : !hasAuth
-      ? (
-        <Text style={{ textAlign: "center", marginTop: 40, color: colors.sub }}>
-          Требуется вход. Откройте экран логина и авторизуйтесь.
-        </Text>
-      )
-      : undefined;
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <BookList
+      <BookListOnline
         data={books}
-        loading={hasAuth && books.length === 0}
+        loading={hasAuth && books.length === 0 && authChecked}
         refreshing={refreshing}
         onRefresh={onRefresh}
         onEndReached={onEnd}
-        isFavorite={isFavorite}
-        onToggleFavorite={onToggleFavorite}
         onPress={(id) =>
           router.push({
             pathname: "/book/[id]",
-            params: { id: String(id), title: books.find((b) => b.id === id)?.title.pretty },
+            params: {
+              id: String(id),
+              title: books.find((b) => b.id === id)?.title.pretty,
+            },
           })
         }
-        ListEmptyComponent={Empty}
         gridConfig={{ default: gridConfig }}
+        onAfterUnfavorite={onAfterUnfavorite}
       />
     </View>
   );

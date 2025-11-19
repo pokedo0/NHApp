@@ -11,11 +11,13 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+import "@/background/autoImport.task";
 import { DrawerContext } from "@/components/DrawerContext";
 import { OverlayPortalProvider } from "@/components/OverlayPortal";
 import { SearchBar } from "@/components/SearchBar";
 import SideMenu from "@/components/SideMenu";
 import { getGridConfigMap } from "@/config/gridConfig";
+import AutoImportProvider from "@/context/AutoImportProvider";
 import { DateRangeProvider } from "@/context/DateRangeContext";
 import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
@@ -210,20 +212,22 @@ function AppContent() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <I18nProvider>
-        <DateRangeProvider>
-          <SafeAreaProvider>
-            <SortProvider>
-              <TagProvider>
-                <TagLibraryProvider>
-                  <AppShell />
-                </TagLibraryProvider>
-              </TagProvider>
-            </SortProvider>
-          </SafeAreaProvider>
-        </DateRangeProvider>
-      </I18nProvider>
-    </ThemeProvider>
+    <AutoImportProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <DateRangeProvider>
+            <SafeAreaProvider>
+              <SortProvider>
+                <TagProvider>
+                  <TagLibraryProvider>
+                    <AppShell />
+                  </TagLibraryProvider>
+                </TagProvider>
+              </SortProvider>
+            </SafeAreaProvider>
+          </DateRangeProvider>
+        </I18nProvider>
+      </ThemeProvider>
+    </AutoImportProvider>
   );
 }

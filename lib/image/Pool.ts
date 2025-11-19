@@ -34,7 +34,7 @@ export class Pool {
         grant();
       } else {
         this.q.push({ pri: p, id, resolve: grant });
-        this.q.sort((a, b) => (b.pri - a.pri) || (a.id - b.id));
+        this.q.sort((a, b) => b.pri - a.pri || a.id - b.id);
       }
     });
   }

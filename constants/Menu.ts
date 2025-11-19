@@ -1,0 +1,16 @@
+import type { MenuRoute } from "@/types/routes";
+
+export type MenuItem = {
+  labelKey: string;
+  icon: string;
+  route: MenuRoute;
+};
+
+export const LIBRARY_MENU: MenuItem[] = [
+  { labelKey: "menu.downloaded",      icon: "download", route: "/downloaded" },
+  { labelKey: "menu.favorites",       icon: "heart",    route: "/favorites" },
+  { labelKey: "menu.favoritesOnline", icon: "cloud",    route: "/favoritesOnline" },
+  { labelKey: "menu.history",         icon: "clock",    route: "/history" },
+  { labelKey: "menu.recommendations", icon: "star",     route: "/recommendations" },
+  { labelKey: "menu.settings",        icon: "settings", route: "/settings" },
+];

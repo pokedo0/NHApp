@@ -2,7 +2,7 @@
   "expo": {
     "name": "nhappandroid",
     "slug": "nhappandroid",
-    "version": "1.1.31",
+    "version": "1.1.32",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "nhappandroid",
@@ -22,7 +22,12 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.nhapp.android",
-      "versionCode": 10103
+      "versionCode": 10132,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "processing"
+        ]
+      }
     },
     "web": {
       "bundler": "metro",
@@ -46,7 +51,8 @@
           "iCloudContainerEnvironment": "Production"
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true

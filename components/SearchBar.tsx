@@ -164,7 +164,8 @@ export function SearchBar() {
     if (p === "/" || has("index")) return t("menu.home");
     if (has("explore"))
       return q ? t("search.results") + ": " + q : t("menu.explore");
-    if (has("favorites") || has("favoritesOnline")) return t("menu.favorites");
+    if (has("favorites")) return t("menu.favorites");
+    if (has("favoritesOnline")) return t("menu.favoritesOnline");
     if (has("downloaded")) return t("menu.downloaded");
     if (has("recommendations")) return t("menu.recommendations");
     if (has("history")) return t("menu.history");
