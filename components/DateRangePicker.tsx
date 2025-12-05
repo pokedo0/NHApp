@@ -1,4 +1,4 @@
-import { useTheme } from "@/lib/ThemeContext";
+﻿import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { Feather } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
@@ -51,24 +51,20 @@ const daysMatrix = (year: number, month: number) => {
 
   const cells: { date: Date; inMonth: boolean }[] = [];
 
-  // предыдущий месяц
   for (let i = 0; i < startWeekDay; i++) {
     const d = new Date(year, month - 1, prevDays - (startWeekDay - 1 - i));
     cells.push({ date: d, inMonth: false });
   }
 
-  // текущий месяц
   for (let d = 1; d <= daysInMonth; d++) {
     cells.push({ date: new Date(year, month, d), inMonth: true });
   }
 
-  // добиваем до кратности 7
   while (cells.length % 7 !== 0) {
     const nextIdx = cells.length - (startWeekDay + daysInMonth) + 1;
     cells.push({ date: new Date(year, month + 1, nextIdx), inMonth: false });
   }
 
-  // и до 6 строк (42 дня), чтобы сетка не прыгала
   while (cells.length < 42) {
     const last = cells[cells.length - 1].date;
     const d = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
@@ -358,21 +354,18 @@ export default function DateRangePicker({
     initialTo ? dayStart(initialTo as Date) : null
   );
 
-  const range = useMemo(
-    (): { start: Dateish; end: Dateish } => {
-      const a = from ? (from as Date) : null;
-      const b = to ? (to as Date) : null;
+  const range = useMemo((): { start: Dateish; end: Dateish } => {
+    const a = from ? (from as Date) : null;
+    const b = to ? (to as Date) : null;
 
-      if (a && b)
-        return a.getTime() <= b.getTime()
-          ? { start: a, end: b }
-          : { start: b, end: a };
+    if (a && b)
+      return a.getTime() <= b.getTime()
+        ? { start: a, end: b }
+        : { start: b, end: a };
 
-      if (a && !b) return { start: a, end: null };
-      return { start: null, end: null };
-    },
-    [from, to]
-  );
+    if (a && !b) return { start: a, end: null };
+    return { start: null, end: null };
+  }, [from, to]);
 
   const selectingSecond = !!from && !to;
 
@@ -424,13 +417,10 @@ export default function DateRangePicker({
     setTo(d);
   };
 
-  // ------------ Новый выбор года/месяца --------------
-
   const [pickerOpen, setPickerOpen] = useState(false);
   const [tmpMonth, setTmpMonth] = useState(cursor.getMonth());
   const [tmpYear, setTmpYear] = useState(cursor.getFullYear());
 
-  // список лет от MIN до MAX
   const years = useMemo(() => {
     const arr: number[] = [];
     for (let y = MIN_DATE.getFullYear(); y <= MAX_DATE.getFullYear(); y++) {
@@ -445,7 +435,6 @@ export default function DateRangePicker({
     setPickerOpen(true);
   };
 
-  // проверка, доступен ли месяц для выбранного года
   const isMonthDisabledForYear = (year: number, monthIdx: number) => {
     const candidate = new Date(year, monthIdx, 1);
     const min = monthStart(MIN_DATE);
@@ -459,9 +448,7 @@ export default function DateRangePicker({
     let y = tmpYear;
     let m = tmpMonth;
 
-    // гарантируем, что попали в границы
     if (isMonthDisabledForYear(y, m)) {
-      // если выбранный месяц невалиден, жёстко прижимаем к min/max
       const minY = MIN_DATE.getFullYear();
       const minM = MIN_DATE.getMonth();
       const maxY = MAX_DATE.getFullYear();
@@ -482,7 +469,6 @@ export default function DateRangePicker({
   const onYearPress = (year: number) => {
     setTmpYear(year);
 
-    // при смене года подвинем месяц внутрь допустимого диапазона
     const minY = MIN_DATE.getFullYear();
     const minM = MIN_DATE.getMonth();
     const maxY = MAX_DATE.getFullYear();
@@ -518,7 +504,7 @@ export default function DateRangePicker({
 
   return (
     <View style={{ paddingHorizontal: H_PAD, paddingBottom: 8 }}>
-      {/* HEADER */}
+      {}
       <View style={styles.header}>
         <Pressable
           onPress={() => canPrev() && goPrev()}
@@ -559,7 +545,6 @@ export default function DateRangePicker({
         </Pressable>
       </View>
 
-      {/* MONTHS GRID */}
       <View style={[styles.dualWrap, dualMode && { gap: GAP }]}>
         <View style={{ alignItems: "center" }}>
           <MonthView
@@ -594,7 +579,6 @@ export default function DateRangePicker({
         )}
       </View>
 
-      {/* FOOTER */}
       <View style={[styles.footer, { marginTop: 12 }]}>
         <Text
           style={{ flex: 1, color: colors.sub, fontSize: 12 }}
@@ -642,7 +626,6 @@ export default function DateRangePicker({
         </Pressable>
       </View>
 
-      {/* OVERLAY: СНАЧАЛА ГОД, ПОТОМ МЕСЯЦ */}
       {pickerOpen && (
         <View style={[styles.sheetBackdrop, { backgroundColor: "#00000066" }]}>
           <View
@@ -661,7 +644,6 @@ export default function DateRangePicker({
             </Text>
 
             <View style={styles.ymRow}>
-              {/* Выбор года */}
               <View style={{ flex: 1, maxHeight: 260 }}>
                 <Text
                   style={[
@@ -704,7 +686,6 @@ export default function DateRangePicker({
 
               <View style={{ width: 14 }} />
 
-              {/* Выбор месяца для выбранного года */}
               <View style={{ flex: 1 }}>
                 <Text
                   style={[
@@ -853,7 +834,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
 
-  // новый UI выбора года/месяца
   ymRow: {
     flexDirection: "row",
     marginTop: 8,

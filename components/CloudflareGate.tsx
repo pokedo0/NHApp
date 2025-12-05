@@ -1,4 +1,4 @@
-import { useI18n } from "@/lib/i18n/I18nContext";
+﻿import { useI18n } from "@/lib/i18n/I18nContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   useCallback,
@@ -26,22 +26,16 @@ type Props = {
   galleryId?: number;
   onClose: () => void;
 
-  /** Текст, который автоподставим в textarea (#id_body) */
   prefillText?: string;
 
-  /** Быстрый режим: скрыть всё кроме формы */
   onlyCommentFormCss?: boolean;
 
-  /** Обычный CSS-правила (в style-тег), можно строкой или массивом */
   customCss?: string | string[];
 
-  /** Селекторы, которые надо жёстко прятать (display/visibility/opacity + observer) */
   forceHide?: string[];
 
-  /** Принудительные inline-стили (с !important) для выбранных селекторов */
   forceCss?: ForceCss;
 
-  /** Когда сайт реально принял комментарий и вернул JSON */
   onPosted?: (json: any) => void;
 
   colors: {
@@ -564,18 +558,41 @@ export default function CloudflareGate({
   });
 
   return (
-    <Modal visible={visible} statusBarTranslucent transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      statusBarTranslucent
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={[S.backdrop, { backgroundColor: colors.backdrop }]}>
-        <View style={[S.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[S.title, { color: colors.text }]}>{t("cloudflare.title")}</Text>
-
-          <Text style={[S.text, { color: colors.sub }]}>
-            {showWeb ? t("cloudflare.caption.tap") : t("cloudflare.caption.preparing")}
+        <View
+          style={[
+            S.card,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[S.title, { color: colors.text }]}>
+            {t("cloudflare.title")}
           </Text>
 
-          <Animated.View style={{ height: wrapHeight, borderRadius: 10, overflow: "hidden" }}>
+          <Text style={[S.text, { color: colors.sub }]}>
+            {showWeb
+              ? t("cloudflare.caption.tap")
+              : t("cloudflare.caption.preparing")}
+          </Text>
+
+          <Animated.View
+            style={{ height: wrapHeight, borderRadius: 10, overflow: "hidden" }}
+          >
             {!showWeb && (
-              <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <ActivityIndicator />
                 <Text style={{ marginTop: 8, color: colors.sub, fontSize: 12 }}>
                   {t("cloudflare.requesting")}
@@ -630,11 +647,21 @@ export default function CloudflareGate({
           </Animated.View>
 
           <View style={S.row}>
-            <Pressable onPress={reload} style={[S.btn, { backgroundColor: colors.border }]}>
-              <Text style={[S.btnTxt, { color: colors.text }]}>{t("cloudflare.actions.reload")}</Text>
+            <Pressable
+              onPress={reload}
+              style={[S.btn, { backgroundColor: colors.border }]}
+            >
+              <Text style={[S.btnTxt, { color: colors.text }]}>
+                {t("cloudflare.actions.reload")}
+              </Text>
             </Pressable>
-            <Pressable onPress={onClose} style={[S.btn, { backgroundColor: colors.accent }]}>
-              <Text style={[S.btnTxt, { color: "#fff" }]}>{t("cloudflare.actions.close")}</Text>
+            <Pressable
+              onPress={onClose}
+              style={[S.btn, { backgroundColor: colors.accent }]}
+            >
+              <Text style={[S.btnTxt, { color: "#fff" }]}>
+                {t("cloudflare.actions.close")}
+              </Text>
             </Pressable>
           </View>
 

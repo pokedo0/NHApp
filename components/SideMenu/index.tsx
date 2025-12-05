@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+﻿import { Feather } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import React from "react";
 import {
@@ -6,7 +6,7 @@ import {
   Animated,
   Easing,
   Image,
-  LayoutChangeEvent,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,22 +27,21 @@ import { CardPressable } from "@/components/ui/CardPressable";
 import { IconBtn } from "@/components/ui/IconBtn";
 import { Section } from "@/components/ui/Section";
 
-// Material 3 / Google Design Tokens
-const M3_RADIUS = 12; // Компактный радиус
+const M3_RADIUS = 12;
 const M3_SPACING = 12;
-const M3_RAIL_ITEM_SIZE = 48; // Стандартный размер M3 для области взаимодействия
+const M3_RAIL_ITEM_SIZE = 48;
 
 const PARTICLE_COUNT = 8;
+const DISCORD_URL = "https://discord.gg/VnxH7yfPqf";
 
 type SideMenuProps = {
   closeDrawer: () => void;
   fullscreen: boolean;
 
-  /** true, если в layout используется permanent-меню (планшет в альбомной ориентации) */
   isTabletPermanent?: boolean;
-  /** текущее состояние коллапса меню (контролируется из _layout.tsx) */
+
   collapsed?: boolean;
-  /** переключатель коллапса */
+
   onToggleCollapsed?: () => void;
 };
 
@@ -61,37 +60,28 @@ function randomBetween(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
-/**
- * Конфиг частицы:
- * - стартовая позиция равномерно по всей площади кнопки (с безопасным отступом по краям)
- * - направление и дистанция полёта — рандомно во все стороны
- */
 function createRandomParticleConfig(layout: {
   width: number;
   height: number;
 }): ParticleConfig {
   const { width, height } = layout;
 
-  // Отступ от краёв, чтобы частица не рождалась прямо в границе
   const marginX = width * 0.1;
   const marginY = height * 0.2;
 
   const startX = randomBetween(marginX, width - marginX);
   const startY = randomBetween(marginY, height - marginY);
 
-  // Случайное направление полёта (во все стороны)
   const moveAngle = randomBetween(0, Math.PI * 2);
 
-  // Дистанцию полёта чуть масштабируем от размеров кнопки,
-  // чтобы эффект был адекватен и на широкой, и на узкой кнопке
   const base = Math.min(width, height);
   const distance = randomBetween(base * 0.25, base * 0.7);
 
   const dx = Math.cos(moveAngle) * distance;
   const dy = Math.sin(moveAngle) * distance;
 
-  const duration = randomBetween(900, 1500); // 0.9–1.5s
-  const delay = randomBetween(0, 900); // рандомный старт
+  const duration = randomBetween(900, 1500);
+  const delay = randomBetween(0, 900);
 
   const startScale = randomBetween(0.5, 0.9);
   const endScale = randomBetween(1.1, 1.6);
@@ -148,22 +138,20 @@ export default function SideMenu({
 
   const isLandscape = width > height;
 
-  // меню реально может быть "узким" только когда оно permanent (планшет landscape)
   const isRail = isTabletPermanent && isLandscape && collapsed;
 
-  // Токены, адаптированные для максимально компактного дизайна в Rail-режиме
   const TOKENS = React.useMemo(
     () => ({
-      padX: isRail ? 8 : M3_SPACING, // Горизонтальный отступ
-      padY: isRail ? 4 : 8, // Уменьшенный вертикальный отступ для пунктов
+      padX: isRail ? 8 : M3_SPACING,
+      padY: isRail ? 4 : 8,
       radius: M3_RADIUS,
-      icon: 20, // Единый размер иконки для соразмерности
-      itemMinH: isRail ? M3_RAIL_ITEM_SIZE : 44, // Минимальная высота пункта
-      footerH: isRail ? 64 : 70, // Высота подвала
-      gap: isRail ? 2 : 6, // Минимальный зазор между пунктами в Rail-режиме
-      titleSize: isRail ? 0 : 20, // Размер шрифта заголовка
-      itemTextSize: 13, // Размер текста пункта
-      itemIconTextGap: isRail ? 0 : 12, // Зазор иконка/текст
+      icon: 20,
+      itemMinH: isRail ? M3_RAIL_ITEM_SIZE : 44,
+      footerH: isRail ? 64 : 70,
+      gap: isRail ? 2 : 6,
+      titleSize: isRail ? 0 : 20,
+      itemTextSize: 13,
+      itemIconTextGap: isRail ? 0 : 12,
     }),
     [isLandscape, isRail]
   );
@@ -171,7 +159,6 @@ export default function SideMenu({
   const dynamicTop = fullscreen ? 8 : 8;
   const loggedIn = !!me;
 
-  // Google/Material 3 ripples and overlays
   const ripplePrimary = colors.accent + "A0";
   const rippleItem = colors.accent + "44";
   const overlaySoft = colors.sub + "10";
@@ -201,7 +188,9 @@ export default function SideMenu({
 
   const goToDiscord = React.useCallback(() => {
     closeDrawer();
-    console.log("Navigating to Discord");
+    Linking.openURL(DISCORD_URL).catch((err) => {
+      console.warn("Failed to open Discord link", err);
+    });
   }, [closeDrawer]);
 
   const goToProfile = React.useCallback(() => {
@@ -214,22 +203,8 @@ export default function SideMenu({
     closeDrawer();
   }, [me, router, closeDrawer]);
 
-  const [viewportH, setViewportH] = React.useState(0);
-  const [contentH, setContentH] = React.useState(0);
-  const scrollEnabled = contentH > viewportH + 5;
+  const scrollEnabled = true;
 
-  const onScrollViewLayout = (e: LayoutChangeEvent) => {
-    setViewportH(e.nativeEvent.layout.height);
-  };
-  const onContentSizeChange = (_w: number, h: number) => {
-    setContentH(h);
-  };
-
-  React.useEffect(() => {
-    setContentH(0);
-  }, [width, height, loggedIn, isRail]);
-
-  // === ✨ ПАРТИКЛЫ ДЛЯ DISCORD-КНОПКИ ===
   const [discordLayout, setDiscordLayout] = React.useState<{
     width: number;
     height: number;
@@ -239,62 +214,55 @@ export default function SideMenu({
     Array.from({ length: PARTICLE_COUNT }, () => new Animated.Value(0))
   ).current;
 
-  const [particleConfigs, setParticleConfigs] = React.useState<ParticleConfig[]>(
-    []
-  );
+  const [particleConfigs, setParticleConfigs] = React.useState<
+    ParticleConfig[]
+  >([]);
 
   React.useEffect(() => {
     if (!discordLayout) return;
 
     let cancelled = false;
 
-    setParticleConfigs(
-      Array.from({ length: PARTICLE_COUNT }, () =>
-        createRandomParticleConfig(discordLayout)
-      )
+    const configs: ParticleConfig[] = Array.from(
+      { length: PARTICLE_COUNT },
+      () => createRandomParticleConfig(discordLayout)
     );
-    particleValues.forEach((v) => v.setValue(0));
 
-    function runParticle(index: number) {
-      if (cancelled || !discordLayout) return;
+    setParticleConfigs(configs);
 
-      const cfg = createRandomParticleConfig(discordLayout);
+    particleValues.forEach((v, index) => {
+      const cfg = configs[index];
 
-      setParticleConfigs((prev) => {
-        const next = [...prev];
-        next[index] = cfg;
-        return next;
-      });
+      const loop = () => {
+        if (cancelled) return;
 
-      const v = particleValues[index];
-      v.setValue(0);
+        v.setValue(0);
 
-      Animated.timing(v, {
-        toValue: 1,
-        duration: cfg.duration,
-        delay: cfg.delay,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished && !cancelled) {
-          runParticle(index); // бесконечный цикл
-        }
-      });
-    }
+        Animated.timing(v, {
+          toValue: 1,
+          duration: cfg.duration,
+          delay: cfg.delay,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          if (finished && !cancelled) {
+            loop();
+          }
+        });
+      };
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      runParticle(i);
-    }
+      loop();
+    });
 
     return () => {
       cancelled = true;
+      // @ts-ignore
       particleValues.forEach((v: any) => {
         if (v.stopAnimation) v.stopAnimation();
       });
     };
   }, [discordLayout, particleValues]);
 
-  // Helper component for Navigation Rail Item (M3 Style)
   const MenuItem = ({
     item,
     active,
@@ -344,11 +312,7 @@ export default function SideMenu({
               justifyContent: "center",
             }}
           >
-            <Feather
-              name={item.icon as any}
-              size={TOKENS.icon}
-              color={tint}
-            />
+            <Feather name={item.icon as any} size={TOKENS.icon} color={tint} />
           </View>
 
           {!isRail && (
@@ -381,12 +345,10 @@ export default function SideMenu({
     <View style={[styles.root, { backgroundColor: colors.menuBg }]}>
       <ScrollView
         style={{ flex: 1 }}
-        onLayout={onScrollViewLayout}
-        onContentSizeChange={onContentSizeChange}
         scrollEnabled={scrollEnabled}
         bounces={scrollEnabled}
         alwaysBounceVertical={false}
-        overScrollMode={scrollEnabled ? "auto" : "never"}
+        overScrollMode={scrollEnabled ? "auto" : "auto"}
         showsVerticalScrollIndicator={scrollEnabled && !isRail}
         contentContainerStyle={{
           paddingTop: dynamicTop,
@@ -395,7 +357,6 @@ export default function SideMenu({
         }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Бренд / заголовок */}
         <View
           style={[
             styles.headerRow,
@@ -453,7 +414,6 @@ export default function SideMenu({
           </View>
         </View>
 
-        {/* Основная навигация (Библиотека) */}
         {!isRail && (
           <Section
             title={t("menu.section.library")}
@@ -479,7 +439,6 @@ export default function SideMenu({
           })}
         </View>
 
-        {/* Случайная книга */}
         <CardPressable
           ripple={ripplePrimary}
           overlayColor={"transparent"}
@@ -523,7 +482,6 @@ export default function SideMenu({
           </View>
         </CardPressable>
 
-        {/* Разделитель перед Discord */}
         <View
           style={{
             height: StyleSheet.hairlineWidth,
@@ -532,7 +490,6 @@ export default function SideMenu({
           }}
         />
 
-        {/* Discord + частицы */}
         <CardPressable
           ripple={rippleItem}
           overlayColor={overlaySoft}
@@ -561,7 +518,6 @@ export default function SideMenu({
               setDiscordLayout({ width: w, height: h });
             }}
           >
-            {/* ✨ Частицы-звёздочки: рождаются по всей кнопке, летят в разные стороны */}
             {!isRail &&
               discordLayout &&
               particleConfigs.length === PARTICLE_COUNT &&
@@ -661,7 +617,6 @@ export default function SideMenu({
         <View style={{ height: 8 }} />
       </ScrollView>
 
-      {/* Подвал */}
       <View
         style={[
           styles.footer,

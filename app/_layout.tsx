@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -59,7 +59,6 @@ function AppShell() {
   const { colors } = useTheme();
   const { width, height } = useWindowDimensions();
 
-  // простое определение планшета
   const isTablet = Math.min(width, height) >= 600;
   const isLandscape = width > height;
   const isTabletPermanent = isTablet && isLandscape;
@@ -72,7 +71,6 @@ function AppShell() {
 
   const [fullscreen, setFullscreen] = useState<boolean>(false);
 
-  // состояние «узкого»/«широкого» меню
   const [menuCollapsed, setMenuCollapsed] = useState(false);
 
   const drawerContentEl = useMemo(
@@ -130,8 +128,6 @@ function AppShell() {
     })();
   }, [fullscreen]);
 
-  // ширина дровера всегда как раньше (overlay, «по старому»),
-  // но на планшете-ландшафте при collapse делаем уже.
   const drawerWidth = isTabletPermanent ? (menuCollapsed ? 80 : 300) : 300;
 
   return (
@@ -156,8 +152,12 @@ function AppShell() {
             onOpen={openDrawer}
             onClose={closeDrawer}
             drawerPosition="left"
-            drawerStyle={{ width: drawerWidth, backgroundColor: colors.menuBg }}
-            drawerType="front" // ВСЁ как раньше — overlay поверх контента
+            drawerStyle={{
+              width: drawerWidth,
+              backgroundColor: colors.menuBg,
+              marginBottom: 0,
+            }}
+            drawerType="back"
             swipeEnabled={false}
             renderDrawerContent={() => drawerContentEl}
           >

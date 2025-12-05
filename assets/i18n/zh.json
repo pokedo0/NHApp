@@ -62,7 +62,9 @@
       "translate": "无法翻译评论。",
       "delete": "无法删除评论。"
     },
-    "copied": "已复制"
+    "copied": "已复制",
+    "writeComment": "写评论...",
+    "youComment": "你的评论"
   },
   "common": {
     "reset": "重置",
@@ -75,7 +77,15 @@
     "yes": "是",
     "chooseOption": "选择一个选项",
     "nothingFound": "未找到内容。",
-    "select": "选择"
+    "select": "选择",
+    "cancelSelection": "取消选择",
+    "searchPlaceholder": "搜索…",
+    "undo": "撤销",
+    "selectAll": "全选",
+    "delete": "删除",
+    "close": "关闭",
+    "hide": "隐藏",
+    "clearSelection": "清除选择"
   },
   "explore": {
     "sort": {
@@ -90,7 +100,56 @@
     "quickPeriod": "时间段",
     "datePickerTitle": "日期选择",
     "hintDatesActive": "日期筛选已启用。预设排序已隐藏。",
-    "hintPresets": "选择一个时间段或指定日期范围。"
+    "hintPresets": "选择一个时间段或指定日期范围。",
+    "dateSearch": {
+      "windowInfo": "窗口： 索引 {start}…{end} ・ 项目 {total}",
+      "rangeEnd": "正在查找窗口结束位置…",
+      "rangeStart": "正在查找窗口起始位置…",
+      "loading": "正在加载…",
+      "done": "完成",
+      "fetch": "正在加载窗口页面…",
+      "meta": "正在准备请求…",
+      "probeSubtitle": "{which}: p={page} · {head} → {tail} {dir}",
+      "dirRight": "→ 向右",
+      "whichEnd": "结束",
+      "dirLeft": "← 向左",
+      "whichStart": "开始",
+      "dirHit": "✓ 命中",
+      "title": {
+        "done": "完成",
+        "rangeEnd": "正在查找窗口终点…",
+        "fetch": "正在加载窗口页面…",
+        "loading": "加载中…",
+        "rangeStart": "正在查找窗口起点…",
+        "meta": "正在准备请求…"
+      }
+    },
+    "probe": {
+      "end": "结束",
+      "directionHit": "✓ 命中",
+      "directionRight": "→ 向右",
+      "directionLeft": "→ 向左",
+      "subtitle": "{which}：p={page} • {head} → {tail} {dir}",
+      "start": "开始"
+    },
+    "noResults": {
+      "actions": {
+        "resetDates": "重置日期",
+        "openFilters": "打开筛选",
+        "resetFilters": "重置筛选",
+        "changeQuery": "修改搜索词",
+        "popularMonth": "本月热门",
+        "fresh": "最新"
+      },
+      "title": {
+        "query": "未找到与“{query}”匹配的结果",
+        "filters": "按所选筛选条件未找到结果",
+        "default": "未找到任何结果",
+        "dates": "在所选日期范围内未找到结果",
+        "general": "未找到结果"
+      },
+      "subtitle": "试着修改搜索、移除部分筛选条件或扩大日期范围。"
+    }
   },
   "historyNotFound": "历史为空 ¯\\_(ツ)_/¯",
   "menu": {
@@ -421,5 +480,58 @@
     "preview": "预览",
     "accept": "确认",
     "title": "调整框架以适配你的头部"
+  },
+  "downloaded": {
+    "noHaveADownloadBook": "没有已下载的书籍"
+  },
+  "booklist": {
+    "notFound": "什么都没找到 ¯\\_(ツ)_/¯",
+    "notFoundShort": "暂无内容"
+  },
+  "favorites": {
+    "import": {
+      "doneMessage": "已导入：{count}",
+      "partialFail": "部分项目无法导入。",
+      "title": "导入",
+      "noneSelected": "尚未选择任何书籍。",
+      "doneTitle": "完成",
+      "loadFail": "加载本地收藏失败。",
+      "modalTitle": "导入本地收藏",
+      "button": "从本地导入",
+      "importSelected": "导入 {count} 项",
+      "noLocal": "未找到本地收藏。"
+    },
+    "autoImport": {
+      "sync": "正在同步…",
+      "label": "自动导入（后台）",
+      "active": "自动导入已启用",
+      "waiting": "等待中"
+    },
+    "selectedCount": "已选择：{count}",
+    "selectForDelete": "选择要删除的项目",
+    "accessibility": {
+      "deselect": "取消选择",
+      "select": "选择"
+    },
+    "deleteOnline": {
+      "title": "从在线收藏中删除",
+      "message": "已选择 {count} 项。确定？"
+    },
+    "deletedCount": "已删除 {count} 项",
+    "selected": "已选择"
+  },
+  "recommendations": {
+    "actions": {
+      "openFavorites": "打开收藏",
+      "openFilters": "打开筛选器"
+    },
+    "emptyTitle": {
+      "default": "暂时还没有推荐",
+      "noFav": "暂无推荐——先把一些书加入收藏吧"
+    },
+    "emptySubtitle": {
+      "default": "试着修改筛选条件或刷新列表。",
+      "noFav": "先给几本书点个赞，我会为你推荐相似的作品。"
+    }
   }
 }

@@ -1,4 +1,4 @@
-// components/BookCard/index.tsx
+﻿
 import { Book, Tag } from "@/api/nhentai";
 import React from "react";
 
@@ -75,4 +75,5 @@ export default function BookCard(props: BookCardProps) {
 export { default as BookCardClassic } from "./design/BookCardClassic";
 export { default as BookCardImage } from "./design/BookCardImage";
 export { default as BookCardStable } from "./design/BookCardStable";
+
 

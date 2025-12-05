@@ -1,4 +1,4 @@
-// components/tags/Tabs.tsx
+﻿
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import React from "react";
@@ -56,3 +56,4 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
 });
+

@@ -1,8 +1,9 @@
-import { CandidateBook, getRecommendations } from "@/api/nhentai";
+﻿import { CandidateBook, getRecommendations } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -15,6 +16,7 @@ export default function RecommendationsScreen() {
   const { colors } = useTheme();
   const { includes, excludes } = useFilterTags();
   const router = useRouter();
+  const { t } = useI18n();
 
   const [books, setBooks] = useState<RecBook[]>([]);
   const [favIds, setFavIds] = useState<number[]>([]);
@@ -97,7 +99,6 @@ export default function RecommendationsScreen() {
     setRefreshing(false);
   }, [fetchRecs]);
 
-  /* toggle favorite */
   const toggleFav = useCallback((id: number, next: boolean) => {
     setFav((prev) => {
       const cp = new Set(prev);
@@ -120,18 +121,30 @@ export default function RecommendationsScreen() {
 
   const emptyTitle =
     favIds.length === 0
-      ? "Нет рекомендаций — добавь книги в избранное"
-      : "Рекомендаций пока нет";
+      ? t("recommendations.emptyTitle.noFav") ||
+        "Нет рекомендаций — добавь книги в избранное"
+      : t("recommendations.emptyTitle.default") || "Рекомендаций пока нет";
+
   const emptySubtitle =
     favIds.length === 0
-      ? "Поставь несколько лайков — я подберу похожее."
-      : "Попробуй изменить фильтры или обновить список.";
+      ? t("recommendations.emptySubtitle.noFav") ||
+        "Поставь несколько лайков — я подберу похожее."
+      : t("recommendations.emptySubtitle.default") ||
+        "Попробуй изменить фильтры или обновить список.";
+
   const emptyActions = useMemo(
     () => [
-      { label: "Открыть избранное", onPress: () => router.push("/favorites") },
-      { label: "Открыть фильтры", onPress: () => router.push("/tags") },
+      {
+        label:
+          t("recommendations.actions.openFavorites") || "Открыть избранное",
+        onPress: () => router.push("/favorites"),
+      },
+      {
+        label: t("recommendations.actions.openFilters") || "Открыть фильтры",
+        onPress: () => router.push("/tags"),
+      },
     ],
-    [router]
+    [router, t]
   );
 
   return (

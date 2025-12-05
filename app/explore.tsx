@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
   useCallback,
@@ -24,8 +24,8 @@ import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
-// локальный кэш экрана
 const EXPLORE_CACHE = new Map<string, { books: Book[]; totalPages: number }>();
 
 type ProbeNow = {
@@ -50,6 +50,7 @@ type ResultState = "idle" | "loading" | "no-results" | "timeout" | "error";
 export default function ExploreScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { t } = useI18n();
 
   const { query: rawQ, solo: rawSolo } = useLocalSearchParams<{
     query?: string | string[];
@@ -128,17 +129,29 @@ export default function ExploreScreen() {
     if (!probeNow) return "";
     const dir =
       probeNow.decision === "right"
-        ? "→ вправо"
+        ? t("explore.probe.directionRight") || "→ вправо"
         : probeNow.decision === "left"
-        ? "→ влево"
+        ? t("explore.probe.directionLeft") || "→ влево"
         : probeNow.decision === "hit"
-        ? "✓ попадание"
+        ? t("explore.probe.directionHit") || "✓ попадание"
         : "";
     const head = fmt(probeNow.headSec);
     const tail = fmt(probeNow.tailSec);
-    const whichLabel = probeNow.which === "start" ? "Начало" : "Конец";
-    return `${whichLabel}: p=${probeNow.page} • ${head} → ${tail} ${dir}`;
-  }, [probeNow]);
+    const whichLabel =
+      probeNow.which === "start"
+        ? t("explore.probe.start") || "Начало"
+        : t("explore.probe.end") || "Конец";
+    return (
+      (t("explore.probe.subtitle", {
+        which: whichLabel,
+        page: probeNow.page,
+        head,
+        tail,
+        dir,
+      }) as string) ||
+      `${whichLabel}: p=${probeNow.page} • ${head} → ${tail} ${dir}`
+    );
+  }, [probeNow, t]);
 
   const Ring = ({
     progress,
@@ -200,16 +213,16 @@ export default function ExploreScreen() {
 
     const title =
       stage === "meta"
-        ? "Подготовка запроса…"
+        ? t("explore.dateSearch.meta") || "Подготовка запроса…"
         : stage === "range:start"
-        ? "Ищу начало окна…"
+        ? t("explore.dateSearch.rangeStart") || "Ищу начало окна…"
         : stage === "range:end"
-        ? "Ищу конец окна…"
+        ? t("explore.dateSearch.rangeEnd") || "Ищу конец окна…"
         : stage === "fetch"
-        ? "Загружаю страницы окна…"
+        ? t("explore.dateSearch.fetch") || "Загружаю страницы окна…"
         : stage === "done"
-        ? "Готово"
-        : "Загрузка…";
+        ? t("explore.dateSearch.done") || "Готово"
+        : t("explore.dateSearch.loading") || "Загрузка…";
 
     return (
       <View
@@ -232,14 +245,30 @@ export default function ExploreScreen() {
               {title}
             </Text>
             {!!probeSubtitle && (
-              <Text style={{ color: colors.txt, opacity: 0.8, marginTop: 2 }}>
+              <Text
+                style={{
+                  color: colors.txt,
+                  opacity: 0.8,
+                  marginTop: 2,
+                }}
+              >
                 {probeSubtitle}
               </Text>
             )}
             {windowInfo && stage === "fetch" && (
-              <Text style={{ color: colors.txt, opacity: 0.8, marginTop: 2 }}>
-                Окно: индексы {windowInfo.startIndex}…{windowInfo.endIndex} •
-                элементов {windowInfo.total}
+              <Text
+                style={{
+                  color: colors.txt,
+                  opacity: 0.8,
+                  marginTop: 2,
+                }}
+              >
+                {(t("explore.dateSearch.windowInfo", {
+                  start: windowInfo.startIndex,
+                  end: windowInfo.endIndex,
+                  total: windowInfo.total,
+                }) as string) ||
+                  `Окно: индексы ${windowInfo.startIndex}…${windowInfo.endIndex} • элементов ${windowInfo.total}`}
               </Text>
             )}
           </View>
@@ -414,7 +443,6 @@ export default function ExploreScreen() {
     (!dateFilterActive && resultState === "no-results") ||
     (dateFilterActive && !searching && books.length === 0);
 
-  // Причина для текста в панели
   const reason = dateFilterActive
     ? "dates"
     : hasTagFilters
@@ -423,28 +451,50 @@ export default function ExploreScreen() {
 
   const noResTitle =
     reason === "dates"
-      ? "В выбранном диапазоне дат ничего не найдено"
+      ? t("explore.noResults.title.dates") ||
+        "В выбранном диапазоне дат ничего не найдено"
       : reason === "filters"
-      ? "По выбранным фильтрам ничего не найдено"
+      ? t("explore.noResults.title.filters") ||
+        "По выбранным фильтрам ничего не найдено"
       : query.trim()
-      ? `По запросу «${query.trim()}» ничего не найдено`
-      : "Ничего не найдено";
+      ? (t("explore.noResults.title.query", {
+          query: query.trim(),
+        }) as string) || `По запросу «${query.trim()}» ничего не найдено`
+      : t("explore.noResults.title.default") || "Ничего не найдено";
 
   const noResSubtitle =
+    t("explore.noResults.subtitle") ||
     "Попробуй изменить запрос, снять часть фильтров или расширить диапазон.";
 
   const noResActions = useMemo(() => {
     const base = [
-      { label: "Открыть фильтры", onPress: () => router.push("/tags") },
-      { label: "Свежие", onPress: () => setSort("date") },
-      { label: "Популярное за месяц", onPress: () => setSort("popular-month") },
+      {
+        label: t("explore.noResults.actions.openFilters") || "Открыть фильтры",
+        onPress: () => router.push("/tags"),
+      },
+      {
+        label: t("explore.noResults.actions.fresh") || "Свежие",
+        onPress: () => setSort("date"),
+      },
+      {
+        label:
+          t("explore.noResults.actions.popularMonth") || "Популярное за месяц",
+        onPress: () => setSort("popular-month"),
+      },
     ];
     if (reason === "dates")
-      return [{ label: "Сбросить даты", onPress: clearRange }, ...base];
+      return [
+        {
+          label: t("explore.noResults.actions.resetDates") || "Сбросить даты",
+          onPress: clearRange,
+        },
+        ...base,
+      ];
     if (reason === "filters") {
       return [
         {
-          label: "Сбросить фильтры",
+          label:
+            t("explore.noResults.actions.resetFilters") || "Сбросить фильтры",
           onPress: () => {
             clearAllTagFilters?.() ?? router.push("/tags");
           },
@@ -454,16 +504,17 @@ export default function ExploreScreen() {
     }
     return [
       {
-        label: "Изменить запрос",
+        label: t("explore.noResults.actions.changeQuery") || "Изменить запрос",
         onPress: () =>
-          router.push({ pathname: "/search", params: { query: query.trim() } }),
+          router.push({
+            pathname: "/search",
+            params: { query: query.trim() },
+          }),
       },
       ...base,
     ];
-  }, [router, query, setSort, clearRange, reason, clearAllTagFilters]);
+  }, [router, query, setSort, clearRange, reason, clearAllTagFilters, t]);
 
-  // «Скелетон» показываем только если данных ещё вообще нет (первая загрузка),
-  // при пагинации оставляем старый список без моргания
   const showListSkeleton =
     (!dateFilterActive && resultState === "loading" && books.length === 0) ||
     (dateFilterActive && books.length === 0 && searching);
@@ -490,7 +541,6 @@ export default function ExploreScreen() {
       {(!dateFilterActive || !searching) && (
         <>
           <BookList
-            /* НЕ даём ремоунтиться: никаких key на BookList */
             data={books}
             loading={showListSkeleton}
             refreshing={false}
@@ -501,7 +551,10 @@ export default function ExploreScreen() {
               const b = books.find((x) => x.id === id);
               router.push({
                 pathname: "/book/[id]",
-                params: { id: String(id), title: b?.title?.pretty ?? "" },
+                params: {
+                  id: String(id),
+                  title: b?.title?.pretty ?? "",
+                },
               });
             }}
             gridConfig={{ default: gridConfig }}
@@ -510,7 +563,6 @@ export default function ExploreScreen() {
             currentPage={currentPage}
             totalPages={totalPages}
             onChange={(p) => {
-              // никаких очисток данных — просто отмечаем, что идёт пагинация
               setPaginating(true);
               if (dateFilterActive) {
                 setStage("fetch");

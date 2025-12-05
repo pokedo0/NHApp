@@ -1,4 +1,4 @@
-import { searchBooks, type Book } from "@/api/nhentai";
+﻿import { searchBooks, type Book } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
@@ -95,7 +95,6 @@ export default function GridSection({
     return () => unsub();
   }, []);
 
-  // динамически подгружаем больше книг для "image"
   useEffect(() => {
     let mounted = true;
     const perPage = Math.min(120, Math.max(12, colsMaxByWidth));
@@ -119,7 +118,6 @@ export default function GridSection({
       const maxByWidth = Math.max(1, Math.floor((inner + gap) / (minW + gap)));
       setColsMaxByWidth(Math.min(12, maxByWidth));
 
-      // Автосвитч на image, если карточка станет слишком мелкой
       const cols = Math.max(1, Math.min(profCfg.numColumns ?? 1, maxByWidth));
       const cardW = (inner - gap * (cols - 1)) / cols;
       if (cardDesign !== "image" && cardW < 78) {
@@ -197,7 +195,6 @@ export default function GridSection({
 
   return (
     <View style={{ marginBottom: 20 }}>
-      {/* Профили */}
       <View
         style={{
           flexDirection: "row",
@@ -233,10 +230,8 @@ export default function GridSection({
         ))}
       </View>
 
-      {/* Селектор дизайна */}
       <CardDesignSegment value={cardDesign} onChange={setDesign} />
 
-      {/* Превью каталога через BookList */}
       <View
         onLayout={onLayoutPreview}
         style={{ marginTop: 10, borderRadius: 12, overflow: "hidden" }}
@@ -268,7 +263,6 @@ export default function GridSection({
         />
       </View>
 
-      {/* Контролы */}
       <View style={{ marginTop: 8 }}>
         <Text style={labelStyle as any}>
           {t("settings.grid.columns")}:{" "}
@@ -327,7 +321,6 @@ export default function GridSection({
         />
       </View>
 
-      {/* Сбросы */}
       <View
         style={{
           flexDirection: "row",
@@ -400,3 +393,4 @@ export default function GridSection({
 const styles = StyleSheet.create({
   container: { flex: 1 },
 });
+

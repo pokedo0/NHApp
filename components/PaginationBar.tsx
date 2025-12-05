@@ -1,5 +1,4 @@
-// components/PaginationBar.tsx
-import { useTheme } from "@/lib/ThemeContext";
+﻿import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
@@ -40,9 +39,8 @@ export default function PaginationBar({
   const [visible, setVisible] = useState(false);
   const [sliderPage, setSliderPage] = useState(currentPage);
 
-  // анимация “пилюли”
   const scale = useMemo(() => new Animated.Value(1), []);
-  const sheetY = useRef(new Animated.Value(0)).current; // 0..1
+  const sheetY = useRef(new Animated.Value(0)).current;
 
   if (totalPages <= 1) return null;
 
@@ -92,14 +90,12 @@ export default function PaginationBar({
 
   return (
     <>
-      {/* Нижняя панель пагинации */}
       <View
         style={[
           styles.bar,
           { backgroundColor: colors.menuBg, borderColor: colors.sub + "30" },
         ]}
       >
-        {/* Назад */}
         <TouchableOpacity
           onPressIn={() => currentPage > 1 && animateTap(0.95)}
           onPressOut={() => animateTap(1)}
@@ -116,7 +112,6 @@ export default function PaginationBar({
           />
         </TouchableOpacity>
 
-        {/* Центр: текущая страница / всего */}
         <TouchableOpacity onPress={openSheet} style={styles.center}>
           <Animated.View style={[styles.pill, { transform: [{ scale }] }]}>
             <Text style={[styles.pillTxt, { color: colors.menuTxt }]}>
@@ -125,7 +120,6 @@ export default function PaginationBar({
           </Animated.View>
         </TouchableOpacity>
 
-        {/* Вперёд */}
         <TouchableOpacity
           onPressIn={() => currentPage < totalPages && animateTap(0.95)}
           onPressOut={() => animateTap(1)}
@@ -145,7 +139,6 @@ export default function PaginationBar({
         </TouchableOpacity>
       </View>
 
-      {/* Bottom sheet выбора страницы */}
       <Modal
         visible={visible}
         statusBarTranslucent
@@ -153,7 +146,6 @@ export default function PaginationBar({
         animationType="none"
         onRequestClose={closeSheet}
       >
-        {/* затемнение */}
         <Pressable style={styles.backdrop} onPress={closeSheet} />
 
         <Animated.View
@@ -165,12 +157,10 @@ export default function PaginationBar({
             },
           ]}
         >
-          {/* хендл */}
           <View style={styles.handleWrap}>
             <View style={[styles.handle, { backgroundColor: colors.sub }]} />
           </View>
 
-          {/* заголовок + крайние страницы */}
           <View style={styles.headerRow}>
             <TouchableOpacity
               onPress={() => setSliderPage(1)}
@@ -193,15 +183,10 @@ export default function PaginationBar({
                 { backgroundColor: colors.menuBg + "00" },
               ]}
             >
-              <Ionicons
-                name="play-skip-forward"
-                size={22}
-                color={colors.txt}
-              />
+              <Ionicons name="play-skip-forward" size={22} color={colors.txt} />
             </TouchableOpacity>
           </View>
 
-          {/* ввод страницы */}
           <View style={styles.valueRow}>
             <TextInput
               style={[
@@ -227,7 +212,6 @@ export default function PaginationBar({
             </Text>
           </View>
 
-          {/* слайдер */}
           <Slider
             style={styles.slider}
             minimumValue={1}
@@ -240,22 +224,15 @@ export default function PaginationBar({
             thumbTintColor={colors.accent}
           />
 
-          {/* быстрые шаги */}
           <View style={styles.controls}>
             <TouchableOpacity
-              style={[
-                styles.jumpBtn,
-                { borderColor: colors.sub + "50" },
-              ]}
+              style={[styles.jumpBtn, { borderColor: colors.sub + "50" }]}
               onPress={() => jump(-5)}
             >
               <Text style={[styles.jumpTxt, { color: colors.txt }]}>−5</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.jumpBtn,
-                { borderColor: colors.sub + "50" },
-              ]}
+              style={[styles.jumpBtn, { borderColor: colors.sub + "50" }]}
               onPress={() => jump(-1)}
             >
               <Text style={[styles.jumpTxt, { color: colors.txt }]}>−1</Text>
@@ -264,37 +241,25 @@ export default function PaginationBar({
             <View style={{ flex: 1 }} />
 
             <TouchableOpacity
-              style={[
-                styles.jumpBtn,
-                { borderColor: colors.sub + "50" },
-              ]}
+              style={[styles.jumpBtn, { borderColor: colors.sub + "50" }]}
               onPress={() => jump(+1)}
             >
               <Text style={[styles.jumpTxt, { color: colors.txt }]}>+1</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.jumpBtn,
-                { borderColor: colors.sub + "50" },
-              ]}
+              style={[styles.jumpBtn, { borderColor: colors.sub + "50" }]}
               onPress={() => jump(+5)}
             >
               <Text style={[styles.jumpTxt, { color: colors.txt }]}>+5</Text>
             </TouchableOpacity>
           </View>
 
-          {/* действия */}
           <View style={styles.actions}>
             <TouchableOpacity
               onPress={closeSheet}
               style={[styles.cancelBtn, { marginRight: 8 }]}
             >
-              <Text
-                style={[
-                  styles.cancelTxt,
-                  { color: colors.accent },
-                ]}
-              >
+              <Text style={[styles.cancelTxt, { color: colors.accent }]}>
                 {t("common.cancel") || "Отмена"}
               </Text>
             </TouchableOpacity>
@@ -316,7 +281,6 @@ export default function PaginationBar({
   );
 }
 
-// типизированные стили, без union ViewStyle | TextStyle | ImageStyle
 type Styles = {
   bar: ViewStyle;
   iconBtn: ViewStyle;
@@ -351,7 +315,6 @@ type Styles = {
 };
 
 const styles = StyleSheet.create<Styles>({
-  // панель пагинации
   bar: {
     flexDirection: "row",
     alignItems: "center",
@@ -379,7 +342,6 @@ const styles = StyleSheet.create<Styles>({
     fontWeight: "500",
   },
 
-  // модалка
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.40)",

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Image, Pressable, Text, View } from "react-native";
 
 import { Book } from "@/api/nhentai";
@@ -92,7 +92,7 @@ export default function BookCardClassic({
     Animated.timing(hAnim, {
       toValue: to,
       duration: 180,
-      useNativeDriver: false, // height
+      useNativeDriver: false, 
     }).start();
   };
 
@@ -123,7 +123,6 @@ export default function BookCardClassic({
       ]}
       onPress={handlePressCard}
     >
-      {/* Обложка */}
       <View style={styles.imageWrap}>
         <SmartImage
           sources={sources}

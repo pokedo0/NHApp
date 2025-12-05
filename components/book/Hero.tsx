@@ -1,5 +1,4 @@
-// components/book/Hero.tsx
-import {
+﻿import {
   createCharacterCard,
   getCharactersWithCards,
   getGlobalCharacterCardForCharacter,
@@ -144,7 +143,6 @@ export default function Hero({
   const { t, resolvedDateFns } = useI18n();
   const router = useRouter();
 
-  // текущий пользователь NH (может быть null, если не авторизован)
   const me = useOnlineMe();
   const meId = me?.id ?? null;
 
@@ -223,8 +221,6 @@ export default function Hero({
     return book.tags.filter((t) => !skip.has(t.name));
   }, [book]);
 
-  // ------------------ данные по персонажам из БД ------------------
-
   const [charactersWithCards, setCharactersWithCards] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -247,7 +243,6 @@ export default function Hero({
     };
   }, [book.id, refreshKey]);
 
-  // карта: имя персонажа -> глобальная карточка (картинка + rect + пародия)
   const [characterCardsMap, setCharacterCardsMap] = useState<
     Record<string, { imageUrl: string; parodyName: string | null; rect: Rect }>
   >({});
@@ -285,9 +280,7 @@ export default function Hero({
               parodyName: card.parodyName ?? null,
               rect: card.rect,
             };
-          } catch {
-            // игнорируем ошибки по одному персонажу
-          }
+          } catch {}
         })
       );
 
@@ -299,10 +292,8 @@ export default function Hero({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book.characters, charactersWithCards, refreshKey]);
 
-  // персонажи с картинками сверху, без картинок снизу
   const characterTagsWithInfo = useMemo<CharacterTag[]>(() => {
     if (!book.characters?.length) return [];
 
@@ -322,7 +313,6 @@ export default function Hero({
         base.cardRect = cardInfo.rect;
         withCard.push(base);
       } else if (hasCard && !cardInfo) {
-        // карточка есть, но ещё не подтянули детально
         base.hasCard = true;
         withoutCard.push(base);
       } else {
@@ -337,16 +327,12 @@ export default function Hero({
     if (!book.characters?.length) return [];
     if (!charactersWithCards.length) return book.characters.map((c) => c.name);
 
-    // если у персонажа уже есть карточка где-то, не даём создавать ещё
     return book.characters
       .map((c) => c.name)
       .filter((name) => !charactersWithCards.includes(name));
   }, [book.characters, charactersWithCards]);
 
-  // только авторизованный пользователь может добавлять карточки
   const canAddCards = availableCharacters.length > 0 && !!meId;
-
-  // ------------------ модалки выбора страницы / кропа / персонажа ------------------
 
   const [pagePickerVisible, setPagePickerVisible] = useState(false);
   const [cropVisible, setCropVisible] = useState(false);
@@ -364,7 +350,6 @@ export default function Hero({
   const openPagePicker = () => {
     if (!canAddCards) return;
     if (!meId) {
-      // если не авторизован, просто не даём открыть модалку
       return;
     }
     setSubmitError(null);
@@ -526,8 +511,6 @@ export default function Hero({
 
     return book.cover;
   };
-
-  // ------------- wide layout -------------
 
   if (wide) {
     return (
@@ -819,8 +802,6 @@ export default function Hero({
       </View>
     );
   }
-
-  // ------------- mobile layout -------------
 
   const contentW = containerW - pad * 2;
   const cardW = contentW * 0.78;
@@ -1133,8 +1114,6 @@ export default function Hero({
   );
 }
 
-// ------------------ модалка выбора страницы с картинками ------------------
-
 type PagePickerModalProps = {
   visible: boolean;
   pagesCount: number;
@@ -1165,9 +1144,7 @@ const PagePickerModal: React.FC<PagePickerModalProps> = ({
     >
       <View style={pickerStyles.backdrop}>
         <View style={pickerStyles.modal}>
-          <Text style={pickerStyles.title}>
-            Select a page to edit
-          </Text>
+          <Text style={pickerStyles.title}>Select a page to edit</Text>
 
           <FlatList
             horizontal

@@ -1,5 +1,4 @@
-// components/BookCard/design/BookCardStable.tsx
-import { useI18n } from "@/lib/i18n/I18nContext";
+﻿import { useI18n } from "@/lib/i18n/I18nContext";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { format } from "date-fns";
@@ -554,3 +553,4 @@ const areEqual = (prev: BookCardStableProps, next: BookCardStableProps) => {
 
 const BookCardStable = memo(BookCardStableInner, areEqual);
 export default BookCardStable;
+

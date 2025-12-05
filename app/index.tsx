@@ -138,17 +138,26 @@ export default function HomeScreen() {
     if (!probeNow) return "";
     const dir =
       probeNow.decision === "right"
-        ? "→ вправо"
+        ? t("explore.dateSearch.dirRight")
         : probeNow.decision === "left"
-        ? "→ влево"
+        ? t("explore.dateSearch.dirLeft")
         : probeNow.decision === "hit"
-        ? "✓ попадание"
+        ? t("explore.dateSearch.dirHit")
         : "";
     const head = fmt(probeNow.headSec);
     const tail = fmt(probeNow.tailSec);
-    const whichLabel = probeNow.which === "start" ? "Начало" : "Конец";
-    return `${whichLabel}: p=${probeNow.page} • ${head} → ${tail} ${dir}`;
-  }, [probeNow]);
+    const whichLabel =
+      probeNow.which === "start"
+        ? t("explore.dateSearch.whichStart")
+        : t("explore.dateSearch.whichEnd");
+    return t("explore.dateSearch.probeSubtitle", {
+      which: whichLabel,
+      page: probeNow.page,
+      head,
+      tail,
+      dir,
+    });
+  }, [probeNow, t]);
 
   const Ring = ({
     progress,
@@ -208,18 +217,20 @@ export default function HomeScreen() {
         ? 1
         : 0.05;
 
-    const title =
+    const titleKey =
       stage === "meta"
-        ? "Подготовка запроса…"
+        ? t("explore.dateSearch.title.meta")
         : stage === "range:start"
-        ? "Ищу начало окна…"
+        ? t("explore.dateSearch.title.rangeStart")
         : stage === "range:end"
-        ? "Ищу конец окна…"
+        ? t("explore.dateSearch.title.rangeEnd")
         : stage === "fetch"
-        ? "Загружаю страницы окна…"
+        ? t("explore.dateSearch.title.fetch")
         : stage === "done"
-        ? "Готово"
-        : "Загрузка…";
+        ? t("explore.dateSearch.title.done")
+        : t("explore.dateSearch.title.loading");
+
+    const title = t(titleKey);
 
     return (
       <View
@@ -247,8 +258,11 @@ export default function HomeScreen() {
             )}
             {windowInfo && stage === "fetch" && (
               <Text style={{ color: colors.txt, opacity: 0.8, marginTop: 2 }}>
-                Окно: индексы {windowInfo.startIndex}…{windowInfo.endIndex} •
-                элементов {windowInfo.total}
+                {t("explore.dateSearch.windowInfo", {
+                  start: windowInfo.startIndex,
+                  end: windowInfo.endIndex,
+                  total: windowInfo.total,
+                })}
               </Text>
             )}
           </View>
@@ -278,7 +292,7 @@ export default function HomeScreen() {
         >
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={{ color: colors.txt, fontWeight: "700" }}>
-              {t("NewUpdate")} {update.versionName} 
+              {t("NewUpdate")} {update.versionName}
             </Text>
             {!!update.notes?.trim() && (
               <TouchableOpacity onPress={() => setShowNotes(true)}>
@@ -497,29 +511,45 @@ export default function HomeScreen() {
     : hasTagFilters
     ? "filters"
     : "general";
+
   const noResTitle =
     reason === "dates"
-      ? "В выбранном диапазоне дат ничего не найдено"
+      ? t("explore.noResults.title.dates")
       : reason === "filters"
-      ? "По выбранным фильтрам ничего не найдено"
+      ? t("explore.noResults.title.filters")
       : query.trim()
-      ? `По запросу «${query.trim()}» ничего не найдено`
-      : "Ничего не найдено";
-  const noResSubtitle =
-    "Попробуй изменить запрос, снять часть фильтров или расширить диапазон.";
+      ? t("explore.noResults.title.query", { query: query.trim() })
+      : t("explore.noResults.title.general");
+
+  const noResSubtitle = t("explore.noResults.subtitle");
 
   const noResActions = useMemo(() => {
     const base = [
-      { label: "Открыть фильтры", onPress: () => router.push("/tags") },
-      { label: "Свежие", onPress: () => setSort("date") },
-      { label: "Популярное за месяц", onPress: () => setSort("popular-month") },
+      {
+        label: t("explore.noResults.actions.openFilters"),
+        onPress: () => router.push("/tags"),
+      },
+      {
+        label: t("explore.noResults.actions.fresh"),
+        onPress: () => setSort("date"),
+      },
+      {
+        label: t("explore.noResults.actions.popularMonth"),
+        onPress: () => setSort("popular-month"),
+      },
     ];
     if (reason === "dates")
-      return [{ label: "Сбросить даты", onPress: clearRange }, ...base];
+      return [
+        {
+          label: t("explore.noResults.actions.resetDates"),
+          onPress: clearRange,
+        },
+        ...base,
+      ];
     if (reason === "filters") {
       return [
         {
-          label: "Сбросить фильтры",
+          label: t("explore.noResults.actions.resetFilters"),
           onPress: () => {
             clearAllTagFilters?.() ?? router.push("/tags");
           },
@@ -529,13 +559,16 @@ export default function HomeScreen() {
     }
     return [
       {
-        label: "Изменить запрос",
+        label: t("explore.noResults.actions.changeQuery"),
         onPress: () =>
-          router.push({ pathname: "/search", params: { query: query.trim() } }),
+          router.push({
+            pathname: "/search",
+            params: { query: query.trim() },
+          }),
       },
       ...base,
     ];
-  }, [router, query, setSort, clearRange, reason, clearAllTagFilters]);
+  }, [router, query, setSort, clearRange, reason, clearAllTagFilters, t]);
 
   const showListSkeleton =
     (!dateFilterActive && resultState === "loading" && books.length === 0) ||

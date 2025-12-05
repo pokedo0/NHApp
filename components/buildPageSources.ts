@@ -1,11 +1,10 @@
-import { buildImageFallbacks } from "./buildImageFallbacks";
+﻿import { buildImageFallbacks } from "./buildImageFallbacks";
 
-/**  Возвращает перечень (host × ext) для перебора. */
 export const buildPageSources = (url: string): string[] => {
   const hostMatch = url.match(/^https:\/\/i\d\.nhentai\.net\/(.+)$/);
   if (!hostMatch) return buildImageFallbacks(url);
 
-  const path = hostMatch[1];                            // galleries/123/1.jpg
+  const path = hostMatch[1];                          
   const hosts = ["i1", "i2", "i3", "i4"];
   const exts  = buildImageFallbacks(url).map((u) => u.split(".").pop()!);
 

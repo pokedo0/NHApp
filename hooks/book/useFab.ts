@@ -1,7 +1,7 @@
-import { useCallback, useRef } from "react";
+﻿import { useCallback, useRef } from "react";
 import { Animated, Easing, FlatList } from "react-native";
 
-// Показ/скрытие FAB и скролл вверх
+
 export const useFab = () => {
   const fabScale = useRef(new Animated.Value(0)).current;
   const fabVisibleRef = useRef(false);
@@ -34,3 +34,4 @@ export const useFab = () => {
 
   return { fabScale, onScroll, scrollTop, listRef };
 };
+

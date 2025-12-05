@@ -1,5 +1,4 @@
-// components/book/Footer.tsx
-import type { Book, GalleryComment } from "@/api/nhentai";
+﻿import type { Book, GalleryComment } from "@/api/nhentai";
 import { deleteCommentById, type ApiComment } from "@/api/online/comments";
 import BookList from "@/components/BookList";
 import CommentCard from "@/components/CommentCard";
@@ -37,7 +36,6 @@ const s = StyleSheet.create({
   sectionBookList: { marginHorizontal: -16 },
 });
 
-// на всякий — нормализатор URL (если вдруг прилетит относительный путь)
 function absUrl(u?: string | null): string | undefined {
   if (!u) return undefined;
   const s = String(u).trim();
@@ -64,7 +62,7 @@ export default function Footer({
   myUserId,
   myAvatarUrl,
   myUsername,
-  // не обязателен, но круто иметь
+
   refetchComments,
 }: {
   galleryId: number;
@@ -101,7 +99,6 @@ export default function Footer({
     [baseGrid, related.length, innerPadding]
   );
 
-  // ===== локальные «свежие» комментарии + скрытые =====
   const [localNew, setLocalNew] = useState<GalleryComment[]>([]);
   const [hiddenIds, setHiddenIds] = useState<Set<number>>(new Set());
 
@@ -145,22 +142,14 @@ export default function Footer({
   const visibleComments = mergedComments.slice(0, visibleCount);
   const hasMore = visibleCount < totalCount;
 
-  // ⬇️ НОРМАЛИЗАТОР только что отправленного комментария (подставляем мой аватар/ник)
   const toGalleryComment = (c: ApiComment): GalleryComment => {
     const poster = (c.poster as any) || {};
     const avatar =
-      absUrl(poster.avatar_url || poster.avatar) ||
-      absUrl(myAvatarUrl) ||
-      ""; // даём фоллбек на мой аватар
+      absUrl(poster.avatar_url || poster.avatar) || absUrl(myAvatarUrl) || "";
 
-    const username =
-      poster.username ||
-      myUsername ||
-      "user";
+    const username = poster.username || myUsername || "user";
 
-    const uid =
-      poster.id ??
-      myUserId;
+    const uid = poster.id ?? myUserId;
 
     return {
       id: c.id,
@@ -168,22 +157,18 @@ export default function Footer({
       body: c.body,
       post_date: c.post_date,
       poster: { ...poster, id: uid, username, avatar_url: avatar } as any,
-      // продублируем для удобства рендера
       avatar,
     };
   };
 
-  // Пользователь отправил — сразу покажем локально с моим аватаром
   const handleSubmitted = async (c: ApiComment) => {
     setLocalNew((prev) => [toGalleryComment(c), ...prev]);
     setVisibleCount((n) => Math.max(n, 1));
     try {
       await refetchComments?.();
-      // setLocalNew([]); // можно очистить, если сверху пришёл апдейт
     } catch {}
   };
 
-  // Удаление
   const handleDelete = async (id?: number) => {
     if (!id) return;
     await deleteCommentById(id);
@@ -192,10 +177,11 @@ export default function Footer({
       next.add(id);
       return next;
     });
-    try { await refetchComments?.(); } catch {}
+    try {
+      await refetchComments?.();
+    } catch {}
   };
 
-  // ✅ Если мой аватар/ник загрузились ПОСЛЕ отправки — дотянем их в уже добавленные локальные комменты
   useEffect(() => {
     if (!myAvatarUrl && !myUsername && !myUserId) return;
     setLocalNew((prev) =>
@@ -204,13 +190,14 @@ export default function Footer({
           (c as any).avatar ||
           (c.poster as any)?.avatar_url ||
           (c.poster as any)?.avatar;
-        // обновим только те, у кого аватар пустой (это наши свежие локальные)
+
         if (!hasAvatar) {
           const poster = {
             ...(c.poster as any),
             id: (c.poster as any)?.id ?? myUserId,
             username: (c.poster as any)?.username ?? myUsername,
-            avatar_url: absUrl((c.poster as any)?.avatar_url) ?? absUrl(myAvatarUrl),
+            avatar_url:
+              absUrl((c.poster as any)?.avatar_url) ?? absUrl(myAvatarUrl),
           };
           return {
             ...c,
@@ -225,12 +212,16 @@ export default function Footer({
 
   return (
     <View style={{ paddingTop: 24 }}>
-      {/* Related */}
+      {}
       <View style={s.sectionHead}>
         <Text
           style={[
             s.galleryLabel,
-            { paddingHorizontal: innerPadding, paddingBottom: 16, color: ui.text },
+            {
+              paddingHorizontal: innerPadding,
+              paddingBottom: 16,
+              color: ui.text,
+            },
           ]}
         >
           {t("related")}
@@ -259,30 +250,34 @@ export default function Footer({
         />
       </View>
 
-      {/* Comments header */}
+      {}
       <View style={[s.sectionHead, { marginTop: 32 }]}>
         <Text
           style={[
             s.galleryLabel,
-            { paddingHorizontal: innerPadding, paddingBottom: 10, color: ui.text },
+            {
+              paddingHorizontal: innerPadding,
+              paddingBottom: 10,
+              color: ui.text,
+            },
           ]}
         >
           {t("comments.title")} ({totalCount})
         </Text>
       </View>
 
-      {/* Composer — показываем только авторизованным */}
+      {}
       {!!myUserId && (
         <View style={{ paddingHorizontal: innerPadding, marginBottom: 12 }}>
           <CommentComposer
             galleryId={galleryId}
-            placeholder="Написать комментарий…"
+            placeholder={t("comments.writeComment")}
             onSubmitted={handleSubmitted}
           />
         </View>
       )}
 
-      {/* List */}
+      {}
       {cmtLoading ? (
         <View
           style={{
@@ -294,7 +289,9 @@ export default function Footer({
           <ActivityIndicator size="large" color={ui.accent} />
         </View>
       ) : (
-        <View style={{ paddingHorizontal: innerPadding, gap: 8, paddingBottom: 24 }}>
+        <View
+          style={{ paddingHorizontal: innerPadding, gap: 8, paddingBottom: 24 }}
+        >
           {visibleComments.map((c) => {
             const pid = Number(c?.poster?.id);
             const isMine =
@@ -311,7 +308,7 @@ export default function Footer({
                 poster={c.poster as any}
                 avatar={(c as any).avatar}
                 highlight={isMine}
-                mineLabel={isMine ? "Ваш комментарий" : undefined}
+                mineLabel={isMine ? t("comments.youComment") : undefined}
                 onPress={() => {
                   if (!c?.poster?.id) return;
                   const slug =
@@ -333,7 +330,9 @@ export default function Footer({
 
           {hasMore && (
             <Pressable
-              onPress={() => setVisibleCount((n) => Math.min(n + 20, totalCount))}
+              onPress={() =>
+                setVisibleCount((n) => Math.min(n + 20, totalCount))
+              }
               style={[
                 s.showMoreBtn,
                 {
@@ -343,10 +342,16 @@ export default function Footer({
                   overflow: "hidden",
                 },
               ]}
-              android_ripple={{ color: `${ui.accent}22`, borderless: false, foreground: true }}
+              android_ripple={{
+                color: `${ui.accent}22`,
+                borderless: false,
+                foreground: true,
+              }}
             >
               <Text style={[s.showMoreTxt, { color: ui.accent }]}>
-                {t("showMore", { count: Math.min(20, totalCount - visibleCount) })}
+                {t("showMore", {
+                  count: Math.min(20, totalCount - visibleCount),
+                })}
               </Text>
             </Pressable>
           )}

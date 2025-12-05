@@ -1,36 +1,28 @@
-// hooks/useOnlineMe.ts
-import { getMe } from "@/api/online/me";
+﻿import { getMe } from "@/api/online/me";
 import type { Me } from "@/api/online/types";
 import { useEffect, useState } from "react";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-let cachedMe: Me | null | undefined = undefined;
-let pending: Promise<Me | null> | null = null;
-
 export function useOnlineMe(): Me | null {
-  const [me, setMe] = useState<Me | null | undefined>(cachedMe);
+  const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
-    if (cachedMe !== undefined) {
-      setMe(cachedMe);
-      return;
-    }
+    let cancelled = false;
 
-    if (!pending) {
-      pending = getMe()
-        .then((res) => {
-          cachedMe = res;
-          return res;
-        })
-        .finally(() => {
-          pending = null;
-        });
-    }
+    getMe()
+      .then((res) => {
+        if (!cancelled) {
+          setMe(res);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load me:", err);
+      });
 
-    pending.then((res) => {
-      setMe(res);
-    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -38,27 +30,20 @@ export function useOnlineMe(): Me | null {
 
     const controller = new AbortController();
 
-    (async () => {
-      try {
-        await fetch(`${API_BASE_URL}/api/users/sync`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: me.id,
-            username: me.username,
-          }),
-          signal: controller.signal,
-        });
-      } catch {
-      }
-    })();
+    fetch(`${API_BASE_URL}/api/users/sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: me.id,
+        username: me.username,
+      }),
+      signal: controller.signal,
+    }).catch(() => {});
 
-    return () => {
-      controller.abort();
-    };
+    return () => controller.abort();
   }, [me?.id, me?.username]);
 
-  return me ?? null;
+  return me;
 }

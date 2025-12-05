@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   PropsWithChildren,
@@ -33,7 +33,7 @@ const DateRangeContext = createContext<Ctx>({
 
 const STORAGE_KEY = "dateRange:v2";
 
-// утилиты
+
 const toISODate = (d: NullableDate) =>
   d ? new Date(d).toISOString().slice(0, 10) : null;
 const fromISODate = (s: string | null | undefined): NullableDate =>
@@ -47,7 +47,7 @@ export function DateRangeProvider({ children }: PropsWithChildren) {
   const persist = useCallback(async (f: NullableDate, t: NullableDate) => {
     try {
       const payload = JSON.stringify({ from: toISODate(f), to: toISODate(t) });
-      await AsyncStorage.setItem(STORAGE_KEY, payload); // хранение KV (см. доки). 
+      await AsyncStorage.setItem(STORAGE_KEY, payload); 
     } catch {
     }
   }, []);
@@ -107,3 +107,4 @@ export function DateRangeProvider({ children }: PropsWithChildren) {
 }
 
 export const useDateRange = () => useContext(DateRangeContext);
+

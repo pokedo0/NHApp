@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+﻿import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
 import {
@@ -30,6 +30,7 @@ import { CardPressable } from "@/components/ui/CardPressable";
 import { useAutoImport } from "@/context/AutoImportProvider";
 import { useFavHistory } from "@/hooks/useFavHistory";
 import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 export interface GridConfig {
   numColumns: number;
@@ -84,19 +85,17 @@ export default function BookListOnline({
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { favoritesSet, historyMap } = useFavHistory();
+  const { t } = useI18n();
 
-  // Глобальный авто-импорт
   const {
     enabled: autoImportEnabled,
     setEnabled: setAutoImportEnabled,
     isRunning,
   } = useAutoImport();
 
-  // Локальный список (для мгновенного удаления) + Undo
   const [items, setItems] = React.useState<Book[]>(data);
   React.useEffect(() => setItems(data), [data]);
 
-  // ======= РЕЖИМ ВЫБОРА =======
   const [selectMode, setSelectMode] = React.useState(false);
   const [selected, setSelected] = React.useState<Set<number>>(new Set());
   const toggleSelect = (id: number) =>
@@ -107,7 +106,6 @@ export default function BookListOnline({
     });
   const clearSelect = () => setSelected(new Set());
 
-  // ======= UNDO =======
   const [undoStack, setUndoStack] = React.useState<Book[]>([]);
   const pushUndo = (books: Book[]) =>
     setUndoStack((prev) => [...books, ...prev]);
@@ -130,7 +128,6 @@ export default function BookListOnline({
     clearUndo();
   };
 
-  // ======= СЕТКА =======
   const themeBg =
     background ??
     (colors as any).page ??
@@ -211,7 +208,6 @@ export default function BookListOnline({
   const isSingleCol = cols === 1;
   const contentScale = isSingleCol ? 0.45 : 0.65;
 
-  // ======= УДАЛЕНИЕ =======
   const removeIdsLocally = (ids: number[]) =>
     setItems((prev) => prev.filter((b) => !ids.includes(b.id)));
 
@@ -248,7 +244,6 @@ export default function BookListOnline({
     }
   };
 
-  // ======= РЕНДЕР КАРТОЧКИ =======
   const renderItem: ListRenderItem<Book> = React.useCallback(
     ({ item, index }) => {
       const id = item.id;
@@ -288,18 +283,26 @@ export default function BookListOnline({
               <Pressable
                 onPress={() => toggleSelect(id)}
                 style={[StyleSheet.absoluteFill, styles.overlayHit]}
-                accessibilityLabel={isSelected ? "Снять выбор" : "Выбрать"}
+                accessibilityLabel={
+                  isSelected
+                    ? t("favorites.accessibility.deselect") || "Снять выбор"
+                    : t("favorites.accessibility.select") || "Выбрать"
+                }
               >
                 <View
                   style={[
                     StyleSheet.absoluteFill,
-                    { backgroundColor: isSelected ? "#00000066" : "#00000022" },
+                    {
+                      backgroundColor: isSelected ? "#00000066" : "#00000022",
+                    },
                   ]}
                 />
                 {isSelected && (
                   <View style={styles.selectedBadge}>
                     <Feather name="check" size={16} color={"#000"} />
-                    <Text style={styles.selectedText}>Выбрано</Text>
+                    <Text style={styles.selectedText}>
+                      {t("favorites.selected") || "Выбрано"}
+                    </Text>
                   </View>
                 )}
               </Pressable>
@@ -320,6 +323,7 @@ export default function BookListOnline({
       favoritesSet,
       historyMap,
       onPress,
+      t,
     ]
   );
 
@@ -334,7 +338,6 @@ export default function BookListOnline({
         }
       : undefined;
 
-  // ======= ИМПОРТ ИЗ ЛОКАЛЬНЫХ (модалка + логика) =======
   const [importOpen, setImportOpen] = React.useState(false);
   const [importBusy, setImportBusy] = React.useState(false);
   const [localBooks, setLocalBooks] = React.useState<Book[]>([]);
@@ -359,7 +362,10 @@ export default function BookListOnline({
       localIds = [];
     }
     if (!localIds.length) {
-      Alert.alert("Импорт", "Локальных избранных не найдено.");
+      Alert.alert(
+        t("favorites.import.title") || "Импорт",
+        t("favorites.import.noLocal") || "Локальных избранных не найдено."
+      );
       return;
     }
     setImportBusy(true);
@@ -372,11 +378,15 @@ export default function BookListOnline({
       setLocalSelected(new Set());
       setImportOpen(true);
     } catch {
-      Alert.alert("Импорт", "Не удалось загрузить локальные избранные.");
+      Alert.alert(
+        t("favorites.import.title") || "Импорт",
+        t("favorites.import.loadFail") ||
+          "Не удалось загрузить локальные избранные."
+      );
     } finally {
       setImportBusy(false);
     }
-  }, []);
+  }, [t]);
 
   const toggleLocalPick = (id: number) =>
     setLocalSelected((prev) => {
@@ -388,22 +398,32 @@ export default function BookListOnline({
   const importPicked = async () => {
     const ids = Array.from(localSelected);
     if (!ids.length) {
-      Alert.alert("Импорт", "Не выбрано ни одной книги.");
+      Alert.alert(
+        t("favorites.import.title") || "Импорт",
+        t("favorites.import.noneSelected") || "Не выбрано ни одной книги."
+      );
       return;
     }
     setImportBusy(true);
     try {
       await onlineBulkFavorite(ids);
-      Alert.alert("Готово", `Импортировано: ${ids.length}`);
+      Alert.alert(
+        t("favorites.import.doneTitle") || "Готово",
+        (t("favorites.import.doneMessage", { count: ids.length }) ||
+          `Импортировано: ${ids.length}`) as string
+      );
       setImportOpen(false);
     } catch {
-      Alert.alert("Импорт", "Часть элементов не удалось импортировать.");
+      Alert.alert(
+        t("favorites.import.title") || "Импорт",
+        t("favorites.import.partialFail") ||
+          "Часть элементов не удалось импортировать."
+      );
     } finally {
       setImportBusy(false);
     }
   };
 
-  // ======= ПАНЕЛЬ УПРАВЛЕНИЯ (хедер списка) =======
   const importDisabled = autoImportEnabled;
   const Header = (
     <View
@@ -414,10 +434,9 @@ export default function BookListOnline({
     >
       <View style={styles.toolbarTop}>
         <View style={styles.toolbarRight}>
-          {/* Свитчер авто-импорта */}
           <View style={styles.switchWrap}>
             <Text style={{ color: colors.sub, fontSize: 12, marginRight: 6 }}>
-              Авто-импорт (фон)
+              {t("favorites.autoImport.label") || "Авто-импорт (фон)"}
             </Text>
             <Switch
               value={autoImportEnabled}
@@ -437,13 +456,14 @@ export default function BookListOnline({
                   }}
                 />
                 <Text style={{ color: colors.sub, fontSize: 11 }}>
-                  {isRunning ? "синхронизация…" : "ожидание"}
+                  {isRunning
+                    ? t("favorites.autoImport.sync") || "синхронизация…"
+                    : t("favorites.autoImport.waiting") || "ожидание"}
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Кнопка импорта: без undefined в пропсах */}
           {!importDisabled ? (
             <CardPressable
               ripple={colors.accent + "33"}
@@ -455,7 +475,7 @@ export default function BookListOnline({
               <View style={[styles.btn, { borderColor: colors.page }]}>
                 <Feather name="upload" size={14} color={colors.accent} />
                 <Text style={[styles.btnTxt, { color: colors.accent }]}>
-                  Импорт из локальных
+                  {t("favorites.import.button") || "Импорт из локальных"}
                 </Text>
               </View>
             </CardPressable>
@@ -464,7 +484,7 @@ export default function BookListOnline({
               <View style={[styles.btn, { borderColor: colors.page }]}>
                 <Feather name="pause" size={14} color={colors.menuTxt} />
                 <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
-                  Авто-импорт активен
+                  {t("favorites.autoImport.active") || "Авто-импорт активен"}
                 </Text>
               </View>
             </View>
@@ -481,7 +501,7 @@ export default function BookListOnline({
               <View style={[styles.btn, { borderColor: colors.page }]}>
                 <Feather name="check-square" size={14} color={colors.menuTxt} />
                 <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
-                  Выбрать для удаления
+                  {t("favorites.selectForDelete") || "Выбрать для удаления"}
                 </Text>
               </View>
             </CardPressable>
@@ -499,14 +519,13 @@ export default function BookListOnline({
               <View style={[styles.btn, { borderColor: colors.page }]}>
                 <Feather name="x" size={14} color={colors.menuTxt} />
                 <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
-                  Отменить выбор
+                  {t("common.cancelSelection") || "Отменить выбор"}
                 </Text>
               </View>
             </CardPressable>
           )}
         </View>
       </View>
-      {/* Текст заголовка, теги и счётчик книг — удалены по ТЗ */}
     </View>
   );
 
@@ -514,9 +533,13 @@ export default function BookListOnline({
     !loading && items.length === 0
       ? (ListEmptyComponent as React.ReactElement) ?? (
           <Text
-            style={{ color: colors.sub, textAlign: "center", marginTop: 40 }}
+            style={{
+              color: colors.sub,
+              textAlign: "center",
+              marginTop: 40,
+            }}
           >
-            Пусто
+            {t("booklist.notFoundShort") || "Пусто"}
           </Text>
         )
       : null;
@@ -558,7 +581,6 @@ export default function BookListOnline({
         removeClippedSubviews={chosenDesign === "image"}
       />
 
-      {/* ===== Undo ===== */}
       {undoStack.length > 0 && (
         <View
           pointerEvents="box-none"
@@ -575,7 +597,11 @@ export default function BookListOnline({
             ]}
           >
             <Text style={{ color: colors.menuTxt, fontWeight: "800" }}>
-              Удалено {undoStack.length}
+              {
+                (t("favorites.deletedCount", {
+                  count: undoStack.length,
+                }) || `Удалено ${undoStack.length}`) as string
+              }
             </Text>
             <View style={{ flex: 1 }} />
             <CardPressable
@@ -588,7 +614,7 @@ export default function BookListOnline({
               <View style={[styles.btnSm, { borderColor: colors.page }]}>
                 <Feather name="rotate-ccw" size={14} color={colors.accent} />
                 <Text style={[styles.btnTxt, { color: colors.accent }]}>
-                  Отменить
+                  {t("common.undo") || "Отменить"}
                 </Text>
               </View>
             </CardPressable>
@@ -603,7 +629,7 @@ export default function BookListOnline({
               <View style={[styles.btnSm, { borderColor: colors.page }]}>
                 <Feather name="x" size={14} color={colors.menuTxt} />
                 <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
-                  Скрыть
+                  {t("common.hide") || "Скрыть"}
                 </Text>
               </View>
             </CardPressable>
@@ -611,7 +637,6 @@ export default function BookListOnline({
         </View>
       )}
 
-      {/* ===== Панель выбора ===== */}
       {selectMode && (
         <View
           pointerEvents="box-none"
@@ -628,7 +653,11 @@ export default function BookListOnline({
             ]}
           >
             <Text style={{ color: colors.menuTxt, fontWeight: "800" }}>
-              Выбрано: {selected.size}
+              {
+                (t("favorites.selectedCount", {
+                  count: selected.size,
+                }) || `Выбрано: ${selected.size}`) as string
+              }
             </Text>
             <View style={{ flex: 1 }} />
             <CardPressable
@@ -644,7 +673,7 @@ export default function BookListOnline({
               <View style={[styles.btnLg, { borderColor: colors.page }]}>
                 <Feather name="x" size={16} color={colors.menuTxt} />
                 <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
-                  Отменить
+                  {t("common.cancelSelection") || "Отменить"}
                 </Text>
               </View>
             </CardPressable>
@@ -656,12 +685,18 @@ export default function BookListOnline({
                 const ids = Array.from(selected);
                 if (!ids.length) return;
                 Alert.alert(
-                  "Удалить из онлайн-избранного",
-                  `Выбрано: ${ids.length}. Подтвердить?`,
+                  t("favorites.deleteOnline.title") ||
+                    "Удалить из онлайн-избранного",
+                  (t("favorites.deleteOnline.message", {
+                    count: ids.length,
+                  }) || `Выбрано: ${ids.length}. Подтвердить?`) as string,
                   [
-                    { text: "Отмена", style: "cancel" },
                     {
-                      text: "Удалить",
+                      text: t("common.cancel") || "Отмена",
+                      style: "cancel",
+                    },
+                    {
+                      text: t("common.delete") || "Удалить",
                       style: "destructive",
                       onPress: () => runMassDelete(ids),
                     },
@@ -674,7 +709,7 @@ export default function BookListOnline({
               <View style={[styles.btnLg, { borderColor: colors.page }]}>
                 <Feather name="trash-2" size={16} color={colors.accent} />
                 <Text style={[styles.btnTxt, { color: colors.accent }]}>
-                  Удалить
+                  {t("common.delete") || "Удалить"}
                 </Text>
               </View>
             </CardPressable>
@@ -682,7 +717,6 @@ export default function BookListOnline({
         </View>
       )}
 
-      {/* ===== МОДАЛКА ИМПОРТА ИЗ ЛОКАЛЬНЫХ ===== */}
       <Modal
         statusBarTranslucent
         visible={importOpen}
@@ -693,7 +727,7 @@ export default function BookListOnline({
           <View style={{ height: insets.top }} />
           <View style={[styles.modalHeader, { borderColor: colors.page }]}>
             <Text style={[styles.title, { color: colors.title }]}>
-              Импорт локальных
+              {t("favorites.import.modalTitle") || "Импорт локальных"}
             </Text>
             <View style={{ flex: 1 }} />
             <CardPressable
@@ -706,7 +740,7 @@ export default function BookListOnline({
               <View style={[styles.btn, { borderColor: colors.page }]}>
                 <Feather name="x" size={16} color={colors.menuTxt} />
                 <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
-                  Закрыть
+                  {t("common.close") || "Закрыть"}
                 </Text>
               </View>
             </CardPressable>
@@ -716,9 +750,13 @@ export default function BookListOnline({
             <View style={styles.searchBox}>
               <Feather name="search" size={14} color={colors.sub} />
               <TextInput
-                placeholder="Поиск…"
+                placeholder={t("common.searchPlaceholder") || "Поиск…"}
                 placeholderTextColor={colors.sub}
-                style={{ color: colors.title, flex: 1, paddingVertical: 6 }}
+                style={{
+                  color: colors.title,
+                  flex: 1,
+                  paddingVertical: 6,
+                }}
                 value={localQuery}
                 onChangeText={setLocalQuery}
               />
@@ -739,7 +777,7 @@ export default function BookListOnline({
                 <View style={[styles.btn, { borderColor: colors.page }]}>
                   <Feather name="check" size={14} color={colors.menuTxt} />
                   <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
-                    Выбрать всё
+                    {t("common.selectAll") || "Выбрать всё"}
                   </Text>
                 </View>
               </CardPressable>
@@ -753,7 +791,7 @@ export default function BookListOnline({
                 <View style={[styles.btn, { borderColor: colors.page }]}>
                   <Feather name="square" size={14} color={colors.menuTxt} />
                   <Text style={[styles.btnTxt, { color: colors.menuTxt }]}>
-                    Снять всё
+                    {t("common.clearSelection") || "Снять всё"}
                   </Text>
                 </View>
               </CardPressable>
@@ -771,7 +809,12 @@ export default function BookListOnline({
                     <Feather name="upload" size={14} color={colors.accent} />
                   )}
                   <Text style={[styles.btnTxt, { color: colors.accent }]}>
-                    Импортировать {localSelected.size || ""}
+                    {
+                      (t("favorites.import.importSelected", {
+                        count: localSelected.size || 0,
+                      }) ||
+                        `Импортировать ${localSelected.size || ""}`) as string
+                    }
                   </Text>
                 </View>
               </CardPressable>
@@ -828,7 +871,9 @@ export default function BookListOnline({
                       {picked && (
                         <View style={styles.selectedBadge}>
                           <Feather name="check" size={16} color={"#000"} />
-                          <Text style={styles.selectedText}>Выбрано</Text>
+                          <Text style={styles.selectedText}>
+                            {t("favorites.selected") || "Выбрано"}
+                          </Text>
                         </View>
                       )}
                     </Pressable>
@@ -847,7 +892,7 @@ export default function BookListOnline({
                     marginTop: 24,
                   }}
                 >
-                  Ничего не найдено
+                  {t("booklist.notFound") || "Ничего не найдено ¯\\_(ツ)_/¯"}
                 </Text>
               )
             }
@@ -878,7 +923,6 @@ const styles = StyleSheet.create({
     marginLeft: "auto",
     flexWrap: "wrap",
   },
-
   switchWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -893,7 +937,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginLeft: 8,
   },
-
   btn: {
     flexDirection: "row",
     alignItems: "center",
@@ -922,7 +965,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   btnTxt: { fontWeight: "800", fontSize: 12, letterSpacing: 0.2 },
-
   overlayHit: { justifyContent: "center", alignItems: "center" },
   selectedBadge: {
     paddingHorizontal: 12,
@@ -939,7 +981,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.2,
   },
-
   floatingBar: {
     marginHorizontal: 10,
     marginBottom: 8,
@@ -951,7 +992,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "stretch",
   },
-
   selectionBar: {
     marginHorizontal: 10,
     borderTopLeftRadius: 12,
@@ -963,7 +1003,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "stretch",
   },
-
   modalRoot: { flex: 1 },
   modalHeader: {
     paddingHorizontal: 10,

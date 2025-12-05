@@ -62,7 +62,9 @@
       "translate": "コメントを翻訳できませんでした。",
       "delete": "コメントを削除できませんでした。"
     },
-    "copied": "コピーしました"
+    "copied": "コピーしました",
+    "writeComment": "コメントを書く...",
+    "youComment": "あなたのコメント"
   },
   "common": {
     "reset": "リセット",
@@ -75,7 +77,15 @@
     "yes": "はい",
     "chooseOption": "オプションを選択",
     "nothingFound": "見つかりませんでした。",
-    "select": "選択"
+    "select": "選択",
+    "cancelSelection": "選択をキャンセル",
+    "searchPlaceholder": "検索…",
+    "undo": "元に戻す",
+    "selectAll": "すべて選択",
+    "delete": "削除",
+    "close": "閉じる",
+    "hide": "非表示にする",
+    "clearSelection": "選択を解除"
   },
   "explore": {
     "sort": {
@@ -90,7 +100,56 @@
     "quickPeriod": "期間",
     "datePickerTitle": "日付の選択",
     "hintDatesActive": "日付フィルターが有効です。プリセットの並べ替えは非表示になります。",
-    "hintPresets": "期間を選択するか、日付範囲を指定してください。"
+    "hintPresets": "期間を選択するか、日付範囲を指定してください。",
+    "dateSearch": {
+      "windowInfo": "ウィンドウ: インデックス {start}…{end} ・ 項目 {total}",
+      "rangeEnd": "範囲の終わりを検索中…",
+      "rangeStart": "範囲の始まりを検索中…",
+      "loading": "読み込み中…",
+      "done": "完了",
+      "fetch": "ウィンドウのページを読み込み中…",
+      "meta": "リクエストを準備中…",
+      "probeSubtitle": "{which}: p={page}・{head} → {tail} {dir}",
+      "dirRight": "→ 右へ",
+      "whichEnd": "終了",
+      "dirLeft": "← 左へ",
+      "whichStart": "開始",
+      "dirHit": "✓ 命中",
+      "title": {
+        "done": "完了",
+        "rangeEnd": "ウィンドウの終了位置を検索中…",
+        "fetch": "ウィンドウのページを読み込み中…",
+        "loading": "読み込み中…",
+        "rangeStart": "ウィンドウの開始位置を検索中…",
+        "meta": "リクエストを準備中…"
+      }
+    },
+    "probe": {
+      "end": "終了",
+      "directionHit": "✓ ヒット",
+      "directionRight": "→ 右へ",
+      "directionLeft": "→ 左へ",
+      "subtitle": "{which}: p={page} ・ {head} → {tail} {dir}",
+      "start": "開始"
+    },
+    "noResults": {
+      "actions": {
+        "resetDates": "日付をリセット",
+        "openFilters": "フィルターを開く",
+        "resetFilters": "フィルターをリセット",
+        "changeQuery": "クエリを変更",
+        "popularMonth": "今月の人気",
+        "fresh": "新着"
+      },
+      "title": {
+        "query": "「{query}」の結果が見つかりません",
+        "filters": "選択したフィルターでは結果が見つかりません",
+        "default": "何も見つかりませんでした",
+        "dates": "選択した日付範囲には結果がありません",
+        "general": "結果が見つかりません"
+      },
+      "subtitle": "クエリを変更するか、フィルターを減らすか、日付範囲を広げてみてください。"
+    }
   },
   "historyNotFound": "履歴は空です ¯\\_(ツ)_/¯",
   "menu": {
@@ -421,5 +480,58 @@
     "preview": "プレビュー",
     "accept": "決定",
     "title": "フレームを調整して頭部に合わせてください"
+  },
+  "downloaded": {
+    "noHaveADownloadBook": "ダウンロード済みの本はありません"
+  },
+  "booklist": {
+    "notFound": "何も見つかりませんでした ¯\\_(ツ)_/¯",
+    "notFoundShort": "空です"
+  },
+  "favorites": {
+    "import": {
+      "doneMessage": "インポート数: {count}",
+      "partialFail": "一部の項目をインポートできませんでした。",
+      "title": "インポート",
+      "noneSelected": "本が一つも選択されていません。",
+      "doneTitle": "完了",
+      "loadFail": "ローカルのお気に入りの読み込みに失敗しました。",
+      "modalTitle": "ローカルのお気に入りをインポート",
+      "button": "ローカルからインポート",
+      "importSelected": "{count} 件インポート",
+      "noLocal": "ローカルのお気に入りは見つかりませんでした。"
+    },
+    "autoImport": {
+      "sync": "同期中…",
+      "label": "自動インポート（バックグラウンド）",
+      "active": "自動インポートが有効です",
+      "waiting": "待機中"
+    },
+    "selectedCount": "選択: {count}",
+    "selectForDelete": "削除対象として選択",
+    "accessibility": {
+      "deselect": "選択を解除",
+      "select": "選択"
+    },
+    "deleteOnline": {
+      "title": "オンラインのお気に入りから削除",
+      "message": "選択数: {count}。よろしいですか？"
+    },
+    "deletedCount": "{count} 件削除しました",
+    "selected": "選択済み"
+  },
+  "recommendations": {
+    "actions": {
+      "openFavorites": "お気に入りを開く",
+      "openFilters": "フィルターを開く"
+    },
+    "emptyTitle": {
+      "default": "まだおすすめはありません",
+      "noFav": "おすすめがありません ― まず本をお気に入りに追加してください"
+    },
+    "emptySubtitle": {
+      "default": "フィルターを変えるか、リストを更新してみてください。",
+      "noFav": "いくつかの本に「いいね」すると、似た作品を探します。"
+    }
   }
 }

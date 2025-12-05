@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
-    Insets,
-    Pressable,
-    StyleProp,
-    StyleSheet,
-    View,
-    ViewStyle,
+  Animated,
+  Insets,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Vibration,
+  View,
+  ViewStyle,
 } from "react-native";
 
 export type CardPressableProps = {
@@ -16,11 +18,13 @@ export type CardPressableProps = {
   delayLongPress?: number;
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
-  ripple: string;
+  ripple?: string;
   overlayColor?: string;
   hitSlop?: number | Insets;
   accessibilityLabel?: string;
   pressedScale?: number;
+  animationDuration?: number;
+  onFeedback?: boolean;
 };
 
 export const CardPressable = React.memo(function CardPressable({
@@ -31,13 +35,43 @@ export const CardPressable = React.memo(function CardPressable({
   delayLongPress,
   style,
   disabled,
-  ripple,
+  ripple = "rgba(0, 0, 0, 0.2)",
   overlayColor,
   hitSlop,
   accessibilityLabel,
-  pressedScale = 1.0,
+  pressedScale = 0.97,
+  animationDuration = 150,
+  onFeedback = true,
 }: CardPressableProps) {
   const overlay = overlayColor ?? "rgba(255,255,255,0.10)";
+  const animatedScale = useRef(new Animated.Value(1)).current;
+
+  const animateScale = (toValue: number) => {
+    Animated.timing(animatedScale, {
+      toValue,
+      duration: animationDuration,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressIn = () => {
+    if (onFeedback && !disabled) {
+      Vibration.vibrate(10);
+    }
+    animateScale(pressedScale);
+  };
+
+  const handlePressOut = () => {
+    animateScale(1);
+  };
+
+  const handlePress = () => {
+    onPress?.();
+  };
+
+  const scaleStyle = {
+    transform: [{ scale: animatedScale }],
+  };
 
   return (
     <View style={[{ borderRadius: radius, overflow: "hidden" }, style]}>
@@ -45,21 +79,19 @@ export const CardPressable = React.memo(function CardPressable({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         disabled={disabled}
-        onPress={onPress}
+        onPress={handlePress}
         onLongPress={onLongPress}
         delayLongPress={delayLongPress ?? 350}
         android_ripple={
           !disabled ? { color: ripple, borderless: false } : undefined
         }
         hitSlop={hitSlop}
-        style={({ pressed }) => [
-          { borderRadius: radius },
-          pressed &&
-            pressedScale !== 1 && { transform: [{ scale: pressedScale }] },
-        ]}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={({ pressed }) => [{ borderRadius: radius }]}
       >
         {({ pressed }) => (
-          <View style={{ borderRadius: radius }}>
+          <Animated.View style={[scaleStyle, { borderRadius: radius }]}>
             {children}
             <View
               pointerEvents="none"
@@ -71,7 +103,7 @@ export const CardPressable = React.memo(function CardPressable({
                 },
               ]}
             />
-          </View>
+          </Animated.View>
         )}
       </Pressable>
     </View>

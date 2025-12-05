@@ -1,5 +1,6 @@
-import { Book } from "@/api/nhentai";
+﻿import { Book } from "@/api/nhentai";
 import { useFavHistory } from "@/hooks/useFavHistory";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import React, {
@@ -173,6 +174,8 @@ export default function BookList<T extends Book = Book>({
   const [contentW, setContentW] = useState(0);
   const [scrollX, setScrollX] = useState(0);
 
+  const { t } = useI18n();
+
   const fadeLeft = useRef(new Animated.Value(0)).current;
   const fadeRight = useRef(new Animated.Value(0)).current;
 
@@ -263,7 +266,7 @@ export default function BookList<T extends Book = Book>({
   const Empty = () => (
     <View style={styles.empty}>
       <Animated.Text style={styles.emptyText}>
-        Ничего не найдено ¯\_(ツ)_/¯
+        {t("booklist.notFound") || "Ничего не найдено"}
       </Animated.Text>
     </View>
   );
@@ -272,9 +275,6 @@ export default function BookList<T extends Book = Book>({
     ? `row-${Math.round(cardWidth)}-${chosenDesign}`
     : `cols-${cols}-${chosenDesign}`;
 
-  // === ВАЖНО: фикс «телепортов» ===
-  // Используем фиксированный getItemLayout только там, где высота карточек предсказуема.
-  // Для вертикальной сетки c дизайнами "classic"/"stable" высота переменная → отключаем.
   const canUseFixedLayout = horizontal || chosenDesign === "image";
 
   const rowHeight = estCardH + (horizontal ? 0 : columnGap);
@@ -416,3 +416,4 @@ const styles = StyleSheet.create({
   loader: { marginVertical: 16 },
   fade: { position: "absolute", zIndex: 5 },
 });
+

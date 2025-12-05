@@ -5,10 +5,6 @@ import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, filedialog
 
-# ==========================
-# НАСТРОЙКИ ПУТЕЙ
-# ==========================
-
 PROJECT_ROOT = r"D:\nhappandroid"
 
 LOCALE_FILES = {
@@ -28,13 +24,7 @@ LANG_LABELS = {
 CODE_EXTENSIONS = {".ts", ".tsx", ".js", ".jsx"}
 EXCLUDE_DIRS = {".git", "node_modules", "output_android", ".expo", "scripts"}
 
-# VS Code Insiders
 VSCODE_CMD = "code"
-
-
-# ==========================
-# FLATTEN / UNFLATTEN JSON
-# ==========================
 
 def flatten_json(obj, parent_key=""):
     items = {}
@@ -59,10 +49,6 @@ def unflatten_json(flat_dict):
         d[parts[-1]] = value
     return root
 
-
-# ==========================
-# МОДЕЛЬ
-# ==========================
 
 class I18nModel:
     def __init__(self, locale_files):
@@ -141,11 +127,6 @@ class I18nModel:
         if key in self.translations:
             del self.translations[key]
 
-
-# ==========================
-# ПОИСК t("...")
-# ==========================
-
 KEY_PATTERN = re.compile(r'\bt\(\s*["\']([^"\']+)["\']')
 
 
@@ -199,11 +180,6 @@ def find_usages_of_key(root_path, key):
                 continue
 
     return usages
-
-
-# ==========================
-# ГЛАВНОЕ ОКНО
-# ==========================
 
 class I18nApp:
     def __init__(self, root, model: I18nModel):
@@ -284,7 +260,6 @@ class I18nApp:
         )
         apply_bulk_button.pack(fill=tk.X, pady=(4, 0))
 
-        # ===== Правая часть =====
         right_frame = ttk.Frame(main_frame)
         right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(12, 0))
 
@@ -337,7 +312,6 @@ class I18nApp:
         save_as_button = ttk.Button(bottom_frame, text="Сохранить в другие файлы...", command=self.on_save_as)
         save_as_button.pack(side=tk.LEFT, padx=(6, 0))
 
-        # ===== Данные =====
         self.model.load()
 
         if os.path.isdir(PROJECT_ROOT):
@@ -352,8 +326,6 @@ class I18nApp:
         if self.filtered_keys:
             self.keys_listbox.selection_set(0)
             self.on_key_selected()
-
-    # ===== Вспомогательные методы =====
 
     def has_missing_translations(self, key):
         for lang in self.model.langs:
@@ -393,7 +365,7 @@ class I18nApp:
             y_first = 0.0
 
         self.all_keys = self.model.get_all_keys()
-        self.on_search_changed()  # пересобирает filtered_keys и список
+        self.on_search_changed()
 
         if sel_key and sel_key in self.filtered_keys:
             idx = self.filtered_keys.index(sel_key)
@@ -461,8 +433,6 @@ class I18nApp:
         if refresh_list:
             self.all_keys = self.model.get_all_keys()
             self.on_search_changed()
-
-    # ===== Обработчики =====
 
     def on_key_selected(self, event=None):
         selection = self.keys_listbox.curselection()
@@ -599,8 +569,6 @@ class I18nApp:
 
         messagebox.showinfo("Сохранено", f"Копии файлов переводов сохранены в:\n{folder}")
 
-    # ===== Массовый перевод =====
-
     def collect_untranslated_entries(self):
         """
         Возвращает список (key, target_lang, src_lang, src_text),
@@ -609,7 +577,6 @@ class I18nApp:
         """
         entries = []
 
-        # приоритет: en, затем остальные
         base_order = []
         if "en" in self.model.langs:
             base_order.append("en")
@@ -684,7 +651,6 @@ class I18nApp:
         self.bulk_text.delete("1.0", tk.END)
         self.bulk_text.insert(tk.END, text_block)
 
-        # сразу копируем в буфер обмена
         try:
             self.root.clipboard_clear()
             self.root.clipboard_append(text_block)
@@ -759,8 +725,6 @@ class I18nApp:
                 f"Обновлено переводов: {changed}",
             )
 
-    # ===== Копирование и VSCode =====
-
     def on_copy_usage(self):
         key = self.key_var.get().strip()
         if not key:
@@ -817,14 +781,10 @@ class I18nApp:
     def _open_vscode_location(self, full_path, lineno, colno):
         import shutil
         vscode_paths = [
-            # Обычный VS Code
             shutil.which("code"),
-            # Insiders
             shutil.which("code-insiders"),
-            # Типичные пути Windows (Insiders)
             r"C:\Users\{}\AppData\Local\Programs\Microsoft VS Code Insiders\code-insiders.exe".format(os.getenv("USERNAME")),
             r"C:\Program Files\Microsoft VS Code Insiders\code-insiders.exe",
-            # Обычный VS Code
             r"C:\Users\{}\AppData\Local\Programs\Microsoft VS Code\code.exe".format(os.getenv("USERNAME")),
             r"C:\Program Files\Microsoft VS Code\code.exe",
         ]

@@ -1,6 +1,6 @@
-// timeAgo.ts
+﻿
 
-// Если хочешь использовать и строковые коды, и объекты date-fns:
+
 import type { Locale as DFLocale } from "date-fns";
 
 export type UiLocale = "en" | "ru" | "zh" | "ja";
@@ -10,7 +10,7 @@ type UnitKey = "year" | "month" | "day" | "hour" | "minute" | "second";
 const translations: Record<
   UiLocale,
   {
-    units: Record<UnitKey, string[]>; // en: [singular, plural], ru: [1,2-4,5+], zh/ja: [form, form]
+    units: Record<UnitKey, string[]>; 
     justNow: string;
     ago: string;
   }
@@ -75,15 +75,15 @@ function pluralRu(n: number, forms: [string, string, string]) {
   ];
 }
 
-// Нормализация: принимаем либо UiLocale, либо date-fns Locale
+
 function normalizeLocale(loc?: UiLocale | DFLocale): UiLocale {
   if (!loc) return "en";
   if (typeof loc === "string") {
-    // совместимость со старыми значениями типа "zhCN"
+    
     if (loc === "zh") return "zh";
     return (["en", "ru", "zh", "ja"].includes(loc) ? loc : "en") as UiLocale;
   }
-  // DFLocale: пробуем по коду
+  
   const code = (loc as any)?.code as string | undefined;
   if (code) {
     const lower = code.toLowerCase();
@@ -101,7 +101,7 @@ function toDate(input: string | number | Date): Date {
     const t = Date.parse(input);
     return Number.isFinite(t) ? new Date(t) : new Date();
   }
-  // число: если похоже на секунды — умножаем
+  
   return new Date(input < 1e12 ? input * 1000 : input);
 }
 
@@ -132,9 +132,10 @@ export function timeAgo(
       if (l === "zh" || l === "ja") {
         return `${v}${tr.units[unit][0]}${tr.ago}`;
       }
-      // en
+      
       return `${v} ${tr.units[unit][v === 1 ? 0 : 1]} ${tr.ago}`;
     }
   }
   return tr.justNow;
 }
+

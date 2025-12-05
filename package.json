@@ -1,7 +1,7 @@
 {
   "name": "nhappandroid",
   "main": "expo-router/entry",
-  "version": "1.1.33",
+  "version": "1.2.0",
   "scripts": {
     "sync-version": "node scripts/sync-version.js",
     "android-studio": "npm run sync-version && node ./scripts/sync-android-files.js overrides/android && npx expo prebuild && node ./scripts/prepare-android",

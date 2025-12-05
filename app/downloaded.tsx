@@ -1,5 +1,4 @@
-// app/(tabs)/downloaded.tsx
-import * as FileSystem from "expo-file-system/legacy";
+﻿import * as FileSystem from "expo-file-system/legacy";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Text } from "react-native";
@@ -7,6 +6,7 @@ import { Text } from "react-native";
 import { Book, BookPage } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import { useGridConfig } from "@/hooks/useGridConfig";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 export default function DownloadedScreen() {
   const [downloadedBooks, setDownloadedBooks] = useState<Book[]>([]);
@@ -14,6 +14,7 @@ export default function DownloadedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const gridConfig = useGridConfig();
+  const { t } = useI18n();
 
   const fetchDownloadedBooks = useCallback(async () => {
     setPending(true);
@@ -64,9 +65,7 @@ export default function DownloadedScreen() {
         }
       }
 
-      // сортировка по убыванию id
       books.sort((a, b) => b.id - a.id);
-      // фильтруем дубликаты (разные языки одной книги)
       const unique = Array.from(
         books
           .reduce(
@@ -103,12 +102,18 @@ export default function DownloadedScreen() {
       refreshing={refreshing}
       onRefresh={onRefresh}
       onPress={(id) =>
-        router.push({ pathname: "/book/[id]", params: { id: String(id), title: downloadedBooks.find(b => b.id === id)?.title.pretty } })
+        router.push({
+          pathname: "/book/[id]",
+          params: {
+            id: String(id),
+            title: downloadedBooks.find((b) => b.id === id)?.title.pretty,
+          },
+        })
       }
       ListEmptyComponent={
         !pending && downloadedBooks.length === 0 ? (
           <Text style={{ textAlign: "center", marginTop: 40, color: "#888" }}>
-            Нет загруженных книг
+            {t("downloaded.noHaveADownloadBook")}
           </Text>
         ) : null
       }

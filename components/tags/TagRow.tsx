@@ -1,4 +1,4 @@
-// components/tags/TagRow.tsx
+﻿
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
@@ -93,3 +93,4 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 14, fontWeight: "800" },
   iconBtn: { padding: 8 },
 });
+

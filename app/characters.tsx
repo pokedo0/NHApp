@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+﻿import { Feather } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -78,8 +78,8 @@ type RenderCollections = {
 
 type RenderContent = RenderFlat | RenderCollections;
 
-const GRID_HORIZONTAL_PADDING = 12; // paddingHorizontal у ScrollView
-const GRID_GAP = 12; // gap в styles.gridContainer
+const GRID_HORIZONTAL_PADDING = 12;
+const GRID_GAP = 12;
 const CARD_MIN_WIDTH = 160;
 
 export default function CharactersScreen() {
@@ -89,16 +89,10 @@ export default function CharactersScreen() {
   const me = useOnlineMe();
   const { width: screenWidth } = useWindowDimensions();
 
-  // ширина внутреннего контейнера грида (учитываем paddingHorizontal)
   const gridInnerWidth = Math.max(0, screenWidth - GRID_HORIZONTAL_PADDING * 2);
 
-  // считаем колонки из реальной ширины
-  const numColumns = Math.max(
-    2,
-    Math.floor(gridInnerWidth / CARD_MIN_WIDTH)
-  );
+  const numColumns = Math.max(2, Math.floor(gridInnerWidth / CARD_MIN_WIDTH));
 
-  // ширина карточки: (вся ширина - суммарные gap) / кол-во колонок
   const totalGapWidth = GRID_GAP * (numColumns - 1);
   const cardWidth =
     numColumns > 0
@@ -131,7 +125,6 @@ export default function CharactersScreen() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // всплывашка с выбором действия по карточке
   const [cardAction, setCardAction] = useState<{
     tag: CharacterTag;
     parodyName: string | null;
@@ -356,7 +349,6 @@ export default function CharactersScreen() {
     parodyName: string | null
   ) => {
     if (editMode && canEditTag(tag) && tag.cardId) {
-      // режим редактирования — сразу открываем модалку
       setEditingTag({
         tag,
         parodyName,
@@ -366,11 +358,9 @@ export default function CharactersScreen() {
       setEditParody(tag.cardParodyName ?? parodyName ?? "");
       setEditError(null);
     } else if (!editMode) {
-      // обычный режим — всплывающее окно с выбором действия
       if (tag.bookExternalId) {
         setCardAction({ tag, parodyName });
       } else {
-        // если книги нет, просто поиск по персонажу как раньше
         router.push({
           pathname: "/explore",
           params: { query: tag.name, solo: "1" },
@@ -705,7 +695,6 @@ export default function CharactersScreen() {
         </View>
       </Modal>
 
-      {/* Модалка действий по карточке персонажа */}
       <Modal
         visible={!!cardAction}
         statusBarTranslucent
@@ -774,10 +763,7 @@ export default function CharactersScreen() {
               onPress={handleCardActionClose}
             >
               <Text
-                style={[
-                  styles.cardActionCancelText,
-                  { color: colors.sub },
-                ]}
+                style={[styles.cardActionCancelText, { color: colors.sub }]}
               >
                 {t("characters.cardActions.cancel")}
               </Text>
@@ -823,8 +809,7 @@ export default function CharactersScreen() {
         characterName: trimmedName,
         parodyName: editParody.trim() || null,
         imageUrl: editingTag.tag.cardImageUrl ?? "",
-        rect:
-          newRect ??
+        rect: newRect ??
           editingTag.tag.cardRect ?? {
             x: 0,
             y: 0,
@@ -1366,7 +1351,6 @@ const styles = StyleSheet.create({
   },
   authorName: { fontSize: 15, fontWeight: "600", marginBottom: 2 },
 
-  // bottom sheet для действий с карточкой
   cardActionSheet: {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,

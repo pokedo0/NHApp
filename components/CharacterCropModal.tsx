@@ -1,4 +1,4 @@
-import { Rect } from "@/api/characterCards";
+﻿import { Rect } from "@/api/characterCards";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 
@@ -25,11 +25,10 @@ interface CharacterCropModalProps {
   onConfirm: (rect: Rect) => void;
 }
 
-// высота : ширина = 2 : 1.4
-const ASPECT = 2 / 1.4; // ~1.428, ВСЕГДА height = width * ASPECT
+const ASPECT = 2 / 1.4;
 
 type NormRect = {
-  x: number; // 0..1 относительно контейнера
+  x: number;
   y: number;
   width: number;
   height: number;
@@ -91,7 +90,8 @@ export const CharacterCropModal: React.FC<CharacterCropModalProps> = ({
 
   const handleContainerLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
-    if (width === containerSize.width && height === containerSize.height) return;
+    if (width === containerSize.width && height === containerSize.height)
+      return;
     setContainerSize({ width, height });
     initializedRef.current = false;
   };
@@ -215,7 +215,7 @@ export const CharacterCropModal: React.FC<CharacterCropModalProps> = ({
 
     const { cw, ch, imgW, imgH } = metrics;
 
-    const maxWidthNormByImage = Math.min(imgW / cw, (imgH / ch) / ASPECT);
+    const maxWidthNormByImage = Math.min(imgW / cw, imgH / ch / ASPECT);
 
     let newWidthNorm = r.width * factor;
     newWidthNorm = clamp(newWidthNorm, MIN_WIDTH_NORM, maxWidthNormByImage);
@@ -474,12 +474,7 @@ export const CharacterCropModal: React.FC<CharacterCropModalProps> = ({
               },
             ]}
           >
-            <Text
-              style={[
-                styles.previewTitle,
-                { color: colors.metaText },
-              ]}
-            >
+            <Text style={[styles.previewTitle, { color: colors.metaText }]}>
               {t("crop.preview")}
             </Text>
             {renderPreview()}
@@ -496,10 +491,7 @@ export const CharacterCropModal: React.FC<CharacterCropModalProps> = ({
                 onPress={handleZoomIn}
               >
                 <Text
-                  style={[
-                    styles.sizeButtonText,
-                    { color: colors.tagText },
-                  ]}
+                  style={[styles.sizeButtonText, { color: colors.tagText }]}
                 >
                   −
                 </Text>
@@ -514,12 +506,7 @@ export const CharacterCropModal: React.FC<CharacterCropModalProps> = ({
                 ]}
                 onPress={handleZoomOut}
               >
-                <Text
-                  style={[
-                    styles.sizeButtonText,
-                    { color: colors.bg },
-                  ]}
-                >
+                <Text style={[styles.sizeButtonText, { color: colors.bg }]}>
                   +
                 </Text>
               </Pressable>
@@ -529,37 +516,25 @@ export const CharacterCropModal: React.FC<CharacterCropModalProps> = ({
 
         <View style={styles.bottomRow}>
           <View
-            style={{ flexDirection: "row", flex: 1, justifyContent: "flex-end" }}
+            style={{
+              flexDirection: "row",
+              flex: 1,
+              justifyContent: "flex-end",
+            }}
           >
             <Pressable
-              style={[
-                styles.actionButton,
-                { backgroundColor: colors.page },
-              ]}
+              style={[styles.actionButton, { backgroundColor: colors.page }]}
               onPress={onCancel}
             >
-              <Text
-                style={[
-                  styles.actionText,
-                  { color: colors.tagText },
-                ]}
-              >
+              <Text style={[styles.actionText, { color: colors.tagText }]}>
                 {t("crop.cancel")}
               </Text>
             </Pressable>
             <Pressable
-              style={[
-                styles.actionButton,
-                { backgroundColor: colors.accent },
-              ]}
+              style={[styles.actionButton, { backgroundColor: colors.accent }]}
               onPress={handleConfirm}
             >
-              <Text
-                style={[
-                  styles.actionText,
-                  { color: colors.bg },
-                ]}
-              >
+              <Text style={[styles.actionText, { color: colors.bg }]}>
                 {t("crop.accept")}
               </Text>
             </Pressable>

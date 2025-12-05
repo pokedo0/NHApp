@@ -62,7 +62,9 @@
       "translate": "Не удалось перевести комментарий.",
       "delete": "Не удалось удалить комментарий."
     },
-    "copied": "Скопировано"
+    "copied": "Скопировано",
+    "writeComment": "Написать комментарий...",
+    "youComment": "Твой комментарий"
   },
   "common": {
     "reset": "Сбросить",
@@ -75,7 +77,15 @@
     "yes": "Да",
     "chooseOption": "Выбери вариант",
     "nothingFound": "Ничего не найдено.",
-    "select": "Выбрать"
+    "select": "Выбрать",
+    "cancelSelection": "Отменить выбор",
+    "searchPlaceholder": "Поиск…",
+    "undo": "Отменить",
+    "selectAll": "Выбрать всё",
+    "delete": "Удалить",
+    "close": "Закрыть",
+    "hide": "Скрыть",
+    "clearSelection": "Снять всё"
   },
   "explore": {
     "sort": {
@@ -90,7 +100,56 @@
     "quickPeriod": "Период",
     "datePickerTitle": "Выбор даты",
     "hintDatesActive": "Активен фильтр по дате. Сортировка по пресетам скрыта.",
-    "hintPresets": "Выберите период или задайте диапозон дат."
+    "hintPresets": "Выберите период или задайте диапозон дат.",
+    "dateSearch": {
+      "windowInfo": "Окно: индексы {start}…{end} • элементов {total}",
+      "rangeEnd": "Ищу конец окна…",
+      "rangeStart": "Ищу начало окна…",
+      "loading": "Загрузка…",
+      "done": "Готово",
+      "fetch": "Загружаю страницы окна…",
+      "meta": "Подготовка запроса…",
+      "probeSubtitle": "{which}: p={page} • {head} → {tail} {dir}",
+      "dirRight": "→ вправо",
+      "whichEnd": "Конец",
+      "dirLeft": "← влево",
+      "whichStart": "Начало",
+      "dirHit": "✓ попадание",
+      "title": {
+        "done": "Готово",
+        "rangeEnd": "Ищу конец окна…",
+        "fetch": "Загружаю страницы окна…",
+        "loading": "Загрузка…",
+        "rangeStart": "Ищу начало окна…",
+        "meta": "Подготовка запроса…"
+      }
+    },
+    "probe": {
+      "end": "Конец",
+      "directionHit": "✓ попадание",
+      "directionRight": "→ вправо",
+      "directionLeft": "→ влево",
+      "subtitle": "{which}: p={page} • {head} → {tail} {dir}",
+      "start": "Начало"
+    },
+    "noResults": {
+      "actions": {
+        "resetDates": "Сбросить даты",
+        "openFilters": "Открыть фильтры",
+        "resetFilters": "Сбросить фильтры",
+        "changeQuery": "Изменить запрос",
+        "popularMonth": "Популярное за месяц",
+        "fresh": "Свежие"
+      },
+      "title": {
+        "query": "По запросу «{query}» ничего не найдено",
+        "filters": "По выбранным фильтрам ничего не найдено",
+        "default": "Ничего не найдено",
+        "dates": "В выбранном диапазоне дат ничего не найдено",
+        "general": "Ничего не найдено"
+      },
+      "subtitle": "Попробуй изменить запрос, снять часть фильтров или расширить диапазон."
+    }
   },
   "historyNotFound": "История пуста ¯\\_(ツ)_/¯",
   "menu": {
@@ -421,5 +480,58 @@
     "preview": "Предпросмотр",
     "accept": "Применить",
     "title": "Отрегулируй рамку, чтобы она подходила под голову"
+  },
+  "downloaded": {
+    "noHaveADownloadBook": "Нет загруженных книг"
+  },
+  "booklist": {
+    "notFound": "Ничего не найдено ¯\\_(ツ)_/¯",
+    "notFoundShort": "Пусто"
+  },
+  "favorites": {
+    "import": {
+      "doneMessage": "Импортировано: {count}",
+      "partialFail": "Часть элементов не удалось импортировать.",
+      "title": "Импорт",
+      "noneSelected": "Не выбрано ни одной книги.",
+      "doneTitle": "Готово",
+      "loadFail": "Не удалось загрузить локальные избранные.",
+      "modalTitle": "Импорт локальных",
+      "button": "Импорт из локальных",
+      "importSelected": "Импортировать {count}",
+      "noLocal": "Локальных избранных не найдено."
+    },
+    "autoImport": {
+      "sync": "синхронизация…",
+      "label": "Авто-импорт (фон)",
+      "active": "Авто-импорт активен",
+      "waiting": "ожидание"
+    },
+    "selectedCount": "Выбрано: {count}",
+    "selectForDelete": "Выбрать для удаления",
+    "accessibility": {
+      "deselect": "Снять выбор",
+      "select": "Выбрать"
+    },
+    "deleteOnline": {
+      "title": "Удалить из онлайн-избранного",
+      "message": "Выбрано: {count}. Подтвердить?"
+    },
+    "deletedCount": "Удалено {count}",
+    "selected": "Выбрано"
+  },
+  "recommendations": {
+    "actions": {
+      "openFavorites": "Открыть избранное",
+      "openFilters": "Открыть фильтры"
+    },
+    "emptyTitle": {
+      "default": "Рекомендаций пока нет",
+      "noFav": "Нет рекомендаций — добавь книги в избранное"
+    },
+    "emptySubtitle": {
+      "default": "Попробуй изменить фильтры или обновить список.",
+      "noFav": "Поставь несколько лайков — я подберу похожее."
+    }
   }
 }

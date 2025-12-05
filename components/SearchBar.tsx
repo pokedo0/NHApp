@@ -194,6 +194,7 @@ export function SearchBar() {
     hasSeg(pathname, "tags") ||
     hasSeg(pathname, "book") ||
     hasSeg(pathname, "profile") ||
+    hasSeg(pathname, "characters") ||
     hasSeg(pathname, "favorites") ||
     hasSeg(pathname, "favoritesOnline");
 

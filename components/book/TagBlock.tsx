@@ -1,5 +1,4 @@
-// components/TagBlock.tsx
-import { useTheme } from "@/lib/ThemeContext";
+﻿import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { Image as ExpoImage } from "expo-image";
@@ -13,7 +12,6 @@ import {
   View,
 } from "react-native";
 
-// локальный тип для rect
 type CardRect = {
   x: number;
   y: number;
@@ -26,21 +24,18 @@ export type TagLite = {
   name: string;
   count?: number;
 
-  // данные по карточке персонажа
-  hasCard?: boolean; // есть ли карточка вообще
-  cardImageUrl?: string; // глобальная картинка персонажа
-  cardParodyName?: string | null; // подпись с пародией
-  cardRect?: CardRect; // нормализованный rect 0..1
+  hasCard?: boolean;
+  cardImageUrl?: string;
+  cardParodyName?: string | null;
+  cardRect?: CardRect;
 };
 
 const keyOf = (t: TagLite, group: string) => `${group}:${t.type}:${t.name}`;
 
-// Нормализация урла NHentai: .../4w.jpg -> .../4.jpg
 function normalizeNhentaiImageUrl(url: string): string {
   return url.replace(/\/(\d+)w\.(jpg|jpeg|png|gif)$/i, "/$1.$2");
 }
 
-// отдельный компонент для "карточки" персонажа с кропом
 function CharacterCardTagItem({
   tag,
   mode,
@@ -71,13 +66,11 @@ function CharacterCardTagItem({
     }
   };
 
-  // базовый стиль — показать всю картинку
   let imageStyle: any = {
     width: "100%",
     height: "100%",
   };
 
-  // чёткий кроп по нормализованному rect 0..1
   if (
     thumbSize.width > 0 &&
     thumbSize.height > 0 &&
@@ -87,7 +80,6 @@ function CharacterCardTagItem({
   ) {
     const r = tag.cardRect;
 
-    // прямоугольник r должен занять весь thumb
     const displayWidth = thumbSize.width / r.width;
     const displayHeight = thumbSize.height / r.height;
     const offsetX = -r.x * displayWidth;
@@ -221,7 +213,6 @@ export const TagBlock = memo(function TagBlock({
   const { colors } = useTheme();
   if (!tags?.length) return null;
 
-  // разделяем на два списка: с картинкой и без
   const { cardTags, simpleTags } = useMemo(() => {
     const withCard: TagLite[] = [];
     const withoutCard: TagLite[] = [];
@@ -289,7 +280,6 @@ export const TagBlock = memo(function TagBlock({
         {renderLabelExtra}
       </View>
 
-      {/* сначала карточки с картинками */}
       {cardTags.length > 0 && (
         <View style={styles.cardsWrap}>
           {cardTags.map((t) => {
@@ -334,7 +324,6 @@ export const TagBlock = memo(function TagBlock({
         </View>
       )}
 
-      {/* ниже обычные чипы без картинок */}
       {simpleTags.length > 0 && (
         <View
           style={[styles.wrap, cardTags.length > 0 ? { marginTop: 8 } : null]}
@@ -461,7 +450,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
-  // чипы без картинок
   wrap: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -508,7 +496,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  // мини-карточки персонажей
   cardsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",

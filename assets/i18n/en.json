@@ -62,7 +62,9 @@
       "translate": "Couldn't translate the comment.",
       "delete": "Couldn't delete the comment."
     },
-    "copied": "Copied"
+    "copied": "Copied",
+    "writeComment": "Write a comment...",
+    "youComment": "Your comment"
   },
   "common": {
     "reset": "Reset",
@@ -75,7 +77,15 @@
     "yes": "Yes",
     "chooseOption": "Choose an option",
     "nothingFound": "Nothing found.",
-    "select": "Select"
+    "select": "Select",
+    "cancelSelection": "Cancel selection",
+    "searchPlaceholder": "Search…",
+    "undo": "Undo",
+    "selectAll": "Select all",
+    "delete": "Delete",
+    "close": "Close",
+    "hide": "Hide",
+    "clearSelection": "Clear selection"
   },
   "explore": {
     "sort": {
@@ -90,7 +100,56 @@
     "quickPeriod": "Period",
     "datePickerTitle": "Date selection",
     "hintDatesActive": "Date filter is active. Preset sorting is hidden.",
-    "hintPresets": "Select a period or specify a date range."
+    "hintPresets": "Select a period or specify a date range.",
+    "dateSearch": {
+      "windowInfo": "Window: indices {start}…{end} • items {total}",
+      "rangeEnd": "Finding window end…",
+      "rangeStart": "Finding window start…",
+      "loading": "Loading…",
+      "done": "Done",
+      "fetch": "Loading window pages…",
+      "meta": "Preparing request…",
+      "probeSubtitle": "{which}: p={page} • {head} → {tail} {dir}",
+      "dirRight": "→ right",
+      "whichEnd": "End",
+      "dirLeft": "← left",
+      "whichStart": "Start",
+      "dirHit": "✓ hit",
+      "title": {
+        "done": "Done",
+        "rangeEnd": "Searching for window end…",
+        "fetch": "Loading window pages…",
+        "loading": "Loading…",
+        "rangeStart": "Searching for window start…",
+        "meta": "Preparing the request…"
+      }
+    },
+    "probe": {
+      "end": "End",
+      "directionHit": "✓ hit",
+      "directionRight": "→ right",
+      "directionLeft": "→ left",
+      "subtitle": "{which}: p={page} • {head} → {tail} {dir}",
+      "start": "Start"
+    },
+    "noResults": {
+      "actions": {
+        "resetDates": "Reset dates",
+        "openFilters": "Open filters",
+        "resetFilters": "Reset filters",
+        "changeQuery": "Change query",
+        "popularMonth": "Popular this month",
+        "fresh": "Recent"
+      },
+      "title": {
+        "query": "No results for “{query}”",
+        "filters": "Nothing found for the selected filters",
+        "default": "Nothing found",
+        "dates": "Nothing found in the selected date range",
+        "general": "Nothing found"
+      },
+      "subtitle": "Try changing the query, removing some filters, or widening the date range."
+    }
   },
   "historyNotFound": "History is empty ¯\\_(ツ)_/¯",
   "menu": {
@@ -421,5 +480,58 @@
     "preview": "Preview",
     "accept": "Accept",
     "title": "Adjust the frame to fit your head"
+  },
+  "downloaded": {
+    "noHaveADownloadBook": "No downloaded books"
+  },
+  "booklist": {
+    "notFound": "Nothing found ¯\\_(ツ)_/¯",
+    "notFoundShort": "Empty"
+  },
+  "favorites": {
+    "import": {
+      "doneMessage": "Imported: {count}",
+      "partialFail": "Some items could not be imported.",
+      "title": "Import",
+      "noneSelected": "No books selected.",
+      "doneTitle": "Done",
+      "loadFail": "Failed to load local favorites.",
+      "modalTitle": "Import local favorites",
+      "button": "Import from local",
+      "importSelected": "Import {count}",
+      "noLocal": "No local favorites found."
+    },
+    "autoImport": {
+      "sync": "syncing…",
+      "label": "Auto-import (background)",
+      "active": "Auto-import is active",
+      "waiting": "waiting"
+    },
+    "selectedCount": "Selected: {count}",
+    "selectForDelete": "Select for deletion",
+    "accessibility": {
+      "deselect": "Deselect",
+      "select": "Select"
+    },
+    "deleteOnline": {
+      "title": "Remove from online favorites",
+      "message": "Selected: {count}. Confirm?"
+    },
+    "deletedCount": "Deleted {count}",
+    "selected": "Selected"
+  },
+  "recommendations": {
+    "actions": {
+      "openFavorites": "Open favorites",
+      "openFilters": "Open filters"
+    },
+    "emptyTitle": {
+      "default": "No recommendations yet",
+      "noFav": "No recommendations — add some books to favorites"
+    },
+    "emptySubtitle": {
+      "default": "Try changing the filters or refreshing the list.",
+      "noFav": "Like a few books and I'll find similar ones."
+    }
   }
 }
