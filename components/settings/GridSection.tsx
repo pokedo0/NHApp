@@ -26,11 +26,18 @@ function CardDesignSegment({
   onChange: (d: "classic" | "stable" | "image") => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const options: Array<"classic" | "stable" | "image"> = ["classic", "stable", "image"];
-  const label = (d: typeof options[number]) => (d === "classic" ? "Classic" : d === "stable" ? "Stable" : "Image");
 
   return (
-    <View style={{ flexDirection: "row", borderRadius: 12, overflow: "hidden", alignSelf: "flex-start" }}>
+    <View
+      style={{
+        flexDirection: "row",
+        borderRadius: 12,
+        overflow: "hidden",
+        alignSelf: "flex-start",
+      }}
+    >
       {options.map((d, i) => {
         const active = value === d;
         return (
@@ -50,7 +57,16 @@ function CardDesignSegment({
             }}
             android_ripple={{ color: colors.accent + "22", borderless: false }}
           >
-            <Text style={{ fontWeight: "800", color: active ? colors.incTxt : colors.tagText }}>{label(d)}</Text>
+            <Text
+              style={{
+                fontWeight: "800",
+                color: active ? colors.incTxt : colors.tagText,
+              }}
+            >
+              {d === "classic" && t("settings.grid.cardDesign.classic")}
+              {d === "stable" && t("settings.grid.cardDesign.stable")}
+              {d === "image" && t("settings.grid.cardDesign.image")}
+            </Text>
           </Pressable>
         );
       })}
@@ -89,24 +105,36 @@ export default function GridSection({
         if (mounted) setPreviewBooks(res.books);
       } catch {}
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [cardDesign, colsMaxByWidth]);
 
-  const onPreviewLayout = useCallback((w: number) => {
-    const pad = profCfg.paddingHorizontal ?? 0;
-    const gap = profCfg.columnGap ?? 0;
-    const minW = (profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)) as number;
-    const inner = Math.max(0, w - pad * 2);
-    const maxByWidth = Math.max(1, Math.floor((inner + gap) / (minW + gap)));
-    setColsMaxByWidth(Math.min(12, maxByWidth));
+  const onPreviewLayout = useCallback(
+    (w: number) => {
+      const pad = profCfg.paddingHorizontal ?? 0;
+      const gap = profCfg.columnGap ?? 0;
+      const minW = (profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)) as number;
+      const inner = Math.max(0, w - pad * 2);
+      const maxByWidth = Math.max(1, Math.floor((inner + gap) / (minW + gap)));
+      setColsMaxByWidth(Math.min(12, maxByWidth));
 
-    // Автосвитч на image, если карточка станет слишком мелкой
-    const cols = Math.max(1, Math.min(profCfg.numColumns ?? 1, maxByWidth));
-    const cardW = (inner - gap * (cols - 1)) / cols;
-    if (cardDesign !== "image" && cardW < 78) {
-      setGridConfigMap({ [activeProfile]: { ...profCfg, cardDesign: "image" } } as any);
-    }
-  }, [profCfg.paddingHorizontal, profCfg.columnGap, profCfg.minColumnWidth, profCfg.numColumns, cardDesign, activeProfile]);
+      // Автосвитч на image, если карточка станет слишком мелкой
+      const cols = Math.max(1, Math.min(profCfg.numColumns ?? 1, maxByWidth));
+      const cardW = (inner - gap * (cols - 1)) / cols;
+      if (cardDesign !== "image" && cardW < 78) {
+        setGridConfigMap({ [activeProfile]: { ...profCfg, cardDesign: "image" } } as any);
+      }
+    },
+    [
+      profCfg.paddingHorizontal,
+      profCfg.columnGap,
+      profCfg.minColumnWidth,
+      profCfg.numColumns,
+      cardDesign,
+      activeProfile,
+    ]
+  );
 
   const setNum = async (v: number) => {
     const next = Math.max(1, Math.min(colsMaxByWidth, Math.round(v)));
@@ -132,9 +160,14 @@ export default function GridSection({
     const def = defaultGridConfigMap[activeProfile];
     await setGridConfigMap({ [activeProfile]: def } as any);
   };
-  const resetAll = async () => { await resetGridConfigMap(); };
+  const resetAll = async () => {
+    await resetGridConfigMap();
+  };
 
-  const labelStyle = useMemo(() => [{ fontSize: 14, color: colors.sub }], [colors.sub]);
+  const labelStyle = useMemo(
+    () => [{ fontSize: 14, color: colors.sub }],
+    [colors.sub]
+  );
 
   const chipBg = (k: GridProfile) => (activeProfile === k ? colors.incBg : colors.tagBg);
   const chipFg = (k: GridProfile) => (activeProfile === k ? colors.incTxt : colors.tagText);
@@ -147,22 +180,54 @@ export default function GridSection({
     onPreviewLayout(w);
   };
 
+  const profileLabel = (p: GridProfile) => {
+    switch (p) {
+      case "phonePortrait":
+        return t("settings.grid.phonePortrait");
+      case "phoneLandscape":
+        return t("settings.grid.phoneLandscape");
+      case "tabletPortrait":
+        return t("settings.grid.tabletPortrait");
+      case "tabletLandscape":
+        return t("settings.grid.tabletLandscape");
+      default:
+        return p;
+    }
+  };
+
   return (
     <View style={{ marginBottom: 20 }}>
       {/* Профили */}
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 10,
+        }}
+      >
         {PROFILES.map((p) => (
           <Pressable
             key={p}
             onPress={() => setActiveProfile(p)}
             style={{
-              paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, borderWidth: 1,
-              backgroundColor: chipBg(p), borderColor: chipBr(p),
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              borderRadius: 12,
+              borderWidth: 1,
+              backgroundColor: chipBg(p),
+              borderColor: chipBr(p),
             }}
             android_ripple={{ color: colors.accent + "22", borderless: false }}
           >
-            <Text style={{ color: chipFg(p), fontWeight: "700", fontSize: 12 }}>
-              {t(`settings.grid.${p}`)}
+            <Text
+              style={{
+                color: chipFg(p),
+                fontWeight: "700",
+                fontSize: 12,
+              }}
+            >
+              {profileLabel(p)}
             </Text>
           </Pressable>
         ))}
@@ -172,7 +237,10 @@ export default function GridSection({
       <CardDesignSegment value={cardDesign} onChange={setDesign} />
 
       {/* Превью каталога через BookList */}
-      <View onLayout={onLayoutPreview} style={{ marginTop: 10, borderRadius: 12, overflow: "hidden" }}>
+      <View
+        onLayout={onLayoutPreview}
+        style={{ marginTop: 10, borderRadius: 12, overflow: "hidden" }}
+      >
         <BookList
           data={previewBooks}
           loading={false}
@@ -189,7 +257,8 @@ export default function GridSection({
           gridConfig={{
             default: {
               numColumns: profCfg.numColumns,
-              minColumnWidth: profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80),
+              minColumnWidth:
+                profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80),
               paddingHorizontal: profCfg.paddingHorizontal,
               columnGap: profCfg.columnGap,
               cardDesign,
@@ -201,7 +270,10 @@ export default function GridSection({
 
       {/* Контролы */}
       <View style={{ marginTop: 8 }}>
-        <Text style={labelStyle as any}>Columns: {Math.min(profCfg.numColumns, colsMaxByWidth)}</Text>
+        <Text style={labelStyle as any}>
+          {t("settings.grid.columns")}:{" "}
+          {Math.min(profCfg.numColumns, colsMaxByWidth)}
+        </Text>
         <Slider
           minimumValue={1}
           maximumValue={colsMaxByWidth}
@@ -212,18 +284,25 @@ export default function GridSection({
           onSlidingComplete={setNum}
         />
 
-        <Text style={labelStyle as any}>Experimental • Min card width: {profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)}px</Text>
+        <Text style={labelStyle as any}>
+          {t("settings.grid.minWidth")}:{" "}
+          {profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)}px
+        </Text>
         <Slider
           minimumValue={cardDesign === "image" ? 40 : 80}
           maximumValue={200}
           step={1}
-          value={profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)}
+          value={
+            profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)
+          }
           minimumTrackTintColor={colors.accent}
           thumbTintColor={colors.accent}
           onSlidingComplete={setMinW}
         />
 
-        <Text style={labelStyle as any}>Side padding: {profCfg.paddingHorizontal}</Text>
+        <Text style={labelStyle as any}>
+          {t("settings.grid.sidePadding")}: {profCfg.paddingHorizontal}
+        </Text>
         <Slider
           minimumValue={0}
           maximumValue={32}
@@ -234,7 +313,9 @@ export default function GridSection({
           onSlidingComplete={setPad}
         />
 
-        <Text style={labelStyle as any}>Column gap: {profCfg.columnGap}</Text>
+        <Text style={labelStyle as any}>
+          {t("settings.grid.columnGap")}: {profCfg.columnGap}
+        </Text>
         <Slider
           minimumValue={0}
           maximumValue={24}
@@ -247,25 +328,67 @@ export default function GridSection({
       </View>
 
       {/* Сбросы */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 12 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          marginTop: 12,
+        }}
+      >
         <Pressable
           onPress={resetProfile}
-          style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, flex: 1, backgroundColor: colors.page }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            borderRadius: 12,
+            flex: 1,
+            backgroundColor: colors.page,
+          }}
           android_ripple={{ color: colors.accent + "22", borderless: false }}
         >
           <Feather name="rotate-ccw" size={16} color={colors.searchTxt} />
-          <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 0.2, textAlign: "center", color: colors.searchTxt }}>
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: "800",
+              letterSpacing: 0.2,
+              textAlign: "center",
+              color: colors.searchTxt,
+            }}
+          >
             {t("settings.grid.resetProfile")}
           </Text>
         </Pressable>
 
         <Pressable
           onPress={resetAll}
-          style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, flex: 1, backgroundColor: colors.accent }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            borderRadius: 12,
+            flex: 1,
+            backgroundColor: colors.accent,
+          }}
           android_ripple={{ color: "#ffffff22", borderless: false }}
         >
           <Feather name="trash-2" size={16} color={colors.bg} />
-          <Text style={{ fontSize: 12, fontWeight: "800", letterSpacing: 0.2, textAlign: "center", color: colors.bg }}>
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: "800",
+              letterSpacing: 0.2,
+              textAlign: "center",
+              color: colors.bg,
+            }}
+          >
             {t("settings.grid.resetAll")}
           </Text>
         </Pressable>

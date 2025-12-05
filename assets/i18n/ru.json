@@ -1,7 +1,6 @@
 {
   "downloadUpdate": "Скачать обновление",
   "app": {
-    "name": "NHAppAndroid",
     "version": {
       "beta": "Бета"
     }
@@ -15,7 +14,8 @@
     "new": "НОВОЕ",
     "read": "Читать",
     "readAgain": "Читать снова",
-    "removeDownload": "Удалить загрузку"
+    "removeDownload": "Удалить загрузку",
+    "pages": "Количество страниц"
   },
   "commentComposer": {
     "placeholder": "Написать комментарий…",
@@ -31,8 +31,13 @@
       "preparing": "Готовлю виджет капчи…"
     },
     "requesting": "Запрашиваем капчу…",
-    "actions": { "reload": "Обновить", "close": "Закрыть" },
-    "stats": { "attempts": "Попыток: {n}" }
+    "actions": {
+      "reload": "Обновить",
+      "close": "Закрыть"
+    },
+    "stats": {
+      "attempts": "Попыток: {n}"
+    }
   },
   "comments": {
     "title": "Комментарии",
@@ -43,7 +48,9 @@
       "copy": "Скопировать текст",
       "delete": "Удалить"
     },
-    "badge": { "translated": "Показан перевод" },
+    "badge": {
+      "translated": "Показан перевод"
+    },
     "mine": "Ваш комментарий",
     "delete": {
       "title": "Удалить комментарий?",
@@ -67,7 +74,8 @@
     "tapHere": "Нажми сюда",
     "yes": "Да",
     "chooseOption": "Выбери вариант",
-    "nothingFound": "Ничего не найдено."
+    "nothingFound": "Ничего не найдено.",
+    "select": "Выбрать"
   },
   "explore": {
     "sort": {
@@ -77,7 +85,12 @@
       "popularToday": "Популярное сегодня",
       "popularWeek": "Популярное за неделю"
     },
-    "sortBy": "Сортировать по"
+    "sortBy": "Сортировать по",
+    "dateRange": "Фильтр по дате",
+    "quickPeriod": "Период",
+    "datePickerTitle": "Выбор даты",
+    "hintDatesActive": "Активен фильтр по дате. Сортировка по пресетам скрыта.",
+    "hintPresets": "Выберите период или задайте диапозон дат."
   },
   "historyNotFound": "История пуста ¯\\_(ツ)_/¯",
   "menu": {
@@ -93,14 +106,29 @@
     "tags": "Теги",
     "profile": "Профиль",
     "login": "Войти",
-    "section": { "account": "Аккаунт", "library": "Библиотека" },
+    "section": {
+      "library": "Библиотека"
+    },
     "favoritesOnline": "Онлайн-избранное",
     "brand": "NHAppAndroid",
-    "brandTag": "Неофициальное"
+    "brandTag": "Неофициальное",
+    "characters": "Персонажи",
+    "discordJoin": "Присоединиться к Discord",
+    "discordSubtitle": "Получайте ранние билды, задавайте вопросы, предлагайте идеи"
   },
   "login": {
     "ready": "Готово",
-    "loading": "Загрузка…"
+    "loading": "Загрузка…",
+    "status": {
+      "loggedOut": "Вы вышли из аккаунта.",
+      "cookiesSynced": "Куки синхронизированы.",
+      "tokensSaved": "Токены сохранены.",
+      "notSigned": "Вход не выполнен.",
+      "navigating": "Открываем страницу входа…",
+      "signedAs": "Выполнен вход как {user}.",
+      "cookiesFailed": "Не удалось синхронизировать куки."
+    },
+    "sync": "Синхронизировать"
   },
   "reader": {
     "banner": {
@@ -125,15 +153,17 @@
       "orientation": "Ориентация",
       "tap": "Тап"
     },
-    "menuHint": "Открыть управление"
+    "menuHint": "Открыть управление",
+    "pagination": {
+      "goToPage": "Перейти к странице"
+    }
   },
   "related": "Похожие",
   "search": {
     "results": "Результаты",
     "placeholder": "Поиск по названию или тегу",
     "recent": "Недавние поиски",
-    "clearHistory": "Очистить историю",
-    "loading": "Загрузка…"
+    "clearHistory": "Очистить историю"
   },
   "searchBar": {
     "backHome": "Назад на главную",
@@ -172,20 +202,25 @@
       "storage": "Хранилище устройства"
     },
     "grid": {
-      "phonePortrait": "Телефон · Вертикально",
-      "phoneLandscape": "Телефон · Горизонтально",
-      "tabletPortrait": "Планшет · Вертикально",
-      "tabletLandscape": "Планшет · Горизонтально",
-      "columns": "Колонки",
-      "spacingSides": "Отступы по краям",
-      "spacingBetween": "Промежуток между колонками",
       "resetProfile": "Сбросить профиль",
-      "resetAll": "Сбросить всё"
+      "resetAll": "Сбросить все профили",
+      "cardDesign": {
+        "image": "Только обложки",
+        "classic": "Классический",
+        "stable": "Стабильный"
+      },
+      "minWidth": "Экспериментально • Мин. ширина карточки",
+      "columns": "Колонки",
+      "phoneLandscape": "Телефон — ландшафт",
+      "tabletLandscape": "Планшет — ландшафт",
+      "phonePortrait": "Телефон — портрет",
+      "columnGap": "Расстояние между колонками",
+      "sidePadding": "Боковые отступы",
+      "tabletPortrait": "Планшет — портрет"
     },
     "title": "Настройки"
   },
   "showMore": "Показать ещё {count}",
-  "showOriginal": "Показать оригинал",
   "storageManager": {
     "actions": {
       "clearAll": "Очистить всё",
@@ -244,19 +279,8 @@
     "selected": "Выбранные",
     "included": "Включены",
     "excluded": "Исключены",
-    "reset": "Сбросить",
-    "empty": "пусто",
-    "sort": {
-      "popular": "Популярные",
-      "az": "А–Я"
-    },
-    "tabs": {
-      "all": "Все",
-      "favs": "Избранные"
-    }
+    "empty": "пусто"
   },
-  "translate": "Перевести",
-  "translating": "Перевод…",
   "collections": {
     "newTitle": "Новая коллекция",
     "editTitle": "Редактирование коллекции",
@@ -274,16 +298,128 @@
       "included": "✓ Включены: {count}",
       "excluded": "− Исключены: {count}"
     },
-    "empty": "Пусто.",
-    "reset": "Сбросить",
     "fromSelected": "Из «Выбранные»",
-    "save": "Сохранить",
     "untitled": "Без имени",
     "list": {
-      "empty": "Пока нет коллекций.",
-      "apply": "Применить",
       "edit": "Редактировать",
       "delete": "Удалить"
     }
+  },
+  "empty": {
+    "search": "Ничего не найдено"
+  },
+  "date": {
+    "title": {
+      "range": "Диапазон дат",
+      "monthYear": "Месяц и год",
+      "single": "Дата"
+    },
+    "weekShort": {
+      "sat": "Сбт",
+      "mon": "Пнд",
+      "wed": "Срд",
+      "thu": "Чтв",
+      "tue": "Втр",
+      "sun": "Вск",
+      "fri": "Птн"
+    },
+    "label": {
+      "year": "Год",
+      "select": "Выбрать",
+      "month": "Месяц"
+    },
+    "actions": {
+      "apply": "Применить",
+      "done": "Готово",
+      "reset": "Сбросить",
+      "cancel": "Отмена"
+    },
+    "month": {
+      "10": "Октябрь",
+      "5": "Май",
+      "3": "Март",
+      "7": "Июль",
+      "1": "Январь",
+      "6": "Июнь",
+      "9": "Сентябрь",
+      "12": "Декабрь",
+      "4": "Апрель",
+      "11": "Ноябрь",
+      "2": "Февраль",
+      "8": "Август"
+    }
+  },
+  "whatsNewUpdate": "Посмотреть что нового",
+  "NewUpdate": "Доступно обновление",
+  "characters": {
+    "error": {
+      "download": "Ошибка загрузки",
+      "save": "Ошибка сохранения",
+      "delete": "Ошибка удаления"
+    },
+    "searchPlaceholder": "Поиск персонажей...",
+    "backToCollections": "Назад к коллекциям",
+    "filter": {
+      "allUsers": "Все пользователи"
+    },
+    "empty": "Пусто",
+    "selectAuthorTitle": "Выбор автора",
+    "cardsCount": "{count} карточек",
+    "charactersCount": "{count} персонажей",
+    "validation": {
+      "nameRequired": "Имя персонажа не может быть пустым"
+    },
+    "collection": {
+      "untitled": "Без коллекции"
+    },
+    "cardActions": {
+      "title": "Что сделать с этой карточкой?",
+      "searchByCharacter": "Искать по этому персонажу",
+      "cancel": "Отмена",
+      "openBook": "Открыть книгу"
+    }
+  },
+  "charSelect": {
+    "summaryParody": "Пародия",
+    "labelCharacter": "Персонаж (обязательно)",
+    "summaryTitle": "Что ты сейчас отправляешь",
+    "save": "Сохранить",
+    "summaryHint": "Перед сохранением перепроверь всё.",
+    "parodyNotSpecified": "# src:",
+    "labelParody": "Пародия (необязательно)",
+    "warningText": "Ты создаёшь глобальную карточку персонажа. Ошибочные карточки могут привести к потере доступа.",
+    "parodyPlaceholder": "Например: «One Piece», «Genshin Impact» и т.д.",
+    "warningTitle": "Тщательно проверь карточку",
+    "notSelected": "# src:",
+    "cancel": "Отмена",
+    "summaryCharacter": "Персонаж",
+    "profileNoname": "Без ника",
+    "title": "Выбор персонажа и пародии",
+    "placeholderCharacter": "— Выбери персонажа —",
+    "parodyCustom": "Другое (введи своё)",
+    "profileTitle": "Твой профиль",
+    "parodyNone": "— Без пародии —",
+    "parodyOwnEmpty": "# src:",
+    "errorChooseCharacter": "Выбери персонажа"
+  },
+  "editCard": {
+    "cardAuthor": "Автор карточки",
+    "warningText": "Изменения серьёзные. Будь внимателен.",
+    "editArea": "Редактировать область",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "noName": "# src:",
+    "openBook": "Открыть книгу",
+    "title": "Редактирование карточки персонажа",
+    "warningTitle": "Внимание",
+    "labelParody": "Пародия",
+    "labelCharacter": "Персонаж",
+    "delete": "Удалить"
+  },
+  "crop": {
+    "cancel": "Отмена",
+    "preview": "Предпросмотр",
+    "accept": "Применить",
+    "title": "Отрегулируй рамку, чтобы она подходила под голову"
   }
 }

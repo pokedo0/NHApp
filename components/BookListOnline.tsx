@@ -2,28 +2,28 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    ListRenderItem,
-    Modal,
-    Pressable,
-    RefreshControl,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    useWindowDimensions,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  ListRenderItem,
+  Modal,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Book, getFavorites } from "@/api/nhentai";
 import {
-    onlineBulkFavorite,
-    onlineBulkUnfavorite,
-    onlineFavorite,
-    onlineUnfavorite,
+  onlineBulkFavorite,
+  onlineBulkUnfavorite,
+  onlineFavorite,
+  onlineUnfavorite,
 } from "@/api/nhentaiOnline";
 import BookCard from "@/components/BookCard";
 import { CardPressable } from "@/components/ui/CardPressable";
@@ -684,6 +684,7 @@ export default function BookListOnline({
 
       {/* ===== МОДАЛКА ИМПОРТА ИЗ ЛОКАЛЬНЫХ ===== */}
       <Modal
+        statusBarTranslucent
         visible={importOpen}
         animationType="slide"
         onRequestClose={() => setImportOpen(false)}

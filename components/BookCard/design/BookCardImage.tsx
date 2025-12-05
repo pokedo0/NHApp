@@ -46,13 +46,6 @@ export default function BookCardImage({
         <SmartImage
           sources={variants}
           style={styles.cover}
-          recyclingKey={String(book.id)}
-          priority="high"
-          deferUntilIdle={false}
-          clientCompress
-          maxTargetWidth={520}
-          compressQuality={0.68}
-          compressFormat="jpeg"
         />
       </View>
     </Pressable>

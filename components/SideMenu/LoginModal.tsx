@@ -90,6 +90,7 @@ export function LoginModal(props: LoginModalProps) {
 
   return (
     <Modal
+      statusBarTranslucent
       visible={visible}
       animationType="slide"
       onRequestClose={onRequestClose}
@@ -125,7 +126,6 @@ export function LoginModal(props: LoginModalProps) {
               overlayColor={"rgba(255,255,255,0.12)"}
               onPress={onRequestClose}
               size={36}
-              accessibilityLabel={t("common.close")}
             >
               <Feather name="x" size={20} color={colors.title} />
             </IconBtn>

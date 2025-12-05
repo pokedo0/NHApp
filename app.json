@@ -2,7 +2,7 @@
   "expo": {
     "name": "nhappandroid",
     "slug": "nhappandroid",
-    "version": "1.1.32",
+    "version": "1.1.33",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "nhappandroid",
@@ -11,7 +11,6 @@
       "supportsTablet": true
     },
     "androidNavigationBar": {
-      "visible": "immersive",
       "barStyle": "light-content",
       "backgroundColor": "#000000"
     },
@@ -20,14 +19,9 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": true, 
       "package": "com.nhapp.android",
-      "versionCode": 10132,
-      "infoPlist": {
-        "UIBackgroundModes": [
-          "processing"
-        ]
-      }
+      "versionCode": 10132
     },
     "web": {
       "bundler": "metro",

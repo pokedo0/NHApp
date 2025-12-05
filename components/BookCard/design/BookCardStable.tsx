@@ -331,13 +331,6 @@ function BookCardStableInner({
         <SmartImage
           sources={variants}
           style={cover}
-          recyclingKey={String(book.id)}
-          priority="high"
-          deferUntilIdle={false}
-          clientCompress
-          maxTargetWidth={520}
-          compressQuality={0.68}
-          compressFormat="jpeg"
         />
         <LinearGradient
           colors={["#00000000", `${colors.bg}40`, `${colors.bg}99`]}

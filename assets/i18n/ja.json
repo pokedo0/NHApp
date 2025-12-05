@@ -1,7 +1,6 @@
 {
   "downloadUpdate": "アップデートをダウンロード",
   "app": {
-    "name": "NHAppAndroid",
     "version": {
       "beta": "ベータ"
     }
@@ -15,7 +14,8 @@
     "new": "新着",
     "read": "読む",
     "readAgain": "もう一度読む",
-    "removeDownload": "ダウンロードを削除"
+    "removeDownload": "ダウンロードを削除",
+    "pages": "ページ数"
   },
   "commentComposer": {
     "placeholder": "コメントを書く…",
@@ -31,8 +31,13 @@
       "preparing": "キャプチャウィジェットを準備中…"
     },
     "requesting": "キャプチャを取得中…",
-    "actions": { "reload": "再読み込み", "close": "閉じる" },
-    "stats": { "attempts": "試行回数: {n}" }
+    "actions": {
+      "reload": "再読み込み",
+      "close": "閉じる"
+    },
+    "stats": {
+      "attempts": "試行回数: {n}"
+    }
   },
   "comments": {
     "title": "コメント",
@@ -43,7 +48,9 @@
       "copy": "テキストをコピー",
       "delete": "削除"
     },
-    "badge": { "translated": "翻訳を表示中" },
+    "badge": {
+      "translated": "翻訳を表示中"
+    },
     "mine": "あなたのコメント",
     "delete": {
       "title": "このコメントを削除しますか？",
@@ -67,7 +74,8 @@
     "tapHere": "ここをタップ",
     "yes": "はい",
     "chooseOption": "オプションを選択",
-    "nothingFound": "見つかりませんでした。"
+    "nothingFound": "見つかりませんでした。",
+    "select": "選択"
   },
   "explore": {
     "sort": {
@@ -77,7 +85,12 @@
       "popularToday": "今日の人気",
       "popularWeek": "今週の人気"
     },
-    "sortBy": "並び替え"
+    "sortBy": "並び替え",
+    "dateRange": "日付フィルター",
+    "quickPeriod": "期間",
+    "datePickerTitle": "日付の選択",
+    "hintDatesActive": "日付フィルターが有効です。プリセットの並べ替えは非表示になります。",
+    "hintPresets": "期間を選択するか、日付範囲を指定してください。"
   },
   "historyNotFound": "履歴は空です ¯\\_(ツ)_/¯",
   "menu": {
@@ -93,14 +106,29 @@
     "tags": "タグ",
     "profile": "プロフィール",
     "login": "ログイン",
-    "section": { "account": "アカウント", "library": "ライブラリ" },
+    "section": {
+      "library": "ライブラリ"
+    },
     "favoritesOnline": "オンラインのお気に入り",
     "brand": "NHAppAndroid",
-    "brandTag": "非公式"
+    "brandTag": "非公式",
+    "characters": "キャラクター",
+    "discordJoin": "Discord に参加する",
+    "discordSubtitle": "早期ビルドの入手、質問、アイデア共有ができます"
   },
   "login": {
     "ready": "準備完了",
-    "loading": "読み込み中…"
+    "loading": "読み込み中…",
+    "status": {
+      "loggedOut": "ログアウトしました。",
+      "cookiesSynced": "Cookie を同期しました。",
+      "tokensSaved": "トークンを保存しました。",
+      "notSigned": "ログインしていません。",
+      "navigating": "ログインページを開いています…",
+      "signedAs": "{user} としてログインしました。",
+      "cookiesFailed": "Cookie の同期に失敗しました。"
+    },
+    "sync": "同期"
   },
   "reader": {
     "banner": {
@@ -125,15 +153,17 @@
       "orientation": "向き",
       "tap": "タップ"
     },
-    "menuHint": "操作を開く"
+    "menuHint": "操作を開く",
+    "pagination": {
+      "goToPage": "ページへ移動"
+    }
   },
   "related": "関連",
   "search": {
     "results": "結果",
     "placeholder": "タイトルやタグで検索",
     "recent": "最近の検索",
-    "clearHistory": "履歴を消去",
-    "loading": "読み込み中…"
+    "clearHistory": "履歴を消去"
   },
   "searchBar": {
     "backHome": "ホームに戻る",
@@ -172,20 +202,25 @@
       "storage": "デバイスストレージ"
     },
     "grid": {
-      "phonePortrait": "スマホ · 縦",
-      "phoneLandscape": "スマホ · 横",
-      "tabletPortrait": "タブレット · 縦",
-      "tabletLandscape": "タブレット · 横",
+      "resetProfile": "このプロファイルをリセット",
+      "resetAll": "すべてのプロファイルをリセット",
+      "cardDesign": {
+        "image": "画像",
+        "classic": "クラシック",
+        "stable": "安定"
+      },
+      "minWidth": "実験的・カードの最小幅",
       "columns": "列数",
-      "spacingSides": "サイド余白",
-      "spacingBetween": "列の間隔",
-      "resetProfile": "プロフィールをリセット",
-      "resetAll": "すべてリセット"
+      "phoneLandscape": "スマホ（横向き）",
+      "tabletLandscape": "タブレット（横向き）",
+      "phonePortrait": "スマホ（縦向き）",
+      "columnGap": "列の間隔",
+      "sidePadding": "左右の余白",
+      "tabletPortrait": "タブレット（縦向き）"
     },
     "title": "設定"
   },
   "showMore": "{count} 件もっと見る",
-  "showOriginal": "原文を表示",
   "storageManager": {
     "actions": {
       "clearAll": "すべて消去",
@@ -244,19 +279,8 @@
     "selected": "選択済み",
     "included": "含める",
     "excluded": "除外",
-    "reset": "リセット",
-    "empty": "空",
-    "sort": {
-      "popular": "人気",
-      "az": "A–Z"
-    },
-    "tabs": {
-      "all": "すべて",
-      "favs": "お気に入り"
-    }
+    "empty": "空"
   },
-  "translate": "翻訳",
-  "translating": "翻訳中…",
   "collections": {
     "newTitle": "新しいコレクション",
     "editTitle": "コレクションを編集",
@@ -269,21 +293,133 @@
       "include": "含める",
       "exclude": "除外"
     },
+    "defaultName": "新しいコレクション",
     "counters": {
       "included": "✓ 含める: {count}",
       "excluded": "− 除外: {count}"
     },
-    "defaultName": "新しいコレクション",
-    "empty": "空です。",
-    "reset": "リセット",
     "fromSelected": "「選択済み」から",
-    "save": "保存",
     "untitled": "無題",
     "list": {
-      "empty": "コレクションはまだありません。",
-      "apply": "適用",
       "edit": "編集",
       "delete": "削除"
     }
+  },
+  "empty": {
+    "search": "何も見つかりません"
+  },
+  "date": {
+    "title": {
+      "range": "日付範囲",
+      "monthYear": "月と年",
+      "single": "日付"
+    },
+    "weekShort": {
+      "sat": "土",
+      "mon": "月",
+      "wed": "水",
+      "thu": "木",
+      "tue": "火",
+      "sun": "日",
+      "fri": "金"
+    },
+    "label": {
+      "year": "年",
+      "select": "選択",
+      "month": "月"
+    },
+    "actions": {
+      "apply": "適用",
+      "done": "完了",
+      "reset": "リセット",
+      "cancel": "キャンセル"
+    },
+    "month": {
+      "10": "10月",
+      "5": "5月",
+      "3": "3月",
+      "7": "7月",
+      "1": "1月",
+      "6": "6月",
+      "9": "9月",
+      "12": "12月",
+      "4": "4月",
+      "11": "11月",
+      "2": "2月",
+      "8": "8月"
+    }
+  },
+  "whatsNewUpdate": "新しい内容を見る",
+  "NewUpdate": "アップデートがあります",
+  "characters": {
+    "error": {
+      "download": "ダウンロードエラー",
+      "save": "保存エラー",
+      "delete": "削除エラー"
+    },
+    "searchPlaceholder": "キャラクター検索...",
+    "backToCollections": "コレクションに戻る",
+    "filter": {
+      "allUsers": "すべてのユーザー"
+    },
+    "empty": "まだ何もありません",
+    "selectAuthorTitle": "作者を選択",
+    "cardsCount": "{count}枚のカード",
+    "charactersCount": "{count}人のキャラクター",
+    "validation": {
+      "nameRequired": "キャラクター名を空にすることはできません"
+    },
+    "collection": {
+      "untitled": "コレクションなし"
+    },
+    "cardActions": {
+      "title": "このカードで何をしますか？",
+      "searchByCharacter": "このキャラクターで検索",
+      "cancel": "キャンセル",
+      "openBook": "本を開く"
+    }
+  },
+  "charSelect": {
+    "summaryParody": "パロディ",
+    "labelCharacter": "キャラクター（必須）",
+    "summaryTitle": "今何を投稿していますか",
+    "save": "保存",
+    "summaryHint": "保存前にすべてを確認してください。",
+    "parodyNotSpecified": "# src:",
+    "labelParody": "パロディ（任意）",
+    "warningText": "あなたはグローバルキャラクターカードを作成しています。誤ったカードは権限停止につながる可能性があります。",
+    "parodyPlaceholder": "例：「ワンピース」「原神」など",
+    "warningTitle": "カードをよく確認してください",
+    "notSelected": "# src:",
+    "cancel": "キャンセル",
+    "summaryCharacter": "キャラクター",
+    "profileNoname": "ニックネームなし",
+    "title": "キャラクターとパロディの選択",
+    "placeholderCharacter": "— キャラクターを選択 —",
+    "parodyCustom": "その他（自分で入力）",
+    "profileTitle": "あなたのプロフィール",
+    "parodyNone": "— パロディなし —",
+    "parodyOwnEmpty": "# src:",
+    "errorChooseCharacter": "キャラクターを選択してください"
+  },
+  "editCard": {
+    "cardAuthor": "カードの作者",
+    "warningText": "変更は重大です。ご注意ください。",
+    "editArea": "範囲を編集",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "noName": "# src:",
+    "openBook": "本を開く",
+    "title": "キャラクターカードの編集",
+    "warningTitle": "注意",
+    "labelParody": "パロディ",
+    "labelCharacter": "キャラクター",
+    "delete": "削除"
+  },
+  "crop": {
+    "cancel": "キャンセル",
+    "preview": "プレビュー",
+    "accept": "決定",
+    "title": "フレームを調整して頭部に合わせてください"
   }
 }

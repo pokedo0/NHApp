@@ -128,13 +128,6 @@ export default function BookCardClassic({
         <SmartImage
           sources={sources}
           style={styles.cover}
-          recyclingKey={String(book.id)}
-          priority="high"
-          deferUntilIdle={false}
-          clientCompress
-          maxTargetWidth={520}
-          compressQuality={0.68}
-          compressFormat="jpeg"
         />
 
         {flagSrc && (

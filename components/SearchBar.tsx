@@ -169,6 +169,7 @@ export function SearchBar() {
     if (has("downloaded")) return t("menu.downloaded");
     if (has("recommendations")) return t("menu.recommendations");
     if (has("history")) return t("menu.history");
+    if (has("characters")) return t("menu.characters");
     if (has("settings")) return t("menu.settings");
     if (has("book")) return `#${bookId} - ${bookTitle}`;
     if (has("search"))
@@ -290,7 +291,7 @@ export function SearchBar() {
         title={t("explore.sortBy") || "Сортировка и дата"}
         hint={
           hasDateFilter
-            ? t("explore.dateRange") || "Фильтр по дате"
+            ? t("explore.dateRange")
             : t("common.chooseOption") || "Выберите вариант"
         }
       >
@@ -302,7 +303,7 @@ export function SearchBar() {
           {!hasDateFilter && (
             <View>
               <SectionTitle>
-                {t("explore.quickPeriod") || "Период"}
+                {t("explore.quickPeriod")}
               </SectionTitle>
               <View style={styles.chipsWrap}>
                 {PRESETS.map(({ key, label, icon }) => (
@@ -332,7 +333,7 @@ export function SearchBar() {
 
           <View style={{ marginTop: 4 }}>
             <SectionTitle>
-              {(t("explore.dateRange") || "Дата (диапазон)") +
+              {(t("explore.dateRange")) +
                 (hasDateFilter ? ` — ${rangeLabel}` : "")}
             </SectionTitle>
 
@@ -350,7 +351,7 @@ export function SearchBar() {
                   <Text style={[styles.rowBtnTxt, { color: colors.searchTxt }]}>
                     {hasDateFilter
                       ? rangeLabel
-                      : t("common.select") || "Выбрать"}
+                      : t("common.select")}
                   </Text>
                 </View>
               </Pressable>
@@ -374,7 +375,7 @@ export function SearchBar() {
                         { color: colors.accent, fontWeight: "800" },
                       ]}
                     >
-                      {t("common.reset") || "Сбросить"}
+                      {t("common.reset")}
                     </Text>
                   </View>
                 </Pressable>
@@ -386,10 +387,8 @@ export function SearchBar() {
         <View style={styles.sheetFooterHint}>
           <Text style={{ color: colors.searchTxt, opacity: 0.6, fontSize: 12 }}>
             {hasDateFilter
-              ? t("explore.hintDatesActive") ||
-                "Активен фильтр по дате. Сортировка по пресетам скрыта."
-              : t("explore.hintPresets") ||
-                "Выберите период или задайте диапазон дат."}
+              ? t("explore.hintDatesActive")
+              : t("explore.hintPresets")}
           </Text>
         </View>
       </NhModal>
@@ -436,7 +435,7 @@ export function SearchBar() {
           backgroundColor: colors.searchBg,
           borderColor: colors.page,
         }}
-        title={t("explore.datePickerTitle") || "Выбор даты"}
+        title={t("explore.datePickerTitle")}
       >
         <DateRangePicker
           initialFrom={from ? new Date(from as any) : null}

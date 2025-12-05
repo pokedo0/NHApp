@@ -564,7 +564,7 @@ export default function CloudflareGate({
   });
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} statusBarTranslucent transparent animationType="fade" onRequestClose={onClose}>
       <View style={[S.backdrop, { backgroundColor: colors.backdrop }]}>
         <View style={[S.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[S.title, { color: colors.text }]}>{t("cloudflare.title")}</Text>

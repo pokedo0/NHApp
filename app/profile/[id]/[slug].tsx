@@ -478,7 +478,8 @@ export default function UserProfileScreen() {
         )}
       </View>
 
-      {canEdit && (
+      {/* {canEdit && ( */}
+      {false && (
         <View
           style={{
             paddingHorizontal: PAD,

@@ -11,9 +11,9 @@ export interface UserComment {
   id: number;
   gallery_id: number;
   body: string;
-  post_date?: number; // unix seconds
+  post_date?: number;
   avatar_url?: string;
-  page_url?: string; // /g/<id>/#comment-<id>
+  page_url?: string;
 }
 
 export interface UserOverview {

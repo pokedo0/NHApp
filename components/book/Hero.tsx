@@ -1,5 +1,15 @@
+// components/book/Hero.tsx
+import {
+  createCharacterCard,
+  getCharactersWithCards,
+  getGlobalCharacterCardForCharacter,
+  Rect,
+} from "@/api/characterCards";
 import type { Book } from "@/api/nhentai";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
+import { CharacterCropModal } from "@/components/CharacterCropModal";
+import { CharacterSelectModal } from "@/components/CharacterSelectModal";
+import { useOnlineMe } from "@/hooks/useOnlineMe";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { timeAgo } from "@/utils/book/timeAgo";
@@ -9,8 +19,15 @@ import * as Clipboard from "expo-clipboard";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import Ring from "./Ring";
 import TagBlock, { TagLite } from "./TagBlock";
 
@@ -73,6 +90,14 @@ const styles = StyleSheet.create({
   layoutTxt: { fontSize: 12 },
 });
 
+type CharacterTag = TagLite & {
+  hasCard?: boolean;
+};
+
+function normalizeNhentaiImageUrl(url: string): string {
+  return url.replace(/\/(\d+)w\.(jpg|jpeg|png|gif)$/i, "/$1.$2");
+}
+
 export default function Hero({
   book,
   containerW,
@@ -117,8 +142,12 @@ export default function Hero({
 }) {
   const { colors } = useTheme();
   const { t, resolvedDateFns } = useI18n();
-
   const router = useRouter();
+
+  // текущий пользователь NH (может быть null, если не авторизован)
+  const me = useOnlineMe();
+  const meId = me?.id ?? null;
+
   const coverAR =
     book.coverW && book.coverH ? book.coverW / book.coverH : 3 / 4;
 
@@ -194,6 +223,242 @@ export default function Hero({
     return book.tags.filter((t) => !skip.has(t.name));
   }, [book]);
 
+  // ------------------ данные по персонажам из БД ------------------
+
+  const [charactersWithCards, setCharactersWithCards] = useState<string[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCharacters = async () => {
+      try {
+        const names = await getCharactersWithCards(book.id);
+        if (!cancelled) setCharactersWithCards(names);
+      } catch {
+        if (!cancelled) setCharactersWithCards([]);
+      }
+    };
+
+    loadCharacters();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [book.id, refreshKey]);
+
+  // карта: имя персонажа -> глобальная карточка (картинка + rect + пародия)
+  const [characterCardsMap, setCharacterCardsMap] = useState<
+    Record<string, { imageUrl: string; parodyName: string | null; rect: Rect }>
+  >({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCards = async () => {
+      if (!book.characters?.length || !charactersWithCards.length) {
+        if (!cancelled) setCharacterCardsMap({});
+        return;
+      }
+
+      const names = book.characters
+        .map((c) => c.name)
+        .filter((name) => charactersWithCards.includes(name));
+
+      if (!names.length) {
+        if (!cancelled) setCharacterCardsMap({});
+        return;
+      }
+
+      const current = { ...characterCardsMap };
+      const toLoad = names.filter((n) => !current[n]);
+
+      if (!toLoad.length) return;
+
+      await Promise.all(
+        toLoad.map(async (name) => {
+          try {
+            const card = await getGlobalCharacterCardForCharacter(name);
+            if (!card) return;
+            current[name] = {
+              imageUrl: card.imageUrl,
+              parodyName: card.parodyName ?? null,
+              rect: card.rect,
+            };
+          } catch {
+            // игнорируем ошибки по одному персонажу
+          }
+        })
+      );
+
+      if (!cancelled) setCharacterCardsMap(current);
+    };
+
+    loadCards();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [book.characters, charactersWithCards, refreshKey]);
+
+  // персонажи с картинками сверху, без картинок снизу
+  const characterTagsWithInfo = useMemo<CharacterTag[]>(() => {
+    if (!book.characters?.length) return [];
+
+    const withCard: CharacterTag[] = [];
+    const withoutCard: CharacterTag[] = [];
+
+    (book.characters as CharacterTag[]).forEach((tag) => {
+      const name = tag.name;
+      const base: CharacterTag = { ...tag };
+      const hasCard = charactersWithCards.includes(name);
+      const cardInfo = characterCardsMap[name];
+
+      if (hasCard && cardInfo) {
+        base.hasCard = true;
+        base.cardImageUrl = cardInfo.imageUrl;
+        base.cardParodyName = cardInfo.parodyName;
+        base.cardRect = cardInfo.rect;
+        withCard.push(base);
+      } else if (hasCard && !cardInfo) {
+        // карточка есть, но ещё не подтянули детально
+        base.hasCard = true;
+        withoutCard.push(base);
+      } else {
+        withoutCard.push(base);
+      }
+    });
+
+    return [...withCard, ...withoutCard];
+  }, [book.characters, charactersWithCards, characterCardsMap]);
+
+  const availableCharacters: string[] = useMemo(() => {
+    if (!book.characters?.length) return [];
+    if (!charactersWithCards.length) return book.characters.map((c) => c.name);
+
+    // если у персонажа уже есть карточка где-то, не даём создавать ещё
+    return book.characters
+      .map((c) => c.name)
+      .filter((name) => !charactersWithCards.includes(name));
+  }, [book.characters, charactersWithCards]);
+
+  // только авторизованный пользователь может добавлять карточки
+  const canAddCards = availableCharacters.length > 0 && !!meId;
+
+  // ------------------ модалки выбора страницы / кропа / персонажа ------------------
+
+  const [pagePickerVisible, setPagePickerVisible] = useState(false);
+  const [cropVisible, setCropVisible] = useState(false);
+  const [selectVisible, setSelectVisible] = useState(false);
+  const [selectedPageIndex, setSelectedPageIndex] = useState<number | null>(
+    null
+  );
+  const [selectedPageImageUri, setSelectedPageImageUri] = useState<
+    string | null
+  >(null);
+  const [currentRect, setCurrentRect] = useState<Rect | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const openPagePicker = () => {
+    if (!canAddCards) return;
+    if (!meId) {
+      // если не авторизован, просто не даём открыть модалку
+      return;
+    }
+    setSubmitError(null);
+    setSelectedPageIndex(null);
+    setSelectedPageImageUri(null);
+    setCurrentRect(null);
+    setPagePickerVisible(true);
+  };
+
+  const closeAllModals = () => {
+    setPagePickerVisible(false);
+    setCropVisible(false);
+    setSelectVisible(false);
+    setSelectedPageIndex(null);
+    setSelectedPageImageUri(null);
+    setCurrentRect(null);
+    setSubmitError(null);
+    setSubmitting(false);
+  };
+
+  const handlePageSelected = (pageIndex: number, imageUri: string) => {
+    setSelectedPageIndex(pageIndex);
+    setSelectedPageImageUri(imageUri);
+    setPagePickerVisible(false);
+    setCropVisible(true);
+  };
+
+  const handleCropCancel = () => {
+    setCropVisible(false);
+    setCurrentRect(null);
+  };
+
+  const handleCropConfirm = (rect: Rect) => {
+    setCurrentRect(rect);
+    setCropVisible(false);
+    setSelectVisible(true);
+  };
+
+  const handleCharacterSelectCancel = () => {
+    setSelectVisible(false);
+    setCurrentRect(null);
+    setSelectedPageIndex(null);
+    setSelectedPageImageUri(null);
+    setSubmitError(null);
+    setSubmitting(false);
+  };
+
+  const handleCharacterSelectConfirm = async (
+    characterName: string,
+    parodyName: string | null
+  ) => {
+    if (
+      !selectedPageIndex ||
+      !selectedPageImageUri ||
+      !currentRect ||
+      submitting
+    ) {
+      return;
+    }
+    if (!meId) {
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    const normalizedImageUrl = normalizeNhentaiImageUrl(selectedPageImageUri);
+
+    try {
+      await createCharacterCard(book.id, selectedPageIndex, {
+        characterName,
+        parodyName,
+        imageUrl: normalizedImageUrl,
+        cropX: currentRect.x,
+        cropY: currentRect.y,
+        cropWidth: currentRect.width,
+        cropHeight: currentRect.height,
+        userId: meId,
+      });
+
+      setSelectVisible(false);
+      setCurrentRect(null);
+      setSelectedPageIndex(null);
+      setSelectedPageImageUri(null);
+      setSubmitting(false);
+
+      setRefreshKey((x) => x + 1);
+    } catch (err: any) {
+      const msg = err?.message || "Не удалось сохранить карточку персонажа";
+      setSubmitError(msg);
+      setSubmitting(false);
+    }
+  };
+
   const DownloadControl = () => {
     if (!dl && !local) {
       return (
@@ -245,6 +510,25 @@ export default function Hero({
     );
   };
 
+  const getPageImageUri = (pageIndex: number): string => {
+    const anyBook: any = book;
+
+    if (Array.isArray(anyBook.pages) && anyBook.pages[pageIndex - 1]) {
+      const p = anyBook.pages[pageIndex - 1];
+      if (typeof p === "string") return p;
+      if (p && typeof p.url === "string") return p.url;
+    }
+
+    if (anyBook.images?.pages && anyBook.images.pages[pageIndex - 1]) {
+      const p = anyBook.images.pages[pageIndex - 1];
+      if (p && typeof p.url === "string") return p.url;
+    }
+
+    return book.cover;
+  };
+
+  // ------------- wide layout -------------
+
   if (wide) {
     return (
       <View style={{ paddingHorizontal: 10, paddingTop: 8 }}>
@@ -265,7 +549,8 @@ export default function Hero({
                 source={buildImageFallbacks(book.cover)}
                 style={{ width: "100%", height: "100%" }}
                 contentFit="cover"
-                cachePolicy="disk"
+                cachePolicy="memory-disk"
+                transition={0}
               />
             </View>
           </View>
@@ -420,10 +705,25 @@ export default function Hero({
             />
             <TagBlock
               label={t("tags.characters")}
-              tags={book.characters as TagLite[]}
+              tags={characterTagsWithInfo as TagLite[]}
               modeOf={modeOf}
               cycle={cycle}
               onTagPress={onTagPress}
+              renderLabelExtra={
+                canAddCards ? (
+                  <Pressable
+                    onPress={openPagePicker}
+                    hitSlop={8}
+                    style={{ paddingHorizontal: 4, paddingVertical: 2 }}
+                  >
+                    <Feather
+                      name="settings"
+                      size={16}
+                      color={colors.metaText}
+                    />
+                  </Pressable>
+                ) : null
+              }
             />
             <TagBlock
               label={t("tags.parodies")}
@@ -474,9 +774,53 @@ export default function Hero({
             </View>
           </View>
         </View>
+
+        <PagePickerModal
+          visible={pagePickerVisible}
+          pagesCount={book.pagesCount || 1}
+          onClose={closeAllModals}
+          onSelect={(page, uri) => handlePageSelected(page, uri)}
+          getPageImageUri={getPageImageUri}
+        />
+
+        <CharacterCropModal
+          visible={cropVisible}
+          imageUri={
+            selectedPageImageUri
+              ? normalizeNhentaiImageUrl(selectedPageImageUri)
+              : normalizeNhentaiImageUrl(book.cover)
+          }
+          onCancel={handleCropCancel}
+          onConfirm={handleCropConfirm}
+        />
+
+        <CharacterSelectModal
+          visible={selectVisible}
+          characters={availableCharacters}
+          parodies={(book.parodies ?? []).map((p) => p.name)}
+          onCancel={handleCharacterSelectCancel}
+          onConfirm={handleCharacterSelectConfirm}
+          currentUserId={meId}
+          currentUsername={me?.username ?? null}
+        />
+
+        {submitError && (
+          <Text
+            style={{
+              color: "#ff6b6b",
+              fontSize: 12,
+              marginTop: 4,
+              paddingHorizontal: 4,
+            }}
+          >
+            {submitError}
+          </Text>
+        )}
       </View>
     );
   }
+
+  // ------------- mobile layout -------------
 
   const contentW = containerW - pad * 2;
   const cardW = contentW * 0.78;
@@ -495,7 +839,9 @@ export default function Hero({
           source={buildImageFallbacks(book.cover)}
           style={{ width: "100%", height: "100%" }}
           contentFit="cover"
-          cachePolicy="disk"
+          cachePolicy="memory-disk"
+          priority="high"
+          transition={0}
         />
         <LinearGradient
           colors={[`${colors.bg}ff`, `${colors.bg}b8`, `${colors.bg}ff`]}
@@ -525,6 +871,8 @@ export default function Hero({
           source={buildImageFallbacks(book.cover)}
           style={{ width: "100%", height: "100%" }}
           contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={0}
         />
       </View>
 
@@ -675,10 +1023,21 @@ export default function Hero({
         />
         <TagBlock
           label={t("tags.characters")}
-          tags={book.characters as TagLite[]}
+          tags={characterTagsWithInfo as TagLite[]}
           modeOf={modeOf}
           cycle={cycle}
           onTagPress={onTagPress}
+          renderLabelExtra={
+            canAddCards ? (
+              <Pressable
+                onPress={openPagePicker}
+                hitSlop={8}
+                style={{ paddingHorizontal: 4, paddingVertical: 2 }}
+              >
+                <Feather name="settings" size={16} color={colors.metaText} />
+              </Pressable>
+            ) : null
+          }
         />
         <TagBlock
           label={t("tags.parodies")}
@@ -718,7 +1077,7 @@ export default function Hero({
 
         <View style={[styles.galleryRow, { marginTop: 16 }]}>
           <Text style={[styles.galleryLabel, { color: colors.metaText }]}>
-            {t("gallery")}
+            {t("book.gallery")}
           </Text>
           <Pressable onPress={cycleCols} style={styles.layoutBtn}>
             <Feather name="layout" size={18} color={colors.metaText} />
@@ -727,7 +1086,185 @@ export default function Hero({
             </Text>
           </Pressable>
         </View>
+
+        <PagePickerModal
+          visible={pagePickerVisible}
+          pagesCount={book.pagesCount || 1}
+          onClose={closeAllModals}
+          onSelect={(page, uri) => handlePageSelected(page, uri)}
+          getPageImageUri={getPageImageUri}
+        />
+
+        <CharacterCropModal
+          visible={cropVisible}
+          imageUri={
+            selectedPageImageUri
+              ? normalizeNhentaiImageUrl(selectedPageImageUri)
+              : normalizeNhentaiImageUrl(book.cover)
+          }
+          onCancel={handleCropCancel}
+          onConfirm={handleCropConfirm}
+        />
+
+        <CharacterSelectModal
+          visible={selectVisible}
+          characters={availableCharacters}
+          parodies={(book.parodies ?? []).map((p) => p.name)}
+          onCancel={handleCharacterSelectCancel}
+          onConfirm={handleCharacterSelectConfirm}
+          currentUserId={meId}
+          currentUsername={me?.username ?? null}
+        />
+
+        {submitError && (
+          <Text
+            style={{
+              color: "#ff6b6b",
+              fontSize: 12,
+              marginTop: 4,
+              paddingHorizontal: 4,
+            }}
+          >
+            {submitError}
+          </Text>
+        )}
       </View>
     </View>
   );
 }
+
+// ------------------ модалка выбора страницы с картинками ------------------
+
+type PagePickerModalProps = {
+  visible: boolean;
+  pagesCount: number;
+  getPageImageUri: (pageIndex: number) => string;
+  onClose: () => void;
+  onSelect: (pageIndex: number, imageUri: string) => void;
+};
+
+const PagePickerModal: React.FC<PagePickerModalProps> = ({
+  visible,
+  pagesCount,
+  getPageImageUri,
+  onClose,
+  onSelect,
+}) => {
+  const totalPages = Math.max(1, pagesCount || 1);
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      statusBarTranslucent
+      animationType="fade"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={pickerStyles.backdrop}>
+        <View style={pickerStyles.modal}>
+          <Text style={pickerStyles.title}>
+            Select a page to edit
+          </Text>
+
+          <FlatList
+            horizontal
+            data={pages}
+            keyExtractor={(item) => String(item)}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={pickerStyles.carousel}
+            renderItem={({ item }) => {
+              const uri = getPageImageUri(item);
+              return (
+                <Pressable
+                  onPress={() => onSelect(item, uri)}
+                  style={pickerStyles.pageItem}
+                >
+                  <ExpoImage
+                    source={{ uri }}
+                    style={pickerStyles.pageImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={0}
+                  />
+                  <View style={pickerStyles.pageLabel}>
+                    <Text style={pickerStyles.pageLabelText}>{item}</Text>
+                  </View>
+                </Pressable>
+              );
+            }}
+          />
+
+          <Pressable style={pickerStyles.closeBtn} onPress={onClose}>
+            <Text style={pickerStyles.closeText}>Close</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const pickerStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modal: {
+    width: "90%",
+    borderRadius: 20,
+    padding: 16,
+    backgroundColor: "#111",
+  },
+  title: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 10,
+  },
+  carousel: {
+    paddingVertical: 8,
+  },
+  pageItem: {
+    width: 90,
+    height: 130,
+    borderRadius: 12,
+    marginHorizontal: 4,
+    overflow: "hidden",
+    backgroundColor: "#222",
+  },
+  pageImage: {
+    width: "100%",
+    height: "100%",
+  },
+  pageLabel: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 2,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+  },
+  pageLabelText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  closeBtn: {
+    marginTop: 10,
+    alignSelf: "flex-end",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#333",
+  },
+  closeText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+});

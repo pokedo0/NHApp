@@ -3,6 +3,7 @@ export type MenuRoute =
   | "/favorites"
   | "/favoritesOnline"
   | "/history"
+  | "/characters"
   | "/recommendations"
   | "/tags"
   | "/settings";

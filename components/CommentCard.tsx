@@ -425,6 +425,7 @@ export default function CommentCard({
         ]}
       >
         <Modal
+        statusBarTranslucent
           visible={menuOpen}
           transparent
           animationType="fade"
@@ -540,6 +541,7 @@ export default function CommentCard({
       </Pressable>
 
       <Modal
+      statusBarTranslucent
         visible={deleteOpen}
         transparent
         animationType="fade"

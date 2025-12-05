@@ -512,7 +512,6 @@ export default function TagsScreen() {
                   data={activeList}
                   keyExtractor={(tItem: TagItem) => `${tItem.type}:${tItem.id}`}
                   renderItem={renderTag}
-                  estimatedItemSize={60}
                   ItemSeparatorComponent={() => <View style={{ height: 5 }} />}
                   contentContainerStyle={{
                     paddingBottom: isTablet ? 8 : 16,

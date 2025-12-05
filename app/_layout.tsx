@@ -3,7 +3,7 @@ import * as NavigationBar from "expo-navigation-bar";
 import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View } from "react-native";
+import { View, useWindowDimensions } from "react-native";
 import { Drawer } from "react-native-drawer-layout";
 import {
   SafeAreaProvider,
@@ -57,6 +57,12 @@ const StatusBarController = React.memo(function StatusBarController({
 
 function AppShell() {
   const { colors } = useTheme();
+  const { width, height } = useWindowDimensions();
+
+  // простое определение планшета
+  const isTablet = Math.min(width, height) >= 600;
+  const isLandscape = width > height;
+  const isTabletPermanent = isTablet && isLandscape;
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [hasDimModal, setHasDimModal] = useState(false);
@@ -66,9 +72,20 @@ function AppShell() {
 
   const [fullscreen, setFullscreen] = useState<boolean>(false);
 
+  // состояние «узкого»/«широкого» меню
+  const [menuCollapsed, setMenuCollapsed] = useState(false);
+
   const drawerContentEl = useMemo(
-    () => <SideMenu closeDrawer={closeDrawer} fullscreen={fullscreen} />,
-    [closeDrawer, fullscreen]
+    () => (
+      <SideMenu
+        closeDrawer={closeDrawer}
+        fullscreen={fullscreen}
+        isTabletPermanent={isTabletPermanent}
+        collapsed={menuCollapsed}
+        onToggleCollapsed={() => setMenuCollapsed((v) => !v)}
+      />
+    ),
+    [closeDrawer, fullscreen, isTabletPermanent, menuCollapsed]
   );
 
   useEffect(() => {
@@ -113,6 +130,10 @@ function AppShell() {
     })();
   }, [fullscreen]);
 
+  // ширина дровера всегда как раньше (overlay, «по старому»),
+  // но на планшете-ландшафте при collapse делаем уже.
+  const drawerWidth = isTabletPermanent ? (menuCollapsed ? 80 : 300) : 300;
+
   return (
     <SafeAreaView
       edges={fullscreen ? [] : ["bottom"]}
@@ -135,8 +156,8 @@ function AppShell() {
             onOpen={openDrawer}
             onClose={closeDrawer}
             drawerPosition="left"
-            drawerStyle={{ width: 260, backgroundColor: colors.menuBg }}
-            drawerType="front"
+            drawerStyle={{ width: drawerWidth, backgroundColor: colors.menuBg }}
+            drawerType="front" // ВСЁ как раньше — overlay поверх контента
             swipeEnabled={false}
             renderDrawerContent={() => drawerContentEl}
           >

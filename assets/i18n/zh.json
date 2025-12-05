@@ -1,7 +1,6 @@
 {
   "downloadUpdate": "下载更新",
   "app": {
-    "name": "NHAppAndroid",
     "version": {
       "beta": "测试版"
     }
@@ -15,7 +14,8 @@
     "new": "新",
     "read": "阅读",
     "readAgain": "再读一次",
-    "removeDownload": "删除下载"
+    "removeDownload": "删除下载",
+    "pages": "页数"
   },
   "commentComposer": {
     "placeholder": "写评论…",
@@ -31,8 +31,13 @@
       "preparing": "正在准备验证码小部件…"
     },
     "requesting": "正在请求验证码…",
-    "actions": { "reload": "重新加载", "close": "关闭" },
-    "stats": { "attempts": "尝试次数：{n}" }
+    "actions": {
+      "reload": "重新加载",
+      "close": "关闭"
+    },
+    "stats": {
+      "attempts": "尝试次数：{n}"
+    }
   },
   "comments": {
     "title": "评论",
@@ -43,7 +48,9 @@
       "copy": "复制文本",
       "delete": "删除"
     },
-    "badge": { "translated": "已显示翻译" },
+    "badge": {
+      "translated": "已显示翻译"
+    },
     "mine": "你的评论",
     "delete": {
       "title": "删除此评论？",
@@ -67,7 +74,8 @@
     "tapHere": "点这里",
     "yes": "是",
     "chooseOption": "选择一个选项",
-    "nothingFound": "未找到内容。"
+    "nothingFound": "未找到内容。",
+    "select": "选择"
   },
   "explore": {
     "sort": {
@@ -77,7 +85,12 @@
       "popularToday": "今日热门",
       "popularWeek": "本周热门"
     },
-    "sortBy": "排序方式"
+    "sortBy": "排序方式",
+    "dateRange": "日期筛选",
+    "quickPeriod": "时间段",
+    "datePickerTitle": "日期选择",
+    "hintDatesActive": "日期筛选已启用。预设排序已隐藏。",
+    "hintPresets": "选择一个时间段或指定日期范围。"
   },
   "historyNotFound": "历史为空 ¯\\_(ツ)_/¯",
   "menu": {
@@ -93,14 +106,29 @@
     "tags": "标签",
     "profile": "个人中心",
     "login": "登录",
-    "section": { "account": "账户", "library": "库" },
+    "section": {
+      "library": "库"
+    },
     "favoritesOnline": "在线收藏",
     "brand": "NHAppAndroid",
-    "brandTag": "非官方"
+    "brandTag": "非官方",
+    "characters": "角色",
+    "discordJoin": "加入 Discord",
+    "discordSubtitle": "获取早期构建、提问并分享想法"
   },
   "login": {
     "ready": "就绪",
-    "loading": "正在加载…"
+    "loading": "正在加载…",
+    "status": {
+      "loggedOut": "已退出登录。",
+      "cookiesSynced": "Cookie 已同步。",
+      "tokensSaved": "令牌已保存。",
+      "notSigned": "尚未登录。",
+      "navigating": "正在打开登录页面…",
+      "signedAs": "已以 {user} 身份登录。",
+      "cookiesFailed": "无法同步 Cookie。"
+    },
+    "sync": "同步"
   },
   "reader": {
     "banner": {
@@ -125,15 +153,17 @@
       "orientation": "方向",
       "tap": "点击"
     },
-    "menuHint": "打开控制"
+    "menuHint": "打开控制",
+    "pagination": {
+      "goToPage": "跳转到页面"
+    }
   },
   "related": "相关",
   "search": {
     "results": "结果",
     "placeholder": "按标题或标签搜索",
     "recent": "最近搜索",
-    "clearHistory": "清除历史",
-    "loading": "加载中…"
+    "clearHistory": "清除历史"
   },
   "searchBar": {
     "backHome": "返回首页",
@@ -172,20 +202,25 @@
       "storage": "设备存储"
     },
     "grid": {
-      "phonePortrait": "手机 · 竖屏",
-      "phoneLandscape": "手机 · 横屏",
-      "tabletPortrait": "平板 · 竖屏",
-      "tabletLandscape": "平板 · 横屏",
+      "resetProfile": "重置此配置",
+      "resetAll": "重置所有配置",
+      "cardDesign": {
+        "image": "图片",
+        "classic": "经典",
+        "stable": "稳定"
+      },
+      "minWidth": "实验功能·最小卡片宽度",
       "columns": "列数",
-      "spacingSides": "边距",
-      "spacingBetween": "列间距",
-      "resetProfile": "重置配置",
-      "resetAll": "重置全部"
+      "phoneLandscape": "手机（横屏）",
+      "tabletLandscape": "平板（横屏）",
+      "phonePortrait": "手机（竖屏）",
+      "columnGap": "列间距",
+      "sidePadding": "左右边距",
+      "tabletPortrait": "平板（竖屏）"
     },
     "title": "设置"
   },
   "showMore": "显示更多 {count}",
-  "showOriginal": "显示原文",
   "storageManager": {
     "actions": {
       "clearAll": "清除全部",
@@ -244,19 +279,8 @@
     "selected": "已选",
     "included": "包含",
     "excluded": "排除",
-    "reset": "重置",
-    "empty": "空",
-    "sort": {
-      "popular": "热门",
-      "az": "A–Z"
-    },
-    "tabs": {
-      "all": "全部",
-      "favs": "收藏"
-    }
+    "empty": "空"
   },
-  "translate": "翻译",
-  "translating": "翻译中…",
   "collections": {
     "newTitle": "新建集合",
     "editTitle": "编辑集合",
@@ -274,16 +298,128 @@
       "included": "✓ 包含: {count}",
       "excluded": "− 排除: {count}"
     },
-    "empty": "空。",
-    "reset": "重置",
     "fromSelected": "从“已选”",
-    "save": "保存",
     "untitled": "未命名",
     "list": {
-      "empty": "还没有集合。",
-      "apply": "应用",
       "edit": "编辑",
       "delete": "删除"
     }
+  },
+  "empty": {
+    "search": "未找到任何内容"
+  },
+  "date": {
+    "title": {
+      "range": "日期范围",
+      "monthYear": "月份与年份",
+      "single": "日期"
+    },
+    "weekShort": {
+      "sat": "六",
+      "mon": "一",
+      "wed": "三",
+      "thu": "四",
+      "tue": "二",
+      "sun": "日",
+      "fri": "五"
+    },
+    "label": {
+      "year": "年",
+      "select": "选择",
+      "month": "月"
+    },
+    "actions": {
+      "apply": "应用",
+      "done": "完成",
+      "reset": "重置",
+      "cancel": "取消"
+    },
+    "month": {
+      "10": "十月",
+      "5": "五月",
+      "3": "三月",
+      "7": "七月",
+      "1": "一月",
+      "6": "六月",
+      "9": "九月",
+      "12": "十二月",
+      "4": "四月",
+      "11": "十一月",
+      "2": "二月",
+      "8": "八月"
+    }
+  },
+  "whatsNewUpdate": "查看更新内容",
+  "NewUpdate": "有可用更新",
+  "characters": {
+    "error": {
+      "download": "下载错误",
+      "save": "保存出错",
+      "delete": "删除出错"
+    },
+    "searchPlaceholder": "角色搜索…",
+    "backToCollections": "返回合集",
+    "filter": {
+      "allUsers": "所有用户"
+    },
+    "empty": "这里还没有内容",
+    "selectAuthorTitle": "选择作者",
+    "cardsCount": "{count} 张卡片",
+    "charactersCount": "{count} 个角色",
+    "validation": {
+      "nameRequired": "角色名不能为空"
+    },
+    "collection": {
+      "untitled": "无合集"
+    },
+    "cardActions": {
+      "title": "要如何处理这张卡片？",
+      "searchByCharacter": "按该角色搜索",
+      "cancel": "取消",
+      "openBook": "打开本子"
+    }
+  },
+  "charSelect": {
+    "summaryParody": "作品",
+    "labelCharacter": "角色（必填）",
+    "summaryTitle": "你当前正在发布的内容",
+    "save": "保存",
+    "summaryHint": "保存前请再次确认所有内容。",
+    "parodyNotSpecified": "# src:",
+    "labelParody": "作品（可选）",
+    "warningText": "你正在创建全局角色卡片。错误卡片可能导致权限被撤销。",
+    "parodyPlaceholder": "例如：「海贼王」「原神」等",
+    "warningTitle": "请仔细检查该卡片",
+    "notSelected": "# src:",
+    "cancel": "取消",
+    "summaryCharacter": "角色",
+    "profileNoname": "无昵称",
+    "title": "选择角色与作品",
+    "placeholderCharacter": "— 请选择角色 —",
+    "parodyCustom": "其他（自定义）",
+    "profileTitle": "你的个人信息",
+    "parodyNone": "— 无作品 —",
+    "parodyOwnEmpty": "# src:",
+    "errorChooseCharacter": "请选择角色"
+  },
+  "editCard": {
+    "cardAuthor": "卡片作者",
+    "warningText": "这些修改较为重要，请谨慎操作。",
+    "editArea": "编辑区域",
+    "cancel": "取消",
+    "save": "保存",
+    "noName": "# src:",
+    "openBook": "打开本子",
+    "title": "编辑角色卡片",
+    "warningTitle": "注意",
+    "labelParody": "作品",
+    "labelCharacter": "角色",
+    "delete": "删除"
+  },
+  "crop": {
+    "cancel": "取消",
+    "preview": "预览",
+    "accept": "确认",
+    "title": "调整框架以适配你的头部"
   }
 }

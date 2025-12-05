@@ -1,7 +1,6 @@
 {
   "downloadUpdate": "Download update",
   "app": {
-    "name": "NHAppAndroid",
     "version": {
       "beta": "Beta"
     }
@@ -15,7 +14,8 @@
     "new": "NEW",
     "read": "Read",
     "readAgain": "Read again",
-    "removeDownload": "Remove download"
+    "removeDownload": "Remove download",
+    "pages": "Pages count"
   },
   "commentComposer": {
     "placeholder": "Write a comment…",
@@ -31,8 +31,13 @@
       "preparing": "Preparing the captcha widget…"
     },
     "requesting": "Requesting captcha…",
-    "actions": { "reload": "Reload", "close": "Close" },
-    "stats": { "attempts": "Attempts: {n}" }
+    "actions": {
+      "reload": "Reload",
+      "close": "Close"
+    },
+    "stats": {
+      "attempts": "Attempts: {n}"
+    }
   },
   "comments": {
     "title": "Comments",
@@ -43,7 +48,9 @@
       "copy": "Copy text",
       "delete": "Delete"
     },
-    "badge": { "translated": "Translation shown" },
+    "badge": {
+      "translated": "Translation shown"
+    },
     "mine": "Your comment",
     "delete": {
       "title": "Delete this comment?",
@@ -67,7 +74,8 @@
     "tapHere": "Tap here",
     "yes": "Yes",
     "chooseOption": "Choose an option",
-    "nothingFound": "Nothing found."
+    "nothingFound": "Nothing found.",
+    "select": "Select"
   },
   "explore": {
     "sort": {
@@ -77,7 +85,12 @@
       "popularToday": "Hot Today",
       "popularWeek": "Hot Week"
     },
-    "sortBy": "Sort by"
+    "sortBy": "Sort by",
+    "dateRange": "Date filter",
+    "quickPeriod": "Period",
+    "datePickerTitle": "Date selection",
+    "hintDatesActive": "Date filter is active. Preset sorting is hidden.",
+    "hintPresets": "Select a period or specify a date range."
   },
   "historyNotFound": "History is empty ¯\\_(ツ)_/¯",
   "menu": {
@@ -93,14 +106,29 @@
     "tags": "Tags",
     "profile": "Profile",
     "login": "Sign in",
-    "section": { "account": "Account", "library": "Library" },
+    "section": {
+      "library": "Library"
+    },
     "favoritesOnline": "Online favorites",
     "brand": "NHAppAndroid",
-    "brandTag": "Unofficial"
+    "brandTag": "Unofficial",
+    "characters": "Characters",
+    "discordJoin": "Join Discord",
+    "discordSubtitle": "Get early builds, ask questions, share ideas"
   },
   "login": {
     "ready": "Ready",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "status": {
+      "loggedOut": "Logged out.",
+      "cookiesSynced": "Cookies synced.",
+      "tokensSaved": "Tokens saved.",
+      "notSigned": "Not signed in.",
+      "navigating": "Opening login page…",
+      "signedAs": "Signed in as {user}.",
+      "cookiesFailed": "Failed to sync cookies."
+    },
+    "sync": "Sync"
   },
   "reader": {
     "banner": {
@@ -125,15 +153,17 @@
       "orientation": "Orientation",
       "tap": "Tap"
     },
-    "menuHint": "Open controls"
+    "menuHint": "Open controls",
+    "pagination": {
+      "goToPage": "Go to page"
+    }
   },
   "related": "Related",
   "search": {
     "results": "Results",
     "placeholder": "Search by title or tag",
     "recent": "Recent searches",
-    "clearHistory": "Clear history",
-    "loading": "Loading…"
+    "clearHistory": "Clear history"
   },
   "searchBar": {
     "backHome": "Back to home",
@@ -172,20 +202,25 @@
       "storage": "Device storage"
     },
     "grid": {
-      "phonePortrait": "Phone · Portrait",
-      "phoneLandscape": "Phone · Landscape",
-      "tabletPortrait": "Tablet · Portrait",
-      "tabletLandscape": "Tablet · Landscape",
+      "resetProfile": "Reset this profile",
+      "resetAll": "Reset all profiles",
+      "cardDesign": {
+        "image": "Image",
+        "classic": "Classic",
+        "stable": "Stable"
+      },
+      "minWidth": "Experimental • Min card width",
       "columns": "Columns",
-      "spacingSides": "Side padding",
-      "spacingBetween": "Column gap",
-      "resetProfile": "Reset profile",
-      "resetAll": "Reset all"
+      "phoneLandscape": "Phone (landscape)",
+      "tabletLandscape": "Tablet (landscape)",
+      "phonePortrait": "Phone (portrait)",
+      "columnGap": "Column gap",
+      "sidePadding": "Side padding",
+      "tabletPortrait": "Tablet (portrait)"
     },
     "title": "Settings"
   },
   "showMore": "Show more {count}",
-  "showOriginal": "Show original",
   "storageManager": {
     "actions": {
       "clearAll": "Clear all",
@@ -244,19 +279,8 @@
     "selected": "Selected",
     "included": "Included",
     "excluded": "Excluded",
-    "reset": "Reset",
-    "empty": "empty",
-    "sort": {
-      "popular": "Popular",
-      "az": "A–Z"
-    },
-    "tabs": {
-      "all": "All",
-      "favs": "Favorites"
-    }
+    "empty": "empty"
   },
-  "translate": "Translate",
-  "translating": "Translating…",
   "collections": {
     "newTitle": "New collection",
     "editTitle": "Edit collection",
@@ -274,16 +298,128 @@
       "included": "✓ Included: {count}",
       "excluded": "− Excluded: {count}"
     },
-    "empty": "Empty.",
-    "reset": "Reset",
     "fromSelected": "From “Selected”",
-    "save": "Save",
     "untitled": "Untitled",
     "list": {
-      "empty": "No collections yet.",
-      "apply": "Apply",
       "edit": "Edit",
       "delete": "Delete"
     }
+  },
+  "empty": {
+    "search": "Nothing found"
+  },
+  "date": {
+    "title": {
+      "range": "Date range",
+      "monthYear": "Month & Year",
+      "single": "Date"
+    },
+    "weekShort": {
+      "sat": "Sat",
+      "mon": "Mon",
+      "wed": "Wed",
+      "thu": "Thu",
+      "tue": "Tue",
+      "sun": "Sun",
+      "fri": "Fri"
+    },
+    "label": {
+      "year": "Year",
+      "select": "Select",
+      "month": "Month"
+    },
+    "actions": {
+      "apply": "Apply",
+      "done": "Done",
+      "reset": "Reset",
+      "cancel": "Cancel"
+    },
+    "month": {
+      "10": "October",
+      "5": "May",
+      "3": "March",
+      "7": "July",
+      "1": "January",
+      "6": "June",
+      "9": "September",
+      "12": "December",
+      "4": "April",
+      "11": "November",
+      "2": "February",
+      "8": "August"
+    }
+  },
+  "whatsNewUpdate": "See what's new",
+  "NewUpdate": "Update available",
+  "characters": {
+    "error": {
+      "download": "Download error",
+      "save": "Save error",
+      "delete": "Delete error"
+    },
+    "searchPlaceholder": "Character search...",
+    "backToCollections": "Back to collections",
+    "filter": {
+      "allUsers": "All users"
+    },
+    "empty": "Nothing here yet",
+    "selectAuthorTitle": "Select author",
+    "cardsCount": "{count} cards",
+    "charactersCount": "{count} characters",
+    "validation": {
+      "nameRequired": "Character name cannot be empty"
+    },
+    "collection": {
+      "untitled": "No collection"
+    },
+    "cardActions": {
+      "title": "What do you want to do?",
+      "searchByCharacter": "Search by this character",
+      "cancel": "Cancel",
+      "openBook": "Open book"
+    }
+  },
+  "charSelect": {
+    "summaryParody": "Parody",
+    "labelCharacter": "Character (required)",
+    "summaryTitle": "What are you posting right now",
+    "save": "Save",
+    "summaryHint": "Double-check everything before saving.",
+    "parodyNotSpecified": "# src:",
+    "labelParody": "Parody (optional)",
+    "warningText": "You are creating a global character card. Incorrect cards may lead to loss of access.",
+    "parodyPlaceholder": "For example: “One Piece,” “Genshin Impact,” etc.",
+    "warningTitle": "Check the card carefully",
+    "notSelected": "# src:",
+    "cancel": "Cancel",
+    "summaryCharacter": "Character",
+    "profileNoname": "No nickname",
+    "title": "Character selection and parodies",
+    "placeholderCharacter": "— Choose a character —",
+    "parodyCustom": "Other (enter your own)",
+    "profileTitle": "Your profile",
+    "parodyNone": "— Without parody —",
+    "parodyOwnEmpty": "# src:",
+    "errorChooseCharacter": "Choose a character"
+  },
+  "editCard": {
+    "cardAuthor": "Card author",
+    "warningText": "The changes are significant. Please be careful.",
+    "editArea": "Edit area",
+    "cancel": "Cancel",
+    "save": "Save",
+    "noName": "# src:",
+    "openBook": "Open book",
+    "title": "Editing a character card",
+    "warningTitle": "Attention",
+    "labelParody": "Parody",
+    "labelCharacter": "Character",
+    "delete": "Delete"
+  },
+  "crop": {
+    "cancel": "Cancel",
+    "preview": "Preview",
+    "accept": "Accept",
+    "title": "Adjust the frame to fit your head"
   }
 }

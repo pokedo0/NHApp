@@ -8,15 +8,15 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import Card from "./Card";
 
@@ -194,9 +194,11 @@ export default function StorageManager() {
   const importFromFile = async () => {
     try {
       if (Platform.OS === "web") {
-        Alert.alert(t("storageManager.import.title"), t("storageManager.import.webHint"), [
-          { text: t("common.ok") },
-        ]);
+        Alert.alert(
+          t("storageManager.import.title"),
+          t("storageManager.import.webHint"),
+          [{ text: t("common.ok") }]
+        );
         return;
       }
       const res = await DocumentPicker.getDocumentAsync({
@@ -220,7 +222,10 @@ export default function StorageManager() {
     try {
       const raw = await Clipboard.getStringAsync();
       if (!raw) {
-        Alert.alert(t("storageManager.import.title"), t("storageManager.import.clipboardEmpty"));
+        Alert.alert(
+          t("storageManager.import.title"),
+          t("storageManager.import.clipboardEmpty")
+        );
         return;
       }
       await importJson(raw);
@@ -238,7 +243,9 @@ export default function StorageManager() {
       const data: Record<string, string> = parsed.data ?? parsed;
 
       if (wipeBeforeImport) {
-        const ok = await confirmAsync(t("storageManager.confirm.wipeBeforeImport"));
+        const ok = await confirmAsync(
+          t("storageManager.confirm.wipeBeforeImport")
+        );
         if (!ok) return;
         await AsyncStorage.clear();
         broadcastChange({ op: "clear" });
@@ -269,13 +276,23 @@ export default function StorageManager() {
   const confirmAsync = (message: string) =>
     new Promise<boolean>((resolve) => {
       Alert.alert(t("storageManager.confirm.title"), message, [
-        { text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
-        { text: t("common.yes"), style: "destructive", onPress: () => resolve(true) },
+        {
+          text: t("common.cancel"),
+          style: "cancel",
+          onPress: () => resolve(false),
+        },
+        {
+          text: t("common.yes"),
+          style: "destructive",
+          onPress: () => resolve(true),
+        },
       ]);
     });
 
   const removeKey = async (k: string) => {
-    const ok = await confirmAsync(t("storageManager.confirm.deleteKey", { key: k }));
+    const ok = await confirmAsync(
+      t("storageManager.confirm.deleteKey", { key: k })
+    );
     if (!ok) return;
     await AsyncStorage.removeItem(k);
     setItems((prev) => prev.filter((i) => i.key !== k));
@@ -529,6 +546,7 @@ export default function StorageManager() {
       </View>
 
       <Modal
+        statusBarTranslucent
         animationType="slide"
         visible={editKey != null}
         onRequestClose={() => setEditKey(null)}

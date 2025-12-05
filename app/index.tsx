@@ -1,19 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  StyleSheet,
-  Text,
-  View
-} from "react-native";
-import Svg, { Circle } from "react-native-svg";
-
 import {
   Book,
   DateSearchPhase,
@@ -29,7 +13,25 @@ import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useUpdateCheck } from "@/hooks/useUpdateCheck";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Svg, { Circle } from "react-native-svg";
 
 type CacheEntry = { books: Book[]; totalPages: number; ts: number };
 const EXPLORE_CACHE = new Map<string, CacheEntry>();
@@ -62,11 +64,15 @@ export default function HomeScreen() {
   }>();
   const urlQ = Array.isArray(rawQ) ? rawQ[0] : rawQ;
   const solo = Array.isArray(rawSolo) ? rawSolo[0] : rawSolo;
+  const { t } = useI18n();
 
   const [query, setQuery] = useState(urlQ ?? "");
   const { sort, setSort } = useSort();
-  const { includes, excludes, clearAll: clearAllTagFilters } =
-    useFilterTags() as any;
+  const {
+    includes,
+    excludes,
+    clearAll: clearAllTagFilters,
+  } = useFilterTags() as any;
   const { from: dateFrom, to: dateTo, clearRange, isHydrated } = useDateRange();
   const dateFilterActive = !!dateFrom || !!dateTo;
 
@@ -253,63 +259,65 @@ export default function HomeScreen() {
   };
 
   const UpdateBanner = () => {
-    return null;
-    // if (!update) return null;
-    // return (
-    //   <View
-    //     style={{
-    //       backgroundColor: colors.accent + "10",
-    //       borderBottomColor: colors.page,
-    //     }}
-    //   >
-    //     <View
-    //       style={{
-    //         paddingHorizontal: 12,
-    //         paddingVertical: 10,
-    //         flexDirection: "row",
-    //         alignItems: "center",
-    //         gap: 10,
-    //       }}
-    //     >
-    //       <View style={{ flex: 1, minWidth: 0 }}>
-    //         <Text style={{ color: colors.txt, fontWeight: "700" }}>
-    //           Доступно обновление: {update.versionName}
-    //         </Text>
-    //         {!!update.notes?.trim() && (
-    //           <TouchableOpacity onPress={() => setShowNotes(true)}>
-    //             <Text
-    //               style={{
-    //                 color: colors.txt,
-    //                 opacity: 0.8,
-    //                 marginTop: 2,
-    //                 textDecorationLine: "underline",
-    //               }}
-    //               numberOfLines={1}
-    //             >
-    //               Показать «Что нового»
-    //             </Text>
-    //           </TouchableOpacity>
-    //         )}
-    //       </View>
+    if (!update) return null;
+    return (
+      <View
+        style={{
+          backgroundColor: colors.accent + "10",
+          borderBottomColor: colors.page,
+        }}
+      >
+        <View
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: colors.txt, fontWeight: "700" }}>
+              {t("NewUpdate")} {update.versionName} 
+            </Text>
+            {!!update.notes?.trim() && (
+              <TouchableOpacity onPress={() => setShowNotes(true)}>
+                <Text
+                  style={{
+                    color: colors.txt,
+                    opacity: 0.8,
+                    marginTop: 2,
+                    textDecorationLine: "underline",
+                  }}
+                  numberOfLines={1}
+                >
+                  {t("whatsNewUpdate")}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-    //       <TouchableOpacity
-    //         onPress={() =>
-    //           Linking.openURL(
-    //             "https://github.com/e18lab/NHAppAndroid/releases/latest"
-    //           )
-    //         }
-    //         style={[
-    //           styles.ctaBtn,
-    //           { backgroundColor: colors.accent + "33", borderColor: colors.accent },
-    //         ]}
-    //       >
-    //         <Text style={{ color: colors.accent, fontWeight: "700" }}>
-    //           Обновить
-    //         </Text>
-    //       </TouchableOpacity>
-    //     </View>
-    //   </View>
-    // );
+          <TouchableOpacity
+            onPress={() =>
+              Linking.openURL(
+                "https://github.com/e18lab/NHAppAndroid/releases/latest"
+              )
+            }
+            style={[
+              styles.ctaBtn,
+              {
+                backgroundColor: colors.accent + "33",
+                borderColor: colors.accent,
+              },
+            ]}
+          >
+            <Text style={{ color: colors.accent, fontWeight: "700" }}>
+              {t("downloadUpdate")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   };
 
   const fetchPage = useCallback(
@@ -349,7 +357,8 @@ export default function HomeScreen() {
       let timeoutHit = false;
       const timer = setTimeout(() => {
         timeoutHit = true;
-        if (!dateFilterActive && (isFirstLoad || swr)) setResultState("timeout");
+        if (!dateFilterActive && (isFirstLoad || swr))
+          setResultState("timeout");
       }, 15000);
 
       try {

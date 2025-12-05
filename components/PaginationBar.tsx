@@ -1,5 +1,6 @@
 // components/PaginationBar.tsx
 import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
@@ -9,12 +10,15 @@ import {
   Easing,
   Keyboard,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  TextStyle,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 
 type Props = {
@@ -31,8 +35,12 @@ export default function PaginationBar({
   onRequestScrollTop,
 }: Props) {
   const { colors } = useTheme();
+  const { t } = useI18n();
+
   const [visible, setVisible] = useState(false);
   const [sliderPage, setSliderPage] = useState(currentPage);
+
+  // анимация “пилюли”
   const scale = useMemo(() => new Animated.Value(1), []);
   const sheetY = useRef(new Animated.Value(0)).current; // 0..1
 
@@ -53,16 +61,17 @@ export default function PaginationBar({
     setVisible(true);
     Animated.timing(sheetY, {
       toValue: 1,
-      duration: 260,
+      duration: 300,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
   };
+
   const closeSheet = () => {
     Keyboard.dismiss();
     Animated.timing(sheetY, {
       toValue: 0,
-      duration: 220,
+      duration: 250,
       easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => finished && setVisible(false));
@@ -71,7 +80,9 @@ export default function PaginationBar({
   const jump = (delta: number) => {
     const next = Math.max(1, Math.min(totalPages, sliderPage + delta));
     setSliderPage(next);
-    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {}
   };
 
   const translateY = sheetY.interpolate({
@@ -81,9 +92,16 @@ export default function PaginationBar({
 
   return (
     <>
-      <View style={[styles.bar, { backgroundColor: colors.menuBg }]}>
+      {/* Нижняя панель пагинации */}
+      <View
+        style={[
+          styles.bar,
+          { backgroundColor: colors.menuBg, borderColor: colors.sub + "30" },
+        ]}
+      >
+        {/* Назад */}
         <TouchableOpacity
-          onPressIn={() => animateTap(0.95)}
+          onPressIn={() => currentPage > 1 && animateTap(0.95)}
           onPressOut={() => animateTap(1)}
           onPress={() => currentPage > 1 && commit(currentPage - 1)}
           onLongPress={() => currentPage > 1 && commit(currentPage - 10)}
@@ -98,24 +116,23 @@ export default function PaginationBar({
           />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPressIn={() => animateTap(0.95)}
-          onPressOut={() => animateTap(1)}
-          onPress={openSheet}
-          style={styles.center}
-        >
+        {/* Центр: текущая страница / всего */}
+        <TouchableOpacity onPress={openSheet} style={styles.center}>
           <Animated.View style={[styles.pill, { transform: [{ scale }] }]}>
             <Text style={[styles.pillTxt, { color: colors.menuTxt }]}>
-              {currentPage}/{totalPages}
+              {currentPage} / {totalPages}
             </Text>
           </Animated.View>
         </TouchableOpacity>
 
+        {/* Вперёд */}
         <TouchableOpacity
-          onPressIn={() => animateTap(0.95)}
+          onPressIn={() => currentPage < totalPages && animateTap(0.95)}
           onPressOut={() => animateTap(1)}
           onPress={() => currentPage < totalPages && commit(currentPage + 1)}
-          onLongPress={() => currentPage < totalPages && commit(currentPage + 10)}
+          onLongPress={() =>
+            currentPage < totalPages && commit(currentPage + 10)
+          }
           delayLongPress={320}
           disabled={currentPage === totalPages}
           style={styles.iconBtn}
@@ -128,12 +145,15 @@ export default function PaginationBar({
         </TouchableOpacity>
       </View>
 
+      {/* Bottom sheet выбора страницы */}
       <Modal
         visible={visible}
+        statusBarTranslucent
         transparent
         animationType="none"
         onRequestClose={closeSheet}
       >
+        {/* затемнение */}
         <Pressable style={styles.backdrop} onPress={closeSheet} />
 
         <Animated.View
@@ -145,42 +165,69 @@ export default function PaginationBar({
             },
           ]}
         >
-          {/* handle */}
+          {/* хендл */}
           <View style={styles.handleWrap}>
             <View style={[styles.handle, { backgroundColor: colors.sub }]} />
           </View>
 
+          {/* заголовок + крайние страницы */}
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => setSliderPage(1)} style={styles.roundBtn}>
+            <TouchableOpacity
+              onPress={() => setSliderPage(1)}
+              style={[
+                styles.roundBtn,
+                { backgroundColor: colors.menuBg + "00" },
+              ]}
+            >
               <Ionicons name="play-skip-back" size={22} color={colors.txt} />
             </TouchableOpacity>
 
-            <Text style={[styles.title, { color: colors.txt }]}>Страница</Text>
+            <Text style={[styles.title, { color: colors.txt }]}>
+              {t("reader.pagination.goToPage") || "Перейти к странице"}
+            </Text>
 
-            <TouchableOpacity onPress={() => setSliderPage(totalPages)} style={styles.roundBtn}>
-              <Ionicons name="play-skip-forward" size={22} color={colors.txt} />
+            <TouchableOpacity
+              onPress={() => setSliderPage(totalPages)}
+              style={[
+                styles.roundBtn,
+                { backgroundColor: colors.menuBg + "00" },
+              ]}
+            >
+              <Ionicons
+                name="play-skip-forward"
+                size={22}
+                color={colors.txt}
+              />
             </TouchableOpacity>
           </View>
 
+          {/* ввод страницы */}
           <View style={styles.valueRow}>
             <TextInput
               style={[
                 styles.input,
-                { borderColor: colors.page, backgroundColor: colors.menuBg, color: colors.txt },
+                {
+                  borderColor: colors.sub + "50",
+                  backgroundColor: colors.page,
+                  color: colors.txt,
+                },
               ]}
               keyboardType="number-pad"
               returnKeyType="done"
               value={String(sliderPage)}
-              onChangeText={(t) => {
-                const n = parseInt(t.replace(/[^\d]/g, ""), 10);
+              onChangeText={(tStr) => {
+                const n = parseInt(tStr.replace(/[^\d]/g, ""), 10);
                 if (!Number.isFinite(n)) return setSliderPage(1);
                 setSliderPage(Math.max(1, Math.min(totalPages, n)));
               }}
               onSubmitEditing={() => commit(sliderPage)}
             />
-            <Text style={[styles.totalTxt, { color: colors.sub }]}>/ {totalPages}</Text>
+            <Text style={[styles.totalTxt, { color: colors.sub }]}>
+              / {totalPages}
+            </Text>
           </View>
 
+          {/* слайдер */}
           <Slider
             style={styles.slider}
             minimumValue={1}
@@ -189,31 +236,67 @@ export default function PaginationBar({
             value={sliderPage}
             onValueChange={setSliderPage}
             minimumTrackTintColor={colors.accent}
-            maximumTrackTintColor={colors.sub}
+            maximumTrackTintColor={colors.sub + "50"}
             thumbTintColor={colors.accent}
           />
 
+          {/* быстрые шаги */}
           <View style={styles.controls}>
-            <TouchableOpacity style={styles.jumpBtn} onPress={() => jump(-5)}>
+            <TouchableOpacity
+              style={[
+                styles.jumpBtn,
+                { borderColor: colors.sub + "50" },
+              ]}
+              onPress={() => jump(-5)}
+            >
               <Text style={[styles.jumpTxt, { color: colors.txt }]}>−5</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.jumpBtn} onPress={() => jump(-1)}>
+            <TouchableOpacity
+              style={[
+                styles.jumpBtn,
+                { borderColor: colors.sub + "50" },
+              ]}
+              onPress={() => jump(-1)}
+            >
               <Text style={[styles.jumpTxt, { color: colors.txt }]}>−1</Text>
             </TouchableOpacity>
 
             <View style={{ flex: 1 }} />
 
-            <TouchableOpacity style={styles.jumpBtn} onPress={() => jump(+1)}>
+            <TouchableOpacity
+              style={[
+                styles.jumpBtn,
+                { borderColor: colors.sub + "50" },
+              ]}
+              onPress={() => jump(+1)}
+            >
               <Text style={[styles.jumpTxt, { color: colors.txt }]}>+1</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.jumpBtn} onPress={() => jump(+5)}>
+            <TouchableOpacity
+              style={[
+                styles.jumpBtn,
+                { borderColor: colors.sub + "50" },
+              ]}
+              onPress={() => jump(+5)}
+            >
               <Text style={[styles.jumpTxt, { color: colors.txt }]}>+5</Text>
             </TouchableOpacity>
           </View>
 
+          {/* действия */}
           <View style={styles.actions}>
-            <TouchableOpacity onPress={closeSheet} style={styles.cancelBtn}>
-              <Text style={[styles.cancelTxt, { color: colors.sub }]}>Отмена</Text>
+            <TouchableOpacity
+              onPress={closeSheet}
+              style={[styles.cancelBtn, { marginRight: 8 }]}
+            >
+              <Text
+                style={[
+                  styles.cancelTxt,
+                  { color: colors.accent },
+                ]}
+              >
+                {t("common.cancel") || "Отмена"}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
@@ -222,7 +305,9 @@ export default function PaginationBar({
               }}
               style={[styles.okBtn, { backgroundColor: colors.accent }]}
             >
-              <Text style={[styles.okTxt, { color: colors.bg }]}>ОК</Text>
+              <Text style={[styles.okTxt, { color: colors.bg }]}>
+                {t("common.ok") || "ОК"}
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -231,87 +316,195 @@ export default function PaginationBar({
   );
 }
 
-const styles = StyleSheet.create({
+// типизированные стили, без union ViewStyle | TextStyle | ImageStyle
+type Styles = {
+  bar: ViewStyle;
+  iconBtn: ViewStyle;
+  center: ViewStyle;
+  pill: ViewStyle;
+  pillTxt: TextStyle;
+
+  backdrop: ViewStyle;
+  sheet: ViewStyle;
+  handleWrap: ViewStyle;
+  handle: ViewStyle;
+
+  headerRow: ViewStyle;
+  title: TextStyle;
+  roundBtn: ViewStyle;
+
+  valueRow: ViewStyle;
+  input: TextStyle;
+  totalTxt: TextStyle;
+
+  slider: ViewStyle;
+
+  controls: ViewStyle;
+  jumpBtn: ViewStyle;
+  jumpTxt: TextStyle;
+
+  actions: ViewStyle;
+  cancelBtn: ViewStyle;
+  cancelTxt: TextStyle;
+  okBtn: ViewStyle;
+  okTxt: TextStyle;
+};
+
+const styles = StyleSheet.create<Styles>({
+  // панель пагинации
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  iconBtn: { padding: 8, borderRadius: 16 },
-  center: { flex: 1, alignItems: "center" },
+  iconBtn: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  center: {
+    flex: 1,
+    alignItems: "center",
+  },
   pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 40,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
   },
-  pillTxt: { fontSize: 16, fontWeight: "600" },
+  pillTxt: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
 
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)" },
+  // модалка
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.40)",
+  },
   sheet: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    paddingTop: 6,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    elevation: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === "android" ? 24 : 32,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: -5 },
+      },
+      android: {
+        elevation: 10,
+      },
+      default: {},
+    }),
   },
-  handleWrap: { alignItems: "center", paddingVertical: 6 },
-  handle: { width: 40, height: 4, borderRadius: 4, opacity: 0.6 },
+  handleWrap: {
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  handle: {
+    width: 32,
+    height: 4,
+    borderRadius: 2,
+    opacity: 0.4,
+  },
 
-  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { fontSize: 16, fontWeight: "700" },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
   roundBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  valueRow: { flexDirection: "row", alignItems: "center", marginTop: 6, marginBottom: 4 },
-  input: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    width: 86,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "600",
+  valueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
   },
-  totalTxt: { marginLeft: 8, fontSize: 16 },
+  input: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    width: 90,
+    textAlign: "center",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  totalTxt: {
+    marginLeft: 10,
+    fontSize: 18,
+    fontWeight: "500",
+  },
 
-  slider: { width: "100%", height: 44, marginVertical: 4 },
+  slider: {
+    width: "100%",
+    height: 48,
+    marginVertical: 8,
+  },
 
   controls: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 4,
-    marginBottom: 10,
+    marginTop: 12,
+    marginBottom: 20,
   },
   jumpBtn: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginHorizontal: 4,
   },
-  jumpTxt: { fontSize: 16, fontWeight: "600" },
+  jumpTxt: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
 
-  actions: { flexDirection: "row", justifyContent: "space-between" },
-  cancelBtn: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12 },
-  cancelTxt: { fontSize: 16, fontWeight: "500" },
-  okBtn: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 12 },
-  okTxt: { fontSize: 16, fontWeight: "700" },
+  actions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 8,
+  },
+  cancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  cancelTxt: {
+    fontSize: 15,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+  },
+  okBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  okTxt: {
+    fontSize: 15,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+  },
 });
