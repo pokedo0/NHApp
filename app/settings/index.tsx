@@ -1,31 +1,28 @@
 import * as NavigationBar from "expo-navigation-bar";
 import { setStatusBarHidden } from "expo-status-bar";
-import { Feather } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
     Platform,
-    Pressable,
-    StyleSheet,
     Text,
     useWindowDimensions,
-    View,
+    View
 } from "react-native";
 
 import GridSection from "@/components/settings/GridSection";
 import SettingsBuilder from "@/components/settings/SettingsBuilder";
 import SettingsLayout from "@/components/settings/SettingsLayout";
 
-import { FS_KEY, RH_KEY, STORAGE_KEY_HUE } from "@/components/settings/keys";
+import { FS_KEY, INFINITE_SCROLL_KEY, RH_KEY, STORAGE_KEY_HUE } from "@/components/settings/keys";
 import type { SettingsSection } from "@/components/settings/schema";
+import { isElectron } from "@/electron/bridge";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
-import { isElectron } from "@/electron/bridge";
 
+import HuePaletteSelector from "@/components/settings/HuePaletteSelector";
+import LanguageSelector from "@/components/settings/LanguageSelector";
 import Section from "@/components/settings/Section";
 import StorageManager from "@/components/settings/StorageManager";
-import LanguageSelector from "@/components/settings/LanguageSelector";
-import HuePaletteSelector from "@/components/settings/HuePaletteSelector";
 import { SavePathRow } from "@/components/settings/rows/SavePathRow";
 import { GridProfile } from "@/config/gridConfig";
 
@@ -43,6 +40,8 @@ export default function SettingsScreen() {
   const { width, height } = useWindowDimensions();
   const sysProfile = systemProfileForDims(width, height);
   const [activeProfile, setActiveProfile] = useState<GridProfile>(sysProfile);
+  const isDesktop = isElectron() || (Platform.OS === "web" && width >= 768);
+  const isTablet = width >= 600 && width < 768;
 
   const { hue, setHue, colors } = useTheme();
   const [hueLocal, setHueLocal] = usePersistedState<number>(
@@ -50,7 +49,10 @@ export default function SettingsScreen() {
     hue
   );
   const [fullscreen, setFullscreen] = usePersistedState<boolean>(FS_KEY, false);
-  const [hideHints, setHideHints] = usePersistedState<boolean>(RH_KEY, false);
+  const [infiniteScroll, setInfiniteScroll] = usePersistedState<boolean>(
+    INFINITE_SCROLL_KEY,
+    false
+  );
 
   const toggleFullscreen = async (value: boolean) => {
     setFullscreen(value);
@@ -110,17 +112,17 @@ export default function SettingsScreen() {
                       <View style={{ marginBottom: 4 }}>
                         <Text
                           style={{
-                            fontSize: 17,
+                            fontSize: isDesktop ? 19 : isTablet ? 18 : 17,
                             fontWeight: "800",
                             color: colors.txt,
-                            lineHeight: 24,
-                            letterSpacing: 0.3,
+                            lineHeight: isDesktop ? 26 : isTablet ? 25 : 24,
+                            letterSpacing: isDesktop ? 0.4 : isTablet ? 0.35 : 0.3,
                           }}
                         >
                           {t("settings.appearance.theme")}
                         </Text>
                       </View>
-                      <View style={{ marginTop: 16 }}>
+                      <View style={{ marginTop: isDesktop ? 20 : isTablet ? 18 : 16 }}>
                         <HuePaletteSelector
                           value={hueLocal}
                           onValueChange={(deg) => setHueLocal(deg)}
@@ -130,13 +132,22 @@ export default function SettingsScreen() {
                     </>
                   ),
                 },
+                {
+                  id: "infinite-scroll",
+                  kind: "toggle",
+                  title: t("settings.appearance.infiniteScroll") || "Бесконечная прокрутка",
+                  description:
+                    t("settings.appearance.infiniteScrollDesc") ||
+                    "Автоматическая загрузка следующей страницы при прокрутке вниз вместо пагинации",
+                  value: infiniteScroll,
+                  onToggle: setInfiniteScroll,
+                },
               ],
             },
           ],
         },
       ];
 
-      // Добавляем настройки экрана только для Android
       if (!electronMode) {
         sectionsList.push({
           id: "screen",
@@ -159,19 +170,24 @@ export default function SettingsScreen() {
                   render: () => (
                     <View
                       style={{
-                        marginTop: 14,
-                        borderRadius: 12,
+                        marginTop: isDesktop ? 18 : isTablet ? 16 : 14,
+                        borderRadius: isDesktop ? 14 : isTablet ? 13 : 12,
                         borderWidth: 1,
-                        paddingHorizontal: 12,
-                        paddingVertical: 10,
+                        paddingHorizontal: isDesktop ? 16 : isTablet ? 14 : 12,
+                        paddingVertical: isDesktop ? 14 : isTablet ? 12 : 10,
                         borderColor: colors.accent + "30",
                         backgroundColor: colors.accent + "08",
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 8,
+                        gap: isDesktop ? 10 : isTablet ? 9 : 8,
                       }}
                     >
-                      <Text style={{ fontSize: 12, color: colors.sub, flex: 1, lineHeight: 16 }}>
+                      <Text style={{ 
+                        fontSize: isDesktop ? 13 : isTablet ? 12.5 : 12, 
+                        color: colors.sub, 
+                        flex: 1, 
+                        lineHeight: isDesktop ? 18 : isTablet ? 17 : 16 
+                      }}>
                         {t("settings.display.androidNote")}
                       </Text>
                     </View>
@@ -183,37 +199,10 @@ export default function SettingsScreen() {
         });
       }
 
-      // Добавляем настройки читалки только для Android
-      if (!electronMode) {
-        sectionsList.push({
-          id: "reader",
-          title: t("settings.section.reader"),
-          cards: [
-            {
-              id: "reader-card",
-              items: [
-                {
-                  id: "hide-hints",
-                  kind: "toggle",
-                  title: t("settings.reader.hideHints"),
-                  description: t("settings.reader.hideHintsDesc"),
-                  value: hideHints,
-                  onToggle: (v) => {
-                    setHideHints(v);
-                    try {
-                      (globalThis as any).__setReaderHideHints?.(v);
-                    } catch {}
-                  },
-                },
-              ],
-            },
-          ],
-        });
-      }
 
       return sectionsList;
     },
-    [colors, fullscreen, hideHints, hueLocal, t]
+    [colors, fullscreen, hueLocal, infiniteScroll, t]
   );
 
   return (
@@ -228,7 +217,10 @@ export default function SettingsScreen() {
 
       <Section title={t("settings.section.storage")} />
       {isElectron() && (
-        <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+        <View style={{ 
+          paddingHorizontal: isDesktop ? 0 : isTablet ? 0 : 0, 
+          marginBottom: isDesktop ? 20 : isTablet ? 18 : 16 
+        }}>
           <SavePathRow />
         </View>
       )}

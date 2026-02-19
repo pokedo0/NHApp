@@ -22,29 +22,18 @@ export const PageItem = memo(
   }) {
     const isGrid = cols > 1;
 
-    // Вычисляем aspect ratio изображения
     const aspectRatio = page.width / page.height;
 
-    // Определяем, является ли изображение вертикальным
     const isVertical = page.height > page.width;
 
-    // Определяем, является ли изображение супер длинным (например, манхва с очень высокой страницей)
-    // Ограничиваем максимальную высоту только для изображений, где высота > 3 * ширина
     const isSuperLong = isVertical && page.height > page.width * 3;
 
-    // Для супер длинных изображений ограничиваем максимальную высоту
-    // В grid режиме: 2.5 * ширина элемента
-    // В одиночном режиме: 2.5 * ширина элемента
     const maxHeight = isSuperLong ? itemW * 2.5 : undefined;
 
-    // Вычисляем высоту изображения с учетом aspect ratio
-    // Для grid и обычного режима используем одинаковую логику: полная высота с ограничением для супер длинных
     const imageHeight = maxHeight
       ? Math.min(itemW / aspectRatio, maxHeight)
       : itemW / aspectRatio;
 
-    // Минимальная высота контейнера
-    // Для всех режимов теперь используем imageHeight, чтобы видеть всё изображение
     const containerHeight = imageHeight;
 
     return (
@@ -61,20 +50,18 @@ export const PageItem = memo(
           onPress={onPress}
           style={{
             width: "100%",
-            // В сетке растягиваем контейнер до высоты самого высокого элемента в строке
-            // НО всегда задаем minHeight для предотвращения изменения размера при загрузке
             flex: isGrid ? 1 : undefined,
             minHeight: containerHeight,
-            height: containerHeight, // Фиксированная высота для стабильности прокрутки
+            height: containerHeight, 
             alignItems: "center",
             justifyContent: "center",
             position: "relative",
             borderRadius: 10,
             overflow: "hidden",
-            backgroundColor: "rgba(20, 20, 20, 0.8)", // Темный фон для предотвращения пустых мест
+            backgroundColor: "rgba(20, 20, 20, 0.8)", 
           }}
         >
-          {/* Основное изображение поверх фона */}
+          {}
           <ExpoImage
             source={{ uri: page.url }}
             style={{
@@ -84,14 +71,12 @@ export const PageItem = memo(
             }}
             contentFit="contain"
             cachePolicy="disk"
-            // Предотвращаем изменение размера контейнера при загрузке
             responsivePolicy="static"
-            // Приоритет загрузки для видимых элементов
             priority="normal"
           />
         </Pressable>
 
-        {/* Номер страницы ВСЕГДА под контейнером */}
+        {}
         <Text
           style={{
             color: metaColor,

@@ -1,21 +1,24 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Мост между Electron и React Native Web
+
 contextBridge.exposeInMainWorld('electron', {
-  // Флаг Electron
   isElectron: true,
-  
-  // Информация
   getVersion: () => ipcRenderer.invoke('electron:getVersion'),
   getPlatform: () => ipcRenderer.invoke('electron:getPlatform'),
-  
-  // Авторизация
+  onWindowMaximizeChanged: (callback) => {
+    const wrappedCallback = (event, maximized) => {
+      callback(maximized);
+    };
+    ipcRenderer.on('window:maximize-changed', wrappedCallback);
+    return () => {
+      ipcRenderer.removeListener('window:maximize-changed', wrappedCallback);
+    };
+  },
   login: () => ipcRenderer.invoke('electron:login'),
   getCookies: (url) => ipcRenderer.invoke('electron:getCookies', url),
   fetchHtml: (url) => ipcRenderer.invoke('electron:fetchHtml', url),
   openCloudflareChallenge: (options) => ipcRenderer.invoke('electron:openCloudflareChallenge', options),
-  
-  // Файловая система
+  getRandomId: () => ipcRenderer.invoke('electron:getRandomId'),
   readFile: (filePath) => ipcRenderer.invoke('electron:readFile', filePath),
   writeFile: (filePath, content) => ipcRenderer.invoke('electron:writeFile', filePath, content),
   getPath: (name) => ipcRenderer.invoke('electron:getPath', name),
@@ -30,55 +33,54 @@ contextBridge.exposeInMainWorld('electron', {
   pathSep: () => ipcRenderer.invoke('electron:pathSep'),
   downloadFile: (url, filePath) => ipcRenderer.invoke('electron:downloadFile', url, filePath),
   fetchJson: (url, options) => ipcRenderer.invoke('electron:fetchJson', url, options),
-  
-  // Системные
   openExternal: (url) => ipcRenderer.invoke('electron:openExternal', url),
   minimize: () => ipcRenderer.invoke('electron:minimize'),
   maximize: () => ipcRenderer.invoke('electron:maximize'),
   close: () => ipcRenderer.invoke('electron:close'),
-  
-  // Окно чтения
+  isMaximized: () => ipcRenderer.invoke('electron:isMaximized'),
   openReaderWindow: (options) => ipcRenderer.invoke('electron:openReaderWindow', options),
-  
 });
 
-// Ранняя инициализация мока для react-native-reanimated
-// Делаем это до загрузки React компонентов
+
+
 (function() {
   const mockMakeShareable = (value) => value;
-  
-  // Сохраняем мок в глобальный объект для использования при загрузке reanimated
   window.__REANIMATED_MAKE_SHAREABLE_MOCK__ = mockMakeShareable;
-  
-  // Перехватываем require для react-native-reanimated
   try {
     if (typeof require !== 'undefined') {
-      const Module = require('module');
-      const originalRequire = Module.prototype.require;
-      
-      Module.prototype.require = function(id) {
-        const result = originalRequire.apply(this, arguments);
-        if (id === 'react-native-reanimated' || (typeof id === 'string' && id.includes('react-native-reanimated'))) {
-          // Добавляем makeShareable если его нет
-          if (result && typeof result.makeShareable === 'undefined') {
-            Object.defineProperty(result, 'makeShareable', {
-              value: mockMakeShareable,
-              writable: true,
-              configurable: true,
-              enumerable: false,
-            });
+      let Module;
+      let originalRequire;
+      try {
+        Module = require('module');
+        originalRequire = Module.prototype.require;
+      } catch (moduleError) {
+        console.warn('[Preload] Module require not available, using alternative approach');
+        return; 
+      }
+      if (Module && originalRequire) {
+        Module.prototype.require = function(id) {
+          const result = originalRequire.apply(this, arguments);
+          if (id === 'react-native-reanimated' || (typeof id === 'string' && id.includes('react-native-reanimated'))) {
+            if (result && typeof result.makeShareable === 'undefined') {
+              Object.defineProperty(result, 'makeShareable', {
+                value: mockMakeShareable,
+                writable: true,
+                configurable: true,
+                enumerable: false,
+              });
+            }
+            if (result?.default && typeof result.default.makeShareable === 'undefined') {
+              Object.defineProperty(result.default, 'makeShareable', {
+                value: mockMakeShareable,
+                writable: true,
+                configurable: true,
+                enumerable: false,
+              });
+            }
           }
-          if (result?.default && typeof result.default.makeShareable === 'undefined') {
-            Object.defineProperty(result.default, 'makeShareable', {
-              value: mockMakeShareable,
-              writable: true,
-              configurable: true,
-              enumerable: false,
-            });
-          }
-        }
-        return result;
-      };
+          return result;
+        };
+      }
     }
   } catch (e) {
     console.warn('[Preload] Reanimated mock setup failed:', e);

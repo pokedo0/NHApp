@@ -1,11 +1,9 @@
 import type { MenuRoute } from "@/types/routes";
-
 export type MenuItem = {
   labelKey: string;
   icon: string;
   route: MenuRoute;
 };
-
 export const LIBRARY_MENU: MenuItem[] = [
   { labelKey: "menu.downloaded", icon: "download", route: "/downloaded" },
   { labelKey: "menu.favorites", icon: "heart", route: "/favorites" },

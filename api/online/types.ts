@@ -1,4 +1,4 @@
-// api/online/types.ts
+
 export interface Me {
   id?: number;
   username: string;
@@ -6,7 +6,6 @@ export interface Me {
   avatar_url?: string;
   profile_url?: string;
 }
-
 export interface UserComment {
   id: number;
   gallery_id: number;
@@ -15,7 +14,6 @@ export interface UserComment {
   avatar_url?: string;
   page_url?: string;
 }
-
 export interface UserOverview {
   me: Me;
   joinedText?: string;

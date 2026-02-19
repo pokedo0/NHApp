@@ -1,8 +1,16 @@
 import { Feather } from "@expo/vector-icons";
 import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import DateRangePicker from "@/components/DateRangePicker";
 import { useDrawer } from "@/components/DrawerContext";
@@ -23,10 +31,12 @@ function hasSeg(pathname: string | null | undefined, seg: string) {
 function IconBtn({
   onPress,
   onLongPress,
+  disabled,
   children,
 }: {
   onPress?: () => void;
   onLongPress?: () => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   const { colors } = useTheme();
@@ -34,9 +44,11 @@ function IconBtn({
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.iconBtnRound,
-        pressed && { backgroundColor: colors.accent + "22" },
+        (pressed && !disabled) && { backgroundColor: colors.accent + "22" },
+        disabled && { opacity: 0.6 },
       ]}
     >
       {children}
@@ -182,6 +194,8 @@ export function SearchBar() {
   const [sortOpen, setSortOpen] = useState(false);
   const [backOpen, setBackOpen] = useState(false);
   const [dateModalOpen, setDateModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const rotationAnim = useRef(new Animated.Value(0)).current;
 
   const title = useMemo(
     () => getTitle(pathname, q, bookTitle, bookId),
@@ -225,6 +239,64 @@ export function SearchBar() {
     }
   }, [hasDateFilter]);
 
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const handleRefreshStart = () => {
+      setIsRefreshing(true);
+      rotationAnim.setValue(0);
+      const loopAnim = Animated.loop(
+        Animated.timing(rotationAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: false, 
+        })
+      );
+      loopAnim.start();
+      (rotationAnim as any)._loopAnim = loopAnim;
+    };
+
+    const handleRefreshEnd = () => {
+      setIsRefreshing(false);
+      const loopAnim = (rotationAnim as any)._loopAnim;
+      if (loopAnim) {
+        loopAnim.stop();
+        delete (rotationAnim as any)._loopAnim;
+      }
+      rotationAnim.stopAnimation();
+      Animated.timing(rotationAnim, {
+        toValue: 0,
+        duration: 200,
+        easing: Easing.ease,
+        useNativeDriver: false,
+      }).start();
+    };
+
+    globalThis.addEventListener?.("app:refresh-content-start", handleRefreshStart);
+    globalThis.addEventListener?.("app:refresh-content-end", handleRefreshEnd);
+
+    return () => {
+      globalThis.removeEventListener?.("app:refresh-content-start", handleRefreshStart);
+      globalThis.removeEventListener?.("app:refresh-content-end", handleRefreshEnd);
+      const loopAnim = (rotationAnim as any)._loopAnim;
+      if (loopAnim) {
+        loopAnim.stop();
+      }
+      rotationAnim.stopAnimation();
+    };
+  }, [rotationAnim]);
+
+  const refreshIconStyle = useMemo(() => {
+    const rotate = rotationAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: ["0deg", "360deg"],
+    });
+    return {
+      transform: [{ rotate }],
+    };
+  }, [rotationAnim]);
+
   return (
     <View>
       <Animated.View
@@ -259,6 +331,28 @@ export function SearchBar() {
 
         {!hideRight && (
           <View style={styles.rightGroup}>
+            {Platform.OS === "web" && (
+              <IconBtn
+                onPress={() => {
+                  if (isRefreshing) return; 
+                  if (typeof globalThis !== "undefined") {
+                    globalThis.dispatchEvent?.(
+                      new globalThis.CustomEvent("app:refresh-content")
+                    );
+                  }
+                }}
+                disabled={isRefreshing}
+              >
+                <Animated.View style={refreshIconStyle}>
+                  <Feather 
+                    name="refresh-cw" 
+                    size={18} 
+                    color={isRefreshing ? colors.accent : colors.searchTxt}
+                  />
+                </Animated.View>
+              </IconBtn>
+            )}
+
             <IconBtn
               onPress={() =>
                 router.push({

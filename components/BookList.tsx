@@ -1,29 +1,30 @@
-﻿import { Book } from "@/api/nhentai";
+import { Book } from "@/api/nhentai";
 import { useFavHistory } from "@/hooks/useFavHistory";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import React, {
-  ReactElement,
-  ReactNode,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
+    ReactElement,
+    ReactNode,
+    useCallback,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import {
-  ActivityIndicator,
-  Animated,
-  FlatList,
-  ListRenderItem,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  RefreshControl,
-  StyleSheet,
-  View,
-  useWindowDimensions,
+    Animated,
+    FlatList,
+    ListRenderItem,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
+    Platform,
+    RefreshControl,
+    StyleSheet,
+    View,
+    useWindowDimensions,
 } from "react-native";
 import BookCard from "./BookCard";
+import LoadingSpinner from "./LoadingSpinner";
 
 export interface GridConfig {
   numColumns: number;
@@ -59,6 +60,7 @@ export interface BookListProps<T extends Book = Book> {
   columnWrapperStyle?: any;
   children?: ReactNode;
   cardDesign?: "classic" | "stable" | "image";
+  scrollRef?: React.RefObject<FlatList<T> | null>;
 }
 
 export default function BookList<T extends Book = Book>({
@@ -81,9 +83,11 @@ export default function BookList<T extends Book = Book>({
   columnWrapperStyle,
   children,
   cardDesign,
+  scrollRef: externalScrollRef,
 }: BookListProps<T>) {
   const { colors } = useTheme();
-  const listRef = useRef<FlatList<T>>(null);
+  const internalListRef = useRef<FlatList<T> | null>(null);
+  const listRef = (externalScrollRef || internalListRef) as React.RefObject<FlatList<T>>;
   const { width, height } = useWindowDimensions();
 
   const { favoritesSet, historyMap, toggleFavorite } = useFavHistory();
@@ -206,8 +210,9 @@ export default function BookList<T extends Book = Book>({
     ({ item, index }) => {
       const isLastInRow = !horizontal && (index + 1) % cols === 0;
       const isLastHoriz = horizontal && index === uniqueData.length - 1;
-      const favChecked =
-        favoritesSet.has(item.id) || isFavorite?.(item.id) || false;
+      const favChecked = isFavorite
+        ? isFavorite(item.id)
+        : favoritesSet.has(item.id) || false;
 
       return (
         <View
@@ -231,13 +236,13 @@ export default function BookList<T extends Book = Book>({
             isSingleCol={isSingleCol}
             contentScale={contentScale}
             isFavorite={favChecked}
-            onToggleFavorite={(id, next) => {
-              toggleFavorite(id, next);
+            onToggleFavorite={async (id, next) => {
+              await toggleFavorite(id, next);
               onToggleFavorite?.(id, next);
             }}
             onPress={() => onPress?.(item.id)}
             score={getScore?.(item)}
-            favoritesSet={favoritesSet}
+            favoritesSet={isFavorite ? undefined : favoritesSet}
             historyMap={historyMap}
             hydrateFromStorage={false}
           />
@@ -331,7 +336,7 @@ export default function BookList<T extends Book = Book>({
             onEndReachedThreshold={0.4}
             ListFooterComponent={
               loading ? (
-                <ActivityIndicator style={styles.loader} />
+                <LoadingSpinner />
               ) : (
                 ListFooterComponent
               )
@@ -350,11 +355,11 @@ export default function BookList<T extends Book = Book>({
             }}
             onScroll={horizontal ? onScroll : undefined}
             scrollEventThrottle={16}
-            removeClippedSubviews={!!canUseFixedLayout}
-            windowSize={7}
-            maxToRenderPerBatch={10}
-            initialNumToRender={Math.min(12, uniqueData.length)}
-            updateCellsBatchingPeriod={40}
+            removeClippedSubviews={Platform.OS === 'android' || !!canUseFixedLayout}
+            windowSize={Platform.OS === 'android' ? 5 : 7}
+            maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 10}
+            initialNumToRender={Platform.OS === 'android' ? Math.min(6, uniqueData.length) : Math.min(12, uniqueData.length)}
+            updateCellsBatchingPeriod={Platform.OS === 'android' ? 50 : 40}
           />
 
           {horizontal && (

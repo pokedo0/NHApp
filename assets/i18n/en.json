@@ -169,7 +169,7 @@
       "library": "Library"
     },
     "favoritesOnline": "Online favorites",
-    "brand": "NHAppAndroid",
+    "brand": "NHApp",
     "brandTag": "Unofficial",
     "characters": "Characters",
     "discordJoin": "Join Discord",
@@ -206,11 +206,19 @@
     },
     "controls": {
       "back": "Back",
+      "settings": "Settings",
+      "vertical": "Vertical",
+      "horizontal": "Horizontal",
+      "dual": "Dual mode",
+      "fit": "Fit",
       "fitContain": "Fit",
       "fitCover": "Fill",
+      "tap": "Tap to switch",
+      "handSwap": "Hand swap",
       "inspect": "Inspect",
       "orientation": "Orientation",
-      "tap": "Tap"
+      "continuous": "Continuous scroll",
+      "scroll": "Scroll"
     },
     "menuHint": "Open controls",
     "pagination": {
@@ -234,7 +242,9 @@
       "hue": "Hue: {deg}°",
       "theme": "App theme",
       "presets": "Presets",
-      "fullPalette": "Full Palette"
+      "fullPalette": "Full Palette",
+      "infiniteScroll": "Infinite scroll",
+      "infiniteScrollDesc": "Automatically load next page when scrolling down instead of pagination"
     },
     "display": {
       "androidNote": "On Android, system bars can be revealed with a bottom swipe even in fullscreen.",
@@ -272,6 +282,10 @@
     "grid": {
       "resetProfile": "Reset this profile",
       "resetAll": "Reset all profiles",
+      "cardDesignTitle": "Card design",
+      "preview": "Preview",
+      "layout": "Layout",
+      "spacing": "Spacing",
       "cardDesign": {
         "image": "Image",
         "classic": "Classic",

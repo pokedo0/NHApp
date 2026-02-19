@@ -1,7 +1,3 @@
-/**
- * TypeScript типы для Electron API
- */
-
 export interface ElectronMessageBoxOptions {
   type?: 'none' | 'info' | 'error' | 'question' | 'warning';
   title?: string;
@@ -16,12 +12,10 @@ export interface ElectronMessageBoxOptions {
   noLink?: boolean;
   normalizeAccessKeys?: boolean;
 }
-
 export interface ElectronMessageBoxReturnValue {
   response: number;
   checkboxChecked?: boolean;
 }
-
 export interface ElectronOpenDialogOptions {
   title?: string;
   defaultPath?: string;
@@ -41,13 +35,11 @@ export interface ElectronOpenDialogOptions {
   message?: string;
   securityScopedBookmarks?: boolean;
 }
-
 export interface ElectronOpenDialogReturnValue {
   canceled: boolean;
   filePaths: string[];
   bookmarks?: string[];
 }
-
 export interface ElectronSaveDialogOptions {
   title?: string;
   defaultPath?: string;
@@ -58,7 +50,6 @@ export interface ElectronSaveDialogOptions {
   showsTagField?: boolean;
   securityScopedBookmarks?: boolean;
 }
-
 export interface ElectronSaveDialogReturnValue {
   canceled: boolean;
   filePath?: string;

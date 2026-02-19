@@ -1,8 +1,9 @@
+import { isElectron } from "@/electron/bridge";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import Constants from "expo-constants";
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 export default function SettingsLayout({
   children,
@@ -12,15 +13,30 @@ export default function SettingsLayout({
 }) {
   const { t } = useI18n();
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = isElectron() || (Platform.OS === "web" && width >= 768);
+  const isTablet = width >= 600 && width < 768;
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         style={[styles.page, { backgroundColor: colors.bg }]}
-        contentContainerStyle={{ paddingTop: 12, paddingBottom: 32 }}
+        contentContainerStyle={[
+          styles.container,
+          isDesktop && styles.containerDesktop,
+          isTablet && styles.containerTablet,
+          { paddingTop: isDesktop ? 24 : 12, paddingBottom: isDesktop ? 48 : 32 }
+        ]}
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
       >
-        {children}
+        <View style={[
+          styles.content,
+          isDesktop && styles.contentDesktop,
+          isTablet && styles.contentTablet,
+        ]}>
+          {children}
+        </View>
         <View style={styles.footer}>
           <Text style={[styles.caption, { color: colors.sub }]}>
             v{Constants.expoConfig?.version} {t("app.version.beta")}
@@ -32,7 +48,29 @@ export default function SettingsLayout({
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, paddingHorizontal: 16 },
+  page: { flex: 1 },
+  container: {
+    paddingHorizontal: 16,
+  },
+  containerDesktop: {
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  containerTablet: {
+    paddingHorizontal: 32,
+  },
+  content: {
+    width: "100%",
+  },
+  contentDesktop: {
+    maxWidth: 800,
+    width: "100%",
+  },
+  contentTablet: {
+    maxWidth: 700,
+    width: "100%",
+    alignSelf: "center",
+  },
   footer: {
     marginTop: 32,
     marginBottom: 16,

@@ -40,7 +40,9 @@ function absUrl(u?: string | null): string | undefined {
   if (!u) return undefined;
   const s = String(u).trim();
   if (!s) return undefined;
-  if (/^https?:\/\//i.test(s)) return s;
+  if (/^https?:\/\//.test(s)) {
+    return s;
+  }
   if (s.startsWith("//")) return "https:" + s;
   if (s.startsWith("/")) return "https://nhentai.net" + s;
   return s;
@@ -150,7 +152,6 @@ export default function Footer({
 
     const username = poster.username || myUsername || "user";
 
-    // Для нового комментария используем ID из poster или myUserId
     const uid = poster.id ?? myUserId;
 
     return {
@@ -163,7 +164,6 @@ export default function Footer({
         id: uid, 
         username, 
         avatar_url: avatar,
-        // Убеждаемся, что slug есть (для навигации) и в нижнем регистре
         slug: (poster.slug || poster.username || username || 'user').toLowerCase(),
       } as any,
       avatar,
@@ -264,11 +264,8 @@ export default function Footer({
         style={[s.sectionHead, { marginTop: 32 }]}
         ref={(ref) => {
           if (ref && onCommentSectionLayout) {
-            // Используем setTimeout для измерения после рендера
             setTimeout(() => {
               ref.measureInWindow((x, y, width, height, pageX, pageY) => {
-                // Сохраняем примерную позицию для прокрутки
-                // В реальности позиция будет рассчитываться динамически
                 if (onCommentSectionLayout) {
                   onCommentSectionLayout(y);
                 }

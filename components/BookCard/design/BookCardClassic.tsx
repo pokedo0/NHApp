@@ -1,8 +1,8 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Image, Pressable, Text, View } from "react-native";
 
 import { Book } from "@/api/nhentai";
-import SmartImage from "@/components/SmartImage";
+import SmartImageWithRetry from "@/components/SmartImageWithRetry";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { useTheme } from "@/lib/ThemeContext";
 import { makeCardStyles } from "../BookCard.styles";
@@ -124,9 +124,11 @@ export default function BookCardClassic({
       onPress={handlePressCard}
     >
       <View style={styles.imageWrap}>
-        <SmartImage
+        <SmartImageWithRetry
           sources={sources}
           style={styles.cover}
+          maxRetries={3}
+          retryDelay={1000}
         />
 
         {flagSrc && (

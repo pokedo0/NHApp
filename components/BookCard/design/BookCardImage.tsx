@@ -1,5 +1,5 @@
 import { Book } from "@/api/nhentai";
-import SmartImage from "@/components/SmartImage";
+import SmartImageWithRetry from "@/components/SmartImageWithRetry";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { useTheme } from "@/lib/ThemeContext";
 import React, { useMemo } from "react";
@@ -43,9 +43,11 @@ export default function BookCardImage({
       ]}
     >
       <View style={styles.imageWrap}>
-        <SmartImage
+        <SmartImageWithRetry
           sources={variants}
           style={styles.cover}
+          maxRetries={3}
+          retryDelay={1000}
         />
       </View>
     </Pressable>

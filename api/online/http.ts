@@ -10,46 +10,36 @@ function baseHeaders(): Record<string, string> {
     Accept: "text/html,application/xhtml+xml",
     "Cache-Control": "no-cache",
   };
-  
-  // On web, don't set User-Agent (browser doesn't allow it)
   if (Platform.OS !== "web") {
     headers["User-Agent"] = "nh-client";
   }
-  
   return headers;
 }
 
-/** Универсальный HTML-GET с куками (нативный jar или руками через Header) */
+
 export async function fetchHtml(url: string): Promise<{
   html: string;
   finalUrl: string;
   status: number;
 }> {
-  // On web, use direct fetch
   const finalUrl = url;
-  
   if (isBrowser) {
-    // Проверяем что это Electron, а не обычный браузер
     const isElectron = typeof window !== "undefined" && !!(window as any).electron?.isElectron;
-    
     if (isElectron) {
-      // Electron: используем IPC метод для получения HTML с cookies из Electron session
       try {
         const electron = (window as any).electron;
         if (!electron || !electron.fetchHtml) {
           console.error("[fetchHtml] electron.fetchHtml not available");
           return { html: "", finalUrl: url, status: 0 };
         }
-        
         const result = await electron.fetchHtml(url);
         if (!result.success || !result.html) {
           console.warn(`[fetchHtml] IPC fetchHtml failed:`, result.error);
           return { html: "", finalUrl: result.finalUrl || url, status: result.status || 0 };
         }
-        
         return {
           html: result.html,
-          finalUrl: result.finalUrl || url, // Используем finalUrl из результата, если есть
+          finalUrl: result.finalUrl || url, 
           status: result.status || 200,
         };
       } catch (e) {
@@ -57,8 +47,6 @@ export async function fetchHtml(url: string): Promise<{
         return { html: "", finalUrl: url, status: 0 };
       }
     }
-    
-    // Обычный браузер: try to fetch directly
     try {
       const res = await fetch(finalUrl, {
         method: "GET",
@@ -103,7 +91,7 @@ export async function fetchHtml(url: string): Promise<{
   };
 }
 
-/** Простой помощник: только HTML (когда редирект не важен) */
+
 export async function getHtmlWithCookies(url: string): Promise<string> {
   const { html } = await fetchHtml(url);
   return html;

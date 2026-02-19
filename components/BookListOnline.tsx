@@ -1,29 +1,30 @@
-﻿import { Feather } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  ListRenderItem,
-  Modal,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
+    Alert,
+    FlatList,
+    ListRenderItem,
+    Modal,
+    Platform,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import LoadingSpinner from "./LoadingSpinner";
 
 import { Book, getFavorites } from "@/api/nhentai";
 import {
-  onlineBulkFavorite,
-  onlineBulkUnfavorite,
-  onlineFavorite,
-  onlineUnfavorite,
+    onlineBulkFavorite,
+    onlineBulkUnfavorite,
+    onlineFavorite,
+    onlineUnfavorite,
 } from "@/api/nhentaiOnline";
 import BookCard from "@/components/BookCard";
 import { CardPressable } from "@/components/ui/CardPressable";
@@ -64,6 +65,7 @@ type Props = {
 
   onAfterUnfavorite?: (removedIds: number[]) => void;
   onRestoreFavorites?: (books: Book[]) => void;
+  scrollRef?: React.RefObject<FlatList<Book>>;
 };
 
 export default function BookListOnline({
@@ -80,6 +82,7 @@ export default function BookListOnline({
   cardDesign,
   onAfterUnfavorite,
   onRestoreFavorites,
+  scrollRef,
 }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -546,9 +549,13 @@ export default function BookListOnline({
 
   const contentBottomPad = (paddingHorizontal ?? 0) / 2 + 12 + insets.bottom;
 
+  const listRef = React.useRef<FlatList<Book>>(null);
+  const flatListRef = scrollRef || listRef;
+
   return (
     <View style={[styles.root, { backgroundColor: themeBg }]}>
       <FlatList
+        ref={flatListRef}
         data={items}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
@@ -574,11 +581,11 @@ export default function BookListOnline({
         }
         ListEmptyComponent={Empty}
         getItemLayout={getItemLayout as any}
-        windowSize={8}
-        maxToRenderPerBatch={12}
-        initialNumToRender={Math.min(18, items.length)}
-        updateCellsBatchingPeriod={40}
-        removeClippedSubviews={chosenDesign === "image"}
+        windowSize={Platform.OS === 'android' ? 5 : 8}
+        maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 12}
+        initialNumToRender={Platform.OS === 'android' ? Math.min(8, items.length) : Math.min(18, items.length)}
+        updateCellsBatchingPeriod={Platform.OS === 'android' ? 50 : 40}
+        removeClippedSubviews={Platform.OS === 'android' || chosenDesign === "image"}
       />
 
       {undoStack.length > 0 && (
@@ -804,7 +811,7 @@ export default function BookListOnline({
               >
                 <View style={[styles.btn, { borderColor: colors.page }]}>
                   {importBusy ? (
-                    <ActivityIndicator size="small" />
+                    <LoadingSpinner size="small" />
                   ) : (
                     <Feather name="upload" size={14} color={colors.accent} />
                   )}
@@ -883,7 +890,9 @@ export default function BookListOnline({
             }}
             ListEmptyComponent={
               importBusy ? (
-                <ActivityIndicator style={{ marginTop: 24 }} />
+                <View style={{ marginTop: 24 }}>
+                  <LoadingSpinner />
+                </View>
               ) : (
                 <Text
                   style={{

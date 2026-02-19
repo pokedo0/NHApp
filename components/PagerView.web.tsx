@@ -11,7 +11,7 @@ type PagerViewProps = {
   ref?: any;
 };
 
-// Web-compatible PagerView implementation using ScrollView
+
 export default React.forwardRef<any, PagerViewProps>(function PagerView(
   { children, style, initialPage = 0, orientation = 'horizontal', onPageSelected, scrollEnabled = true },
   ref
@@ -52,7 +52,6 @@ export default React.forwardRef<any, PagerViewProps>(function PagerView(
     const pageSize = orientation === 'horizontal' ? layoutMeasurement.width : layoutMeasurement.height;
     const offset = orientation === 'horizontal' ? contentOffset.x : contentOffset.y;
     const newPage = Math.round(offset / pageSize);
-    
     if (newPage !== currentPage && newPage >= 0 && newPage < childrenArray.length) {
       setCurrentPage(newPage);
       onPageSelected?.({ nativeEvent: { position: newPage } });

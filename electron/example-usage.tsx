@@ -1,7 +1,3 @@
-/**
- * Пример использования Electron моста в React компоненте
- */
-
 import React, { useEffect, useState } from 'react';
 import { View, Text, Button } from 'react-native';
 import {
@@ -17,13 +13,11 @@ import {
   openExternal,
   windowControls,
 } from '@/electron/bridge';
-
 export function ElectronExample() {
   const [electronInfo, setElectronInfo] = useState<{
     version: string | null;
     platform: string | null;
   }>({ version: null, platform: null });
-
   useEffect(() => {
     if (isElectron()) {
       Promise.all([
@@ -34,7 +28,6 @@ export function ElectronExample() {
       });
     }
   }, []);
-
   const handleShowMessage = async () => {
     const result = await showMessageBox({
       type: 'info',
@@ -44,7 +37,6 @@ export function ElectronExample() {
     });
     console.log('Message box result:', result);
   };
-
   const handleOpenFile = async () => {
     const result = await showOpenDialog({
       title: 'Выберите файл',
@@ -54,13 +46,11 @@ export function ElectronExample() {
       ],
       properties: ['openFile'],
     });
-
     if (result && !result.canceled && result.filePaths.length > 0) {
       const content = await readFile(result.filePaths[0]);
       console.log('File content:', content);
     }
   };
-
   const handleSaveFile = async () => {
     const documentsPath = await getPath('documents');
     const result = await showSaveDialog({
@@ -71,7 +61,6 @@ export function ElectronExample() {
         { name: 'All Files', extensions: ['*'] },
       ],
     });
-
     if (result && !result.canceled && result.filePath) {
       const success = await writeFile(result.filePath, 'Hello from Electron!');
       if (success) {
@@ -82,11 +71,9 @@ export function ElectronExample() {
       }
     }
   };
-
   const handleOpenExternal = async () => {
     await openExternal('https://example.com');
   };
-
   if (!isElectron()) {
     return (
       <View>
@@ -94,20 +81,17 @@ export function ElectronExample() {
       </View>
     );
   }
-
   return (
     <View style={{ padding: 20 }}>
       <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
         Electron Bridge Example
       </Text>
-
       {electronInfo.version && (
         <Text>Version: {electronInfo.version}</Text>
       )}
       {electronInfo.platform && (
         <Text>Platform: {electronInfo.platform}</Text>
       )}
-
       <View style={{ marginTop: 20, gap: 10 }}>
         <Button title="Show Message Box" onPress={handleShowMessage} />
         <Button title="Open File" onPress={handleOpenFile} />

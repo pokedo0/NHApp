@@ -1,4 +1,4 @@
-﻿import { getMe } from "@/api/online/me";
+import { getMe } from "@/api/online/me";
 import type { Me } from "@/api/online/types";
 import { useEffect, useState } from "react";
 

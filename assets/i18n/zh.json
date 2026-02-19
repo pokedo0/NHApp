@@ -169,7 +169,7 @@
       "library": "库"
     },
     "favoritesOnline": "在线收藏",
-    "brand": "NHAppAndroid",
+    "brand": "NHApp",
     "brandTag": "非官方",
     "characters": "角色",
     "discordJoin": "加入 Discord",
@@ -206,11 +206,19 @@
     },
     "controls": {
       "back": "返回",
+      "settings": "设置",
+      "vertical": "纵向",
+      "horizontal": "横向",
+      "dual": "双页模式",
+      "fit": "适配",
       "fitContain": "适应",
       "fitCover": "填充",
+      "tap": "点击切换",
+      "handSwap": "切换手",
       "inspect": "检查",
       "orientation": "方向",
-      "tap": "点击"
+      "continuous": "连续滚动",
+      "scroll": "滚动"
     },
     "menuHint": "打开控制",
     "pagination": {
@@ -234,7 +242,9 @@
       "hue": "色调: {deg}°",
       "theme": "应用主题",
       "presets": "预设",
-      "fullPalette": "完整调色板"
+      "fullPalette": "完整调色板",
+      "infiniteScroll": "无限滚动",
+      "infiniteScrollDesc": "向下滚动时自动加载下一页，而不是使用分页"
     },
     "display": {
       "androidNote": "在 Android 上，即使全屏模式下，也可以通过底部上滑显示系统栏。",
@@ -255,6 +265,10 @@
       "hideHints": "隐藏提示",
       "hideHintsDesc": "隐藏阅读器中的提示和手势提示。"
     },
+    "storage": {
+      "savePath": "保存路径",
+      "savePathDesc": "保存已下载书籍的目录"
+    },
     "section": {
       "appearance": "外观",
       "display": "显示",
@@ -272,6 +286,10 @@
     "grid": {
       "resetProfile": "重置此配置",
       "resetAll": "重置所有配置",
+      "cardDesignTitle": "卡片设计",
+      "preview": "预览",
+      "layout": "布局",
+      "spacing": "间距",
       "cardDesign": {
         "image": "图片",
         "classic": "经典",

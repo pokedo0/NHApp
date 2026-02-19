@@ -21,7 +21,6 @@ export function SavePathRow() {
         if (saved) {
           setSavePath(saved);
         } else {
-          // Получаем дефолтный путь
           const electron = (window as any).electron;
           const result = await electron.getPicturesPath();
           if (result.success) {
@@ -43,8 +42,6 @@ export function SavePathRow() {
     setLoading(true);
     try {
       const electron = (window as any).electron;
-      
-      // Показываем диалог выбора папки
       const result = await electron.showOpenDialog({
         title: "Выберите папку для сохранения",
         defaultPath: savePath || undefined,
@@ -52,8 +49,6 @@ export function SavePathRow() {
 
       if (result.success && !result.canceled && result.filePaths && result.filePaths.length > 0) {
         const selectedPath = result.filePaths[0];
-        
-        // Сохраняем путь
         await AsyncStorage.setItem("electron:savePath", selectedPath);
         setSavePath(selectedPath);
       }
@@ -93,7 +88,6 @@ export function SavePathRow() {
       >
         {t("settings.storage.savePathDesc") || "Папка для сохранения скачанных книг (только для Electron)"}
       </Text>
-      
       <Pressable
         onPress={handleSelectPath}
         disabled={loading}

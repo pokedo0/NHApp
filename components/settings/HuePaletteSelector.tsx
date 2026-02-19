@@ -1,22 +1,18 @@
+import { isElectron } from "@/electron/bridge";
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import {
-  Dimensions,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useI18n } from "@/lib/i18n/I18nContext";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const PALETTE_PADDING = 16;
-const PALETTE_GAP = 8;
-// Вычисляем размер элемента палитры для 10 элементов в ряду
-const ITEM_SIZE = Math.max(28, Math.min(36, (SCREEN_WIDTH - PALETTE_PADDING * 2 - PALETTE_GAP * 9) / 10));
 
-// Функция для преобразования HSL в HEX
 const hslToHex = (h: number, s: number, l: number): string => {
   h = h % 360;
   s = s / 100;
@@ -50,7 +46,7 @@ const hslToHex = (h: number, s: number, l: number): string => {
 };
 
 interface Props {
-  value: number; // текущий оттенок (0-360)
+  value: number; 
   onValueChange: (hue: number) => void;
   onComplete?: (hue: number) => void;
 }
@@ -62,8 +58,16 @@ export default function HuePaletteSelector({
 }: Props) {
   const { colors } = useTheme();
   const { t } = useI18n();
+  const { width } = useWindowDimensions();
+  const isDesktop = isElectron() || (Platform.OS === "web" && width >= 768);
+  const isTablet = width >= 600 && width < 768;
 
-  // Генерируем полную палитру (все оттенки через каждые 10 градусов)
+  const PALETTE_PADDING = isDesktop ? 24 : isTablet ? 20 : 16;
+  const PALETTE_GAP = isDesktop ? 10 : isTablet ? 9 : 8;
+  const MAX_ITEM_SIZE = isDesktop ? 42 : isTablet ? 38 : 36;
+  const MIN_ITEM_SIZE = isDesktop ? 32 : isTablet ? 30 : 28;
+  const ITEM_SIZE = Math.max(MIN_ITEM_SIZE, Math.min(MAX_ITEM_SIZE, (width - PALETTE_PADDING * 2 - PALETTE_GAP * 9) / 10));
+
   const fullPalette = useMemo(() => {
     const palette: number[] = [];
     for (let i = 0; i < 360; i += 10) {
@@ -72,7 +76,6 @@ export default function HuePaletteSelector({
     return palette;
   }, []);
 
-  // Находим ближайший оттенок из палитры
   const getClosestHue = (targetHue: number): number => {
     return Math.round(targetHue / 10) * 10;
   };
@@ -85,9 +88,17 @@ export default function HuePaletteSelector({
   };
 
   return (
-    <View style={styles.container}>
-      {/* Полная палитра */}
-      <View style={styles.fullPaletteContainer}>
+    <View style={[
+      styles.container,
+      isDesktop && styles.containerDesktop,
+      isTablet && styles.containerTablet,
+    ]}>
+      {}
+      <View style={[
+        styles.fullPaletteContainer,
+        isDesktop && styles.fullPaletteContainerDesktop,
+        isTablet && styles.fullPaletteContainerTablet,
+      ]}>
         <View style={[styles.paletteGrid, { gap: PALETTE_GAP }]}>
           {fullPalette.map((hue) => {
             const isSelected = selectedHue === hue;
@@ -98,6 +109,8 @@ export default function HuePaletteSelector({
                 onPress={() => handlePress(hue)}
                 style={[
                   styles.paletteItem,
+                  isDesktop && styles.paletteItemDesktop,
+                  isTablet && styles.paletteItemTablet,
                   {
                     width: ITEM_SIZE,
                     height: ITEM_SIZE,
@@ -105,15 +118,23 @@ export default function HuePaletteSelector({
                     borderColor: isSelected
                       ? colors.bg
                       : "rgba(255, 255, 255, 0.3)",
-                    borderWidth: isSelected ? 3 : 1,
-                    transform: [{ scale: isSelected ? 1.15 : 1 }],
+                    borderWidth: isSelected ? (isDesktop ? 4 : isTablet ? 3.5 : 3) : (isDesktop ? 1.5 : isTablet ? 1.25 : 1),
+                    transform: [{ scale: isSelected ? (isDesktop ? 1.2 : isTablet ? 1.17 : 1.15) : 1 }],
                   },
                 ]}
                 android_ripple={{ color: "#ffffff33", borderless: false }}
               >
                 {isSelected && (
-                  <View style={styles.selectedIndicator}>
-                    <Feather name="check" size={10} color={colors.bg} />
+                  <View style={[
+                    styles.selectedIndicator,
+                    isDesktop && styles.selectedIndicatorDesktop,
+                    isTablet && styles.selectedIndicatorTablet,
+                  ]}>
+                    <Feather 
+                      name="check" 
+                      size={isDesktop ? 12 : isTablet ? 11 : 10} 
+                      color={colors.bg} 
+                    />
                   </View>
                 )}
               </Pressable>
@@ -122,14 +143,26 @@ export default function HuePaletteSelector({
         </View>
       </View>
 
-      {/* Текущее значение */}
-      <View style={[styles.currentValueContainer, { backgroundColor: colors.page }]}>
-        <Text style={[styles.currentLabel, { color: colors.sub }]}>
+      {}
+      <View style={[
+        styles.currentValueContainer,
+        isDesktop && styles.currentValueContainerDesktop,
+        isTablet && styles.currentValueContainerTablet,
+        { backgroundColor: colors.page }
+      ]}>
+        <Text style={[
+          styles.currentLabel,
+          isDesktop && styles.currentLabelDesktop,
+          isTablet && styles.currentLabelTablet,
+          { color: colors.sub }
+        ]}>
           {t("settings.appearance.hue", { deg: Math.round(value) })}
         </Text>
         <View
           style={[
             styles.currentColorPreview,
+            isDesktop && styles.currentColorPreviewDesktop,
+            isTablet && styles.currentColorPreviewTablet,
             {
               backgroundColor: hslToHex(value, 78, 50),
               borderColor: colors.accent + "40",
@@ -145,8 +178,20 @@ const styles = StyleSheet.create({
   container: {
     gap: 20,
   },
+  containerDesktop: {
+    gap: 24,
+  },
+  containerTablet: {
+    gap: 22,
+  },
   fullPaletteContainer: {
     gap: 12,
+  },
+  fullPaletteContainerDesktop: {
+    gap: 16,
+  },
+  fullPaletteContainerTablet: {
+    gap: 14,
   },
   paletteGrid: {
     flexDirection: "row",
@@ -158,6 +203,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     position: "relative",
   },
+  paletteItemDesktop: {
+    borderRadius: 10,
+  },
+  paletteItemTablet: {
+    borderRadius: 9,
+  },
   selectedIndicator: {
     width: 16,
     height: 16,
@@ -165,6 +216,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffffcc",
     alignItems: "center",
     justifyContent: "center",
+  },
+  selectedIndicatorDesktop: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
+  selectedIndicatorTablet: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
   },
   currentValueContainer: {
     flexDirection: "row",
@@ -175,15 +236,47 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 12,
   },
+  currentValueContainerDesktop: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 16,
+  },
+  currentValueContainerTablet: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 13,
+    gap: 14,
+  },
   currentLabel: {
     fontSize: 14,
     fontWeight: "600",
     letterSpacing: 0.2,
+  },
+  currentLabelDesktop: {
+    fontSize: 16,
+    letterSpacing: 0.3,
+  },
+  currentLabelTablet: {
+    fontSize: 15,
+    letterSpacing: 0.25,
   },
   currentColorPreview: {
     width: 32,
     height: 32,
     borderRadius: 16,
     borderWidth: 2,
+  },
+  currentColorPreviewDesktop: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2.5,
+  },
+  currentColorPreviewTablet: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2.25,
   },
 });

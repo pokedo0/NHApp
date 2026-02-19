@@ -1,8 +1,8 @@
-// api/comments.ts
+
 import {
-  cookieHeaderString, // вернёт "" на нативе, чтобы не перетирать HttpOnly
-  loadTokens, // достанем актуальный csrftoken
-  syncNativeCookiesFromJar,
+    cookieHeaderString, 
+    loadTokens, 
+    syncNativeCookiesFromJar,
 } from "@/api/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
@@ -11,17 +11,17 @@ declare const window: any;
 
 const NH_HOST = "https://nhentai.net";
 
-// Proxy URL for web version to bypass CORS
+
 const PROXY_BASE = Platform.OS === "web" 
-  ? (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3002") + "/fpi"
+  ? (process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3002") + "/fpi"
   : null;
 
-// Helper to check if Electron
+
 function checkIsElectron(): boolean {
   return Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
 }
 
-// Helper to get proxied URL on web (but not Electron)
+
 function getProxiedUrl(url: string): string {
   const isElectron = checkIsElectron();
   if (Platform.OS === "web" && !isElectron && PROXY_BASE && url.startsWith("https://nhentai.net")) {
@@ -30,7 +30,7 @@ function getProxiedUrl(url: string): string {
   return url;
 }
 
-// ===== Типы =====
+
 export interface ApiUserLite {
   id: number;
   username: string;
@@ -41,11 +41,11 @@ export interface ApiComment {
   id: number;
   gallery_id: number;
   body: string;
-  post_date: number; // unix (sec)
+  post_date: number; 
   poster: ApiUserLite;
 }
 
-// ===== Куки =====
+
 type AuthCookies = {
   csrftoken?: string;
   sessionid?: string;
@@ -78,10 +78,9 @@ function buildCookieHeader(c: AuthCookies) {
   return parts.join("; ");
 }
 
-// Пытаемся достать CSRF из cookie (на web)
+
 function getCsrfFromCookie(): string | undefined {
   try {
-    // @ts-ignore
     const c: string =
       typeof document !== "undefined" ? document.cookie || "" : "";
     const m = c.match(/(?:^|;\\s*)csrftoken=([^;]+)/i);
@@ -91,7 +90,7 @@ function getCsrfFromCookie(): string | undefined {
   }
 }
 
-/** Отправить комментарий */
+
 export async function submitComment(
   galleryId: number,
   text: string,
@@ -116,15 +115,12 @@ export async function submitComment(
     Referer: `${NH_HOST}/g/${galleryId}/`,
     Origin: NH_HOST,
   };
-  
-  // On web, don't set User-Agent (browser doesn't allow it)
   if (Platform.OS !== "web") {
     headers["User-Agent"] =
       Platform.OS === "ios"
         ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
         : "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36";
   }
-  
   if (cookieHeader) headers["Cookie"] = cookieHeader;
 
   const csrf = cookies.csrftoken || getCsrfFromCookie();
@@ -190,7 +186,6 @@ function commonHeaders(opts: {
     Referer: opts.referer,
     Cookie: opts.cookie,
   };
-  
   // On web, don't set User-Agent (browser doesn't allow it)
   if (Platform.OS !== "web") {
     h["User-Agent"] =
@@ -198,7 +193,6 @@ function commonHeaders(opts: {
         ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
         : "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36";
   }
-  
   if (opts.csrf) h["X-CSRFToken"] = opts.csrf; // должно совпадать с cookie csrftoken
   return h;
 }
@@ -252,7 +246,6 @@ export async function deleteCommentById(
       Origin: NH_HOST,
       Referer: opts?.galleryId ? `${NH_HOST}/g/${opts.galleryId}/` : `${NH_HOST}/`,
     };
-    
     // On web, don't set User-Agent (browser doesn't allow it)
     if (Platform.OS !== "web") {
       headers["User-Agent"] =
@@ -260,7 +253,6 @@ export async function deleteCommentById(
           ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
           : "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36";
     }
-    
     if (cookieHeader) headers["Cookie"] = cookieHeader;
     if (csrftoken) {
       headers["X-CSRFToken"] = csrftoken;   // должен совпадать с кукой csrftoken
@@ -271,14 +263,12 @@ export async function deleteCommentById(
 
   const tryOnce = async () => {
     const isElectron = checkIsElectron();
-    
     // Для Electron используем IPC
     if (isElectron) {
       const electron = (window as any).electron;
       if (electron && electron.fetchJson) {
         const { csrftoken } = await loadTokens();
         const cookieHeader = await cookieHeaderString();
-        
         const result = await electron.fetchJson(url, {
           method: "POST",
           headers: {
@@ -290,15 +280,12 @@ export async function deleteCommentById(
             ...(csrftoken ? { "X-CSRFToken": csrftoken, "X-Csrftoken": csrftoken } : {}),
           },
         });
-        
         if (!result.success) {
           throw new Error(result.error || `Delete failed: ${result.status || 'unknown'}`);
         }
-        
         return result.body ? (typeof result.body === 'string' ? JSON.parse(result.body) : result.body) : { success: true };
       }
     }
-    
     // Для других платформ используем обычный fetch
     let finalUrl = url;
     finalUrl = getProxiedUrl(finalUrl);

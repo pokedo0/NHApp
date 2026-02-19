@@ -33,13 +33,10 @@ export const useDownload = (
   const handleDownloadOrDelete = useCallback(async () => {
     if (!book || dl) return;
 
-    // Для Electron используем electronFileSystem, для нативных платформ - expo-file-system
     const isElectron = Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
-    
     let fs: any;
     let getDocumentDir: () => Promise<string>;
     let pathJoin: (...paths: string[]) => Promise<string> | string;
-    
     if (isElectron) {
       fs = electronFileSystem;
       getDocumentDir = async () => {
@@ -78,7 +75,6 @@ export const useDownload = (
     const lang = book.languages?.[0]?.name ?? "Unknown";
     const title = sanitize(book.title.pretty);
     const nhDir = await getDocumentDir();
-    // Убираем завершающий разделитель из nhDir перед pathJoin
     const nhDirTrimmed = isElectron
       ? (nhDir.endsWith(await (window as any).electron.pathSep()) ? nhDir.slice(0, -1) : nhDir)
       : (nhDir.endsWith("/") ? nhDir.slice(0, -1) : nhDir);
@@ -137,9 +133,7 @@ export const useDownload = (
 
         const exists = (await fs.getInfoAsync(uri)).exists;
         if (!exists) {
-          // Для Electron нужно использовать другой способ скачивания
           if (isElectron) {
-            // Используем IPC метод для скачивания в Electron
             const electron = (window as any).electron;
             const result = await electron.downloadFile(p.url, uri);
             if (!result.success) {

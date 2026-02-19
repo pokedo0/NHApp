@@ -24,7 +24,6 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-
 type Props = {
   id?: number;
   body: string;
@@ -32,7 +31,6 @@ type Props = {
   poster?: Partial<ApiUser>;
   avatar?: string;
   avatar_url?: string;
-
   highlight?: boolean;
   mineLabel?: string;
   onPress?: () => void;
@@ -40,7 +38,6 @@ type Props = {
   onPressName?: () => void;
   onDelete?: (id?: number) => Promise<void> | void;
 };
-
 const R = StyleSheet.create({
   wrap: {
     borderRadius: 14,
@@ -67,7 +64,6 @@ const R = StyleSheet.create({
   },
   body: { fontSize: 14, lineHeight: 20 },
   avatar: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#0002" },
-
   backdrop: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
   menu: {
     position: "absolute",
@@ -88,7 +84,6 @@ const R = StyleSheet.create({
     marginVertical: 2,
   },
   optsBtn: { padding: 6, marginLeft: 8, borderRadius: 12 },
-
   delBackdrop: {
     flex: 1,
     backgroundColor: "#0008",
@@ -114,15 +109,11 @@ const R = StyleSheet.create({
   delBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
   delBtnTxt: { fontWeight: "800" },
 });
-
 function parseToMs(ts?: number | string): number {
   if (!ts) return 0;
-
   if (typeof ts === "number") return ts > 1e12 ? ts : ts * 1000;
-
   let v = Date.parse(ts);
   if (Number.isFinite(v)) return v;
-
   const m =
     /^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/.exec(
       ts.trim()
@@ -139,7 +130,6 @@ function parseToMs(ts?: number | string): number {
     );
     if (!Number.isNaN(+dt)) return +dt;
   }
-
   return 0;
 }
 function localeOf(lang: "en" | "ru" | "ja" | "zh") {
@@ -153,11 +143,8 @@ function fmtTimeLocalized(
   if (!ms) return "";
   const d = new Date(ms);
   const loc = localeOf(lang);
-
   return formatDistanceToNowStrict(d, { addSuffix: true, locale: loc });
-
 }
-
 function mapIso3ToMyMemory(iso3: string, text: string): string {
   const m: Record<string, string> = {
     eng: "en",
@@ -219,7 +206,6 @@ async function translateViaMyMemory(text: string, to = "en"): Promise<string> {
     if (s) parts.push(s);
     return parts;
   };
-
   const out: string[] = [];
   for (const p of chunk(text)) {
     const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
@@ -233,7 +219,6 @@ async function translateViaMyMemory(text: string, to = "en"): Promise<string> {
   }
   return out.join(" ");
 }
-
 export default function CommentCard({
   id,
   body,
@@ -252,7 +237,6 @@ export default function CommentCard({
   const { width: winW, height: winH } = useWindowDimensions();
   const { t, resolved } = useI18n();
   const lang = (resolved ?? "en") as "en" | "ru" | "ja" | "zh";
-
   const ui = useMemo(
     () => ({
       text: colors.txt,
@@ -268,49 +252,39 @@ export default function CommentCard({
     }),
     [colors]
   );
-
   const avatarSrc =
     avatar ||
     avatar_url ||
     (poster?.avatar as string | undefined) ||
     (poster?.avatar_url as string | undefined) ||
     "";
-
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState({ x: 0, y: 0, w: 0, h: 0 });
   const btnRef = useRef<View>(null);
-
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
-
   const [translated, setTranslated] = useState<string | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [busy, setBusy] = useState(false);
-
   useEffect(() => {
     setTranslated(null);
     setShowOriginal(false);
   }, [body]);
-
   const detectedIso3 = useMemo(
     () => franc(body || "", { minLength: 3 }),
     [body]
   );
-
   const targetLangMM = lang === "zh" ? "zh-CN" : lang;
   const sourceMM = mapIso3ToMyMemory(detectedIso3, body);
   const canTranslateBase =
     (body?.trim().length ?? 0) > 2 && sourceMM !== targetLangMM;
-
   const displayBody = translated && !showOriginal ? translated : body;
-
   const openMenu = () => {
     btnRef.current?.measureInWindow?.((x, y, w, h) => {
       setMenuAnchor({ x, y, w, h });
       setMenuOpen(true);
     });
   };
-
   const handleCardPress = () => {
     if (menuOpen) {
       setMenuOpen(false);
@@ -318,18 +292,11 @@ export default function CommentCard({
     }
     onPress?.();
   };
-
-  // Обработчик для навигации в профиль (используется и для аватара, и для имени)
-  // Используем useRef чтобы предотвратить двойной вызов
   const profilePressRef = useRef(false);
   const handleProfilePress = (e?: any) => {
     e?.stopPropagation?.();
-    
-    // Предотвращаем двойной вызов
     if (profilePressRef.current) return;
     profilePressRef.current = true;
-    
-    // Предпочитаем onPressName, потом onPressAvatar, потом onPress
     if (onPressName) {
       onPressName();
     } else if (onPressAvatar) {
@@ -337,13 +304,10 @@ export default function CommentCard({
     } else {
       onPress?.();
     }
-    
-    // Сбрасываем флаг через небольшую задержку
     setTimeout(() => {
       profilePressRef.current = false;
     }, 500);
   };
-
   const doTranslate = async () => {
     try {
       setBusy(true);
@@ -357,12 +321,10 @@ export default function CommentCard({
       setMenuOpen(false);
     }
   };
-
   const doToggleOriginal = () => {
     setShowOriginal((v) => !v);
     setMenuOpen(false);
   };
-
   const doCopy = async () => {
     try {
       await Clipboard.setStringAsync(body || "");
@@ -374,13 +336,11 @@ export default function CommentCard({
       setMenuOpen(false);
     }
   };
-
   const askDelete = () => {
     setMenuOpen(false);
     if (!id) return;
     setDeleteOpen(true);
   };
-
   const confirmDelete = async () => {
     if (!id) return;
     try {
@@ -397,14 +357,12 @@ export default function CommentCard({
       setDeleteBusy(false);
     }
   };
-
   const estimatedMenuHeight = 48 * 3 + 12;
   const menuTop = Math.min(
     Math.max(8, menuAnchor.y + menuAnchor.h + 6),
     winH - estimatedMenuHeight - 8
   );
   const menuRight = Math.max(8, winW - (menuAnchor.x + menuAnchor.w));
-
   const MenuItem = ({
     icon,
     label,
@@ -430,9 +388,7 @@ export default function CommentCard({
       <Text style={{ color: ui.menuTxt, fontWeight: "700" }}>{label}</Text>
     </Pressable>
   );
-
   const timeLabel = fmtTimeLocalized(post_date, lang);
-
   return (
     <Animated.View>
       <Pressable
@@ -480,7 +436,6 @@ export default function CommentCard({
                 disabled={busy}
               />
             )}
-
             {translated && (
               <MenuItem
                 icon={showOriginal ? "translate" : "description"}
@@ -492,13 +447,11 @@ export default function CommentCard({
                 onPress={doToggleOriginal}
               />
             )}
-
             <MenuItem
               icon="content-copy"
               label={t("comments.menu.copy")}
               onPress={doCopy}
             />
-
             {highlight && (
               <MenuItem
                 icon="delete-outline"
@@ -508,7 +461,6 @@ export default function CommentCard({
             )}
           </View>
         </Modal>
-
         <View style={R.header}>
           <Pressable
             onPress={handleProfilePress}
@@ -520,7 +472,6 @@ export default function CommentCard({
               <View style={[R.avatar, { backgroundColor: ui.borderDim }]} />
             )}
           </Pressable>
-
           <Pressable
             style={{ flex: 1, marginLeft: 10 }}
             onPress={handleProfilePress}
@@ -533,7 +484,6 @@ export default function CommentCard({
               <Text style={[R.time, { color: ui.sub }]}>{timeLabel}</Text>
             </View>
           </Pressable>
-
           {translated && !showOriginal && (
             <View
               style={[
@@ -548,7 +498,6 @@ export default function CommentCard({
               </Text>
             </View>
           )}
-
           {highlight && (
             <View
               style={[
@@ -563,7 +512,6 @@ export default function CommentCard({
               </Text>
             </View>
           )}
-
           <Pressable
             ref={btnRef}
             onPress={openMenu}
@@ -574,12 +522,10 @@ export default function CommentCard({
             <MaterialIcons name="more-vert" size={20} color={ui.sub} />
           </Pressable>
         </View>
-
         <Text style={[R.body, { color: ui.text }]} selectable>
           {displayBody}
         </Text>
       </Pressable>
-
       <Modal
       statusBarTranslucent
         visible={deleteOpen}
@@ -598,7 +544,6 @@ export default function CommentCard({
             <Text style={[R.delTitle, { color: ui.text }]}>
               {t("comments.delete.title")}
             </Text>
-
             <View
               style={[
                 R.delPreview,
@@ -622,7 +567,6 @@ export default function CommentCard({
                 {displayBody}
               </Text>
             </View>
-
             <View style={R.delRow}>
               <Pressable
                 onPress={() => setDeleteOpen(false)}
@@ -633,7 +577,6 @@ export default function CommentCard({
                   {t("comments.delete.cancel")}
                 </Text>
               </Pressable>
-
               <Pressable
                 disabled={deleteBusy}
                 onPress={confirmDelete}

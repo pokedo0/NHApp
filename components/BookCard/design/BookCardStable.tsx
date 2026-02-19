@@ -1,4 +1,4 @@
-﻿import { useI18n } from "@/lib/i18n/I18nContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { Feather, FontAwesome } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { format } from "date-fns";
@@ -19,7 +19,7 @@ import {
 } from "react-native";
 
 import { Book, Tag } from "@/api/nhentai";
-import SmartImage from "@/components/SmartImage";
+import SmartImageWithRetry from "@/components/SmartImageWithRetry";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useTheme } from "@/lib/ThemeContext";
@@ -106,7 +106,12 @@ function BookCardStableInner({
   const incColor = (colors as any).incTxt ?? colors.accent;
   const excColor = (colors as any).excTxt ?? "#FF5A5F";
 
-  const initialLiked = favoritesSet ? favoritesSet.has(book.id) : isFavorite;
+  const initialLiked =
+    typeof isFavorite === "boolean"
+      ? isFavorite
+      : favoritesSet
+      ? favoritesSet.has(book.id)
+      : false;
   const [liked, setLiked] = useState<boolean>(initialLiked);
   const [showAllTags, setShowAllTags] = useState(false);
   const [rh, setRh] = useState<HistoryState>(() =>
@@ -114,8 +119,12 @@ function BookCardStableInner({
   );
 
   useEffect(() => {
-    if (favoritesSet) setLiked(favoritesSet.has(book.id));
-  }, [favoritesSet, book.id]);
+    if (typeof isFavorite === "boolean") {
+      setLiked(isFavorite);
+    } else if (favoritesSet) {
+      setLiked(favoritesSet.has(book.id));
+    }
+  }, [favoritesSet, book.id, isFavorite]);
 
   useEffect(() => {
     if (historyMap && historyMap[book.id]) setRh(historyMap[book.id]);
@@ -162,24 +171,10 @@ function BookCardStableInner({
   }, [hydrateFromStorage, favoritesSet, historyMap, book.id, book.pagesCount]);
 
   const toggleLike = useCallback(async () => {
-    if (favoritesSet) {
-      const next = !liked;
-      setLiked(next);
-      onToggleFavorite?.(book.id, next);
-      return;
-    }
-    setLiked((prev) => !prev);
-    onToggleFavorite?.(book.id, !liked);
-    try {
-      const raw = await AsyncStorage.getItem(FAV_KEY);
-      const arr: number[] = raw ? JSON.parse(raw) : [];
-      const has = arr.includes(book.id);
-      const nextArr = has
-        ? arr.filter((x) => x !== book.id)
-        : [...arr, book.id];
-      await AsyncStorage.setItem(FAV_KEY, JSON.stringify(nextArr));
-    } catch {}
-  }, [book.id, liked, onToggleFavorite, favoritesSet]);
+    const next = !liked;
+    setLiked(next);
+    onToggleFavorite?.(book.id, next);
+  }, [book.id, liked, onToggleFavorite]);
 
   const maxTags =
     cardWidth < 110 ? 1 : cardWidth < 250 ? 2 : cardWidth < 400 ? 3 : 4;
@@ -327,9 +322,11 @@ function BookCardStableInner({
   return (
     <Pressable style={cardWrap} onPress={onPressCard}>
       <View style={imageWrap}>
-        <SmartImage
+        <SmartImageWithRetry
           sources={variants}
           style={cover}
+          maxRetries={3}
+          retryDelay={1000}
         />
         <LinearGradient
           colors={["#00000000", `${colors.bg}40`, `${colors.bg}99`]}
@@ -522,12 +519,18 @@ const areEqual = (prev: BookCardStableProps, next: BookCardStableProps) => {
   if (prev.score !== next.score) return false;
   if (prev.showProgressOnCard !== next.showProgressOnCard) return false;
 
-  const prevFav = prev.favoritesSet
-    ? prev.favoritesSet.has(prev.book.id)
-    : prev.isFavorite;
-  const nextFav = next.favoritesSet
-    ? next.favoritesSet.has(next.book.id)
-    : next.isFavorite;
+  const prevFav =
+    typeof prev.isFavorite === "boolean"
+      ? prev.isFavorite
+      : prev.favoritesSet
+      ? prev.favoritesSet.has(prev.book.id)
+      : false;
+  const nextFav =
+    typeof next.isFavorite === "boolean"
+      ? next.isFavorite
+      : next.favoritesSet
+      ? next.favoritesSet.has(next.book.id)
+      : false;
   if (prevFav !== nextFav) return false;
 
   const prevHist = prev.historyMap?.[prev.book.id];

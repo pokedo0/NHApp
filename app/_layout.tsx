@@ -2,17 +2,24 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as Font from "expo-font";
+import { useFonts } from "expo-font";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { Drawer } from "react-native-drawer-layout";
 import {
-  SafeAreaProvider,
-  SafeAreaView,
-  useSafeAreaInsets,
+    SafeAreaProvider,
+    SafeAreaView,
+    useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
 
 import "@/background/autoImport.task";
 import { DrawerContext } from "@/components/DrawerContext";
+import {
+    ELECTRON_TITLE_BAR_HEIGHT,
+    ElectronTitleBar,
+} from "@/components/ElectronTitleBar";
 import { OverlayPortalProvider } from "@/components/OverlayPortal";
 import { SearchBar } from "@/components/SearchBar";
 import SideMenu from "@/components/SideMenu";
@@ -22,8 +29,10 @@ import { DateRangeProvider } from "@/context/DateRangeContext";
 import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
 import { TagLibraryProvider } from "@/context/TagLibraryContext";
+import { isElectron } from "@/electron/bridge";
 import { ThemeProvider, useTheme } from "@/lib/ThemeContext";
 import { I18nProvider } from "@/lib/i18n/I18nContext";
+import { Platform } from "react-native";
 
 import { enableFreeze, enableScreens } from "react-native-screens";
 enableScreens(true);
@@ -59,6 +68,7 @@ const StatusBarController = React.memo(function StatusBarController({
 function AppShell() {
   const { colors } = useTheme();
   const { width, height } = useWindowDimensions();
+  const contentWrapperRef = React.useRef<View>(null);
 
   const isTablet = Math.min(width, height) >= 600;
   const isLandscape = width > height;
@@ -134,12 +144,32 @@ function AppShell() {
 
   const drawerWidth = isTabletPermanent ? (menuCollapsed ? 80 : 300) : 300;
 
+  const showElectronTitleBar = !fullscreen && isElectron() && Platform.OS === "web";
+
+  useEffect(() => {
+    if (!showElectronTitleBar || Platform.OS !== "web") return;
+
+    const setWebPadding = () => {
+      if (contentWrapperRef.current) {
+        const element = contentWrapperRef.current as any;
+        const domNode = element?._domNode || element?.base || element;
+        if (domNode && domNode.style) {
+          domNode.style.paddingTop = `${ELECTRON_TITLE_BAR_HEIGHT}px`;
+        }
+      }
+    };
+
+    const timeout = setTimeout(setWebPadding, 100);
+    return () => clearTimeout(timeout);
+  }, [showElectronTitleBar]);
+
   return (
     <SafeAreaView
       edges={fullscreen ? [] : ["bottom"]}
       style={{ flex: 1, backgroundColor: colors.bg }}
     >
-      {!fullscreen && (
+      {showElectronTitleBar && <ElectronTitleBar />}
+      {!fullscreen && !showElectronTitleBar && (
         <TopChrome bg={hasDimModal ? "transparent" : colors.searchBg} />
       )}
 
@@ -160,12 +190,26 @@ function AppShell() {
               width: drawerWidth,
               backgroundColor: colors.menuBg,
               marginBottom: 0,
+              ...(showElectronTitleBar &&
+                Platform.OS === "web" && {
+                  paddingTop: ELECTRON_TITLE_BAR_HEIGHT,
+                }),
             }}
             drawerType="back"
             swipeEnabled={false}
             renderDrawerContent={renderDrawerContent}
           >
-            <View style={{ flex: 1, backgroundColor: colors.bg }}>
+            <View
+              ref={contentWrapperRef}
+              style={{
+                flex: 1,
+                backgroundColor: colors.bg,
+                ...(showElectronTitleBar &&
+                  Platform.OS === "web" && {
+                    paddingTop: ELECTRON_TITLE_BAR_HEIGHT,
+                  }),
+              }}
+            >
               <AppContent />
             </View>
           </Drawer>
@@ -225,7 +269,6 @@ function AppContent() {
         <Stack.Screen name="book/[id]" />
         <Stack.Screen name="profile/[id]/[slug]" />
         <Stack.Screen name="read" />
-        <Stack.Screen name="read-electron" />
         <Stack.Screen name="downloaded" />
         <Stack.Screen name="recommendations" />
         <Stack.Screen name="tags/index" />
@@ -237,6 +280,76 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, setFontsLoaded] = useState(!(Platform.OS === "web" && isElectron()));
+
+  useEffect(() => {
+    if (Platform.OS === "web" && isElectron()) {
+      (async () => {
+        try {
+          const fontName = 'feather';
+          let fontUrl = null;
+          if (Feather.font && Feather.font.feather) {
+            fontUrl = Feather.font.feather;
+            if (typeof fontUrl === 'string' && !fontUrl.startsWith('http') && !fontUrl.startsWith('app://')) {
+              const cleanPath = fontUrl.replace(/^(\.\/|\/)+/, '');
+              fontUrl = `app://${cleanPath}`;
+            }
+          }
+          if (!fontUrl) {
+            fontUrl = 'app://assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf';
+          }
+          if (typeof fontUrl === 'string' && fontUrl.startsWith('app://')) {
+            fontUrl = fontUrl.replace('app://', 'app://./');
+          }
+          console.log("[RootLayout] Loading Feather font from:", fontUrl);
+          const style = document.createElement('style');
+          style.textContent = `
+            @font-face {
+              font-family: '${fontName}';
+              src: url('${fontUrl}') format('truetype');
+              font-weight: normal;
+              font-style: normal;
+              font-display: swap;
+            }
+          `;
+          document.head.appendChild(style);
+          console.log("[RootLayout] Created @font-face for Feather font");
+          try {
+            const fontFace = new FontFace(fontName, `url(${fontUrl})`);
+            await fontFace.load();
+            document.fonts.add(fontFace);
+            console.log("[RootLayout] Feather font loaded and added to document.fonts");
+            await document.fonts.ready;
+            const isLoaded = document.fonts.check(`12px ${fontName}`);
+            console.log("[RootLayout] Font check result:", isLoaded);
+          } catch (fontError) {
+            console.warn("[RootLayout] FontFace.load failed, font may load via CSS:", fontError);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          try {
+            if (Feather.font && typeof Font.loadAsync === 'function') {
+              await Font.loadAsync(Feather.font);
+              console.log("[RootLayout] Feather font loaded via Font.loadAsync");
+            } else {
+              await Feather.loadFont();
+              console.log("[RootLayout] Feather font loaded via Feather.loadFont");
+            }
+          } catch (e) {
+            console.warn("[RootLayout] expo-font load failed, but @font-face should work:", e);
+          }
+          setFontsLoaded(true);
+        } catch (error) {
+          console.warn("[RootLayout] Failed to load Feather font:", error);
+          setFontsLoaded(true);
+        }
+      })();
+    }
+  }, []);
+
+  if (!fontsLoaded && Platform.OS === "web" && isElectron()) {
+    return null;
+  }
+
   return (
     <AutoImportProvider>
       <ThemeProvider>

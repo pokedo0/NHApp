@@ -10,22 +10,16 @@ import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import React from "react";
 import { WebViewMessageEvent, WebViewNavigation } from "react-native-webview";
-
 export type TokensState = { csrftoken?: string; sessionid?: string };
-
 export function useAuthBridge(t: (k: string, p?: any) => string) {
   const [tokens, setTokens] = React.useState<TokensState>({});
   const [me, setMe] = React.useState<Me | null>(null);
   const [status, setStatus] = React.useState<string>("");
-
   const [csrfInput, setCsrfInput] = React.useState("");
   const [sessInput, setSessInput] = React.useState("");
-
   const [wvBusy, setWvBusy] = React.useState(false);
-
   const canUseNativeJar = hasNativeCookieJar();
   const isExpoGo = Constants.appOwnership === "expo";
-
   React.useEffect(() => {
     (async () => {
       const tks = await loadTokens();
@@ -38,26 +32,21 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
       } catch {}
     })();
   }, []);
-
   const fetchMeAndMaybeClose = React.useCallback(
     async (why: string) => {
       try {
         console.log(`[useAuthBridge] fetchMeAndMaybeClose called: ${why}`);
-        
-        // Проверяем токены перед запросом
         const tokens = await loadTokens();
         console.log(`[useAuthBridge] Current tokens:`, { 
           csrf: !!tokens.csrftoken, 
           session: !!tokens.sessionid 
         });
-        
         const m = await getMe();
         console.log(`[useAuthBridge] getMe result:`, m ? { 
           id: m.id, 
           username: m.username,
           slug: m.slug 
         } : null);
-        
         if (m) {
           setMe(m);
           setStatus(t("login.status.signedAs", { user: m.username, why }));
@@ -75,7 +64,6 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
     },
     [t]
   );
-
   const refreshTokensFromJar = React.useCallback(
     async (reason: string) => {
       if (!canUseNativeJar) return;
@@ -93,7 +81,6 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
     },
     [canUseNativeJar, fetchMeAndMaybeClose, t]
   );
-
   const applyManual = React.useCallback(
     async (nextCsrf: string, nextSess: string) => {
       await setManualTokens(
@@ -107,7 +94,6 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
     },
     [fetchMeAndMaybeClose, t]
   );
-
   const doLogout = React.useCallback(async () => {
     await logout();
     const curr = await loadTokens();
@@ -117,7 +103,6 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
     setSessInput("");
     setStatus(t("login.status.loggedOut"));
   }, [setTokens, setMe, t]);
-
   const onWvMessage = React.useCallback(
     async (ev: WebViewMessageEvent) => {
       try {
@@ -144,7 +129,6 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
     },
     [canUseNativeJar, refreshTokensFromJar, fetchMeAndMaybeClose]
   );
-
   const handleNavChange = React.useCallback(
     (_navState: WebViewNavigation) => {
       setStatus(t("login.status.navigating"));
@@ -152,13 +136,11 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
     },
     [canUseNativeJar, refreshTokensFromJar, t]
   );
-
   const copy = React.useCallback(async (text: string) => {
     try {
       await Clipboard.setStringAsync(text);
     } catch {}
   }, []);
-
   return {
     tokens,
     me,

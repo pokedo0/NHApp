@@ -1,9 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
-
 export function usePersistedState<T>(key: string, initial: T) {
   const [value, setValue] = useState<T>(initial);
-
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -17,13 +15,11 @@ export function usePersistedState<T>(key: string, initial: T) {
       mounted = false;
     };
   }, [key]);
-
   const update = async (next: T) => {
     setValue(next);
     try {
       await AsyncStorage.setItem(key, JSON.stringify(next));
     } catch {}
   };
-
   return [value, update] as const;
 }

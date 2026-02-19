@@ -1,9 +1,10 @@
 import { searchBooks, type Book } from "@/api/nhentai";
 import BookList from "@/components/BookList";
+import Card from "@/components/settings/Card";
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
@@ -30,14 +31,7 @@ function CardDesignSegment({
   const options: Array<"classic" | "stable" | "image"> = ["classic", "stable", "image"];
 
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        borderRadius: 12,
-        overflow: "hidden",
-        alignSelf: "flex-start",
-      }}
-    >
+    <View style={styles.designSegmentContainer}>
       {options.map((d, i) => {
         const active = value === d;
         return (
@@ -45,13 +39,13 @@ function CardDesignSegment({
             key={d}
             onPress={() => onChange(d)}
             style={{
-              paddingHorizontal: 14,
-              paddingVertical: 10,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
               backgroundColor: active ? colors.incBg : colors.tagBg,
-              borderTopLeftRadius: i === 0 ? 12 : 0,
-              borderBottomLeftRadius: i === 0 ? 12 : 0,
-              borderTopRightRadius: i === options.length - 1 ? 12 : 0,
-              borderBottomRightRadius: i === options.length - 1 ? 12 : 0,
+              borderTopLeftRadius: i === 0 ? 10 : 0,
+              borderBottomLeftRadius: i === 0 ? 10 : 0,
+              borderTopRightRadius: i === options.length - 1 ? 10 : 0,
+              borderBottomRightRadius: i === options.length - 1 ? 10 : 0,
               borderWidth: 1,
               borderColor: active ? colors.incTxt : colors.page,
             }}
@@ -59,6 +53,7 @@ function CardDesignSegment({
           >
             <Text
               style={{
+                fontSize: 13,
                 fontWeight: "800",
                 color: active ? colors.incTxt : colors.tagText,
               }}
@@ -190,23 +185,17 @@ export default function GridSection({
   };
 
   return (
-    <View style={{ marginBottom: 20 }}>
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap: 10,
-          marginBottom: 14,
-        }}
-      >
+    <Card>
+      {}
+      <View style={styles.profileSelector}>
         {PROFILES.map((p) => (
           <Pressable
             key={p}
             onPress={() => setActiveProfile(p)}
             style={{
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-              borderRadius: 14,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 12,
               borderWidth: activeProfile === p ? 2 : 1.5,
               backgroundColor: chipBg(p),
               borderColor: chipBr(p),
@@ -215,9 +204,9 @@ export default function GridSection({
           >
             <Text
               style={{
+                fontSize: 12,
                 color: chipFg(p),
                 fontWeight: activeProfile === p ? "800" : "700",
-                fontSize: 13,
                 letterSpacing: 0.2,
               }}
             >
@@ -227,11 +216,15 @@ export default function GridSection({
         ))}
       </View>
 
-      <CardDesignSegment value={cardDesign} onChange={setDesign} />
+      {}
+      <View style={{ marginTop: 12 }}>
+        <CardDesignSegment value={cardDesign} onChange={setDesign} />
+      </View>
 
+      {}
       <View
         onLayout={onLayoutPreview}
-        style={{ marginTop: 10, borderRadius: 12, overflow: "hidden" }}
+        style={{ marginTop: 12, borderRadius: 12, overflow: "hidden" }}
       >
         <BookList
           data={previewBooks}
@@ -260,45 +253,19 @@ export default function GridSection({
         />
       </View>
 
-      <View style={{ marginTop: 16, gap: 20 }}>
-        {/* Колонки */}
+      {}
+      <View style={{ marginTop: 16, gap: 16 }}>
+        {}
         <View>
-          <View style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}>
-            <Text style={{
-              fontSize: 15,
-              fontWeight: "700",
-              letterSpacing: 0.2,
-              color: colors.txt,
-            }}>
-              {t("settings.grid.columns")}
-            </Text>
-            <View style={{
-              backgroundColor: colors.accent + "20",
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              borderRadius: 8,
-            }}>
-              <Text style={{
-                fontSize: 13,
-                fontWeight: "800",
-                letterSpacing: 0.2,
-                color: colors.accent,
-              }}>
+          <View style={styles.settingHeader}>
+            <Text style={[styles.settingLabel, { color: colors.txt }]}>{t("settings.grid.columns")}</Text>
+            <View style={[styles.valueBadge, { backgroundColor: colors.accent + "20" }]}>
+              <Text style={[styles.valueText, { color: colors.accent }]}>
                 {Math.min(profCfg.numColumns, colsMaxByWidth)}
               </Text>
             </View>
           </View>
-          <View style={{
-            backgroundColor: colors.page + "50",
-            borderRadius: 12,
-            paddingVertical: 8,
-            paddingHorizontal: 4,
-          }}>
+          <View style={[styles.sliderContainer, { backgroundColor: colors.page + "50" }]}>
             <Slider
               style={{ height: 40 }}
               minimumValue={1}
@@ -313,52 +280,23 @@ export default function GridSection({
           </View>
         </View>
 
-        {/* Минимальная ширина */}
+        {}
         <View>
-          <View style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}>
-            <Text style={{
-              fontSize: 15,
-              fontWeight: "700",
-              letterSpacing: 0.2,
-              color: colors.txt,
-            }}>
-              {t("settings.grid.minWidth")}
-            </Text>
-            <View style={{
-              backgroundColor: colors.accent + "20",
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              borderRadius: 8,
-            }}>
-              <Text style={{
-                fontSize: 13,
-                fontWeight: "800",
-                letterSpacing: 0.2,
-                color: colors.accent,
-              }}>
+          <View style={styles.settingHeader}>
+            <Text style={[styles.settingLabel, { color: colors.txt }]}>{t("settings.grid.minWidth")}</Text>
+            <View style={[styles.valueBadge, { backgroundColor: colors.accent + "20" }]}>
+              <Text style={[styles.valueText, { color: colors.accent }]}>
                 {profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)}px
               </Text>
             </View>
           </View>
-          <View style={{
-            backgroundColor: colors.page + "50",
-            borderRadius: 12,
-            paddingVertical: 8,
-            paddingHorizontal: 4,
-          }}>
+          <View style={[styles.sliderContainer, { backgroundColor: colors.page + "50" }]}>
             <Slider
               style={{ height: 40 }}
               minimumValue={cardDesign === "image" ? 40 : 80}
               maximumValue={200}
               step={1}
-              value={
-                profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)
-              }
+              value={profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)}
               minimumTrackTintColor={colors.accent}
               maximumTrackTintColor={colors.page + "30"}
               thumbTintColor={colors.accent}
@@ -367,44 +305,15 @@ export default function GridSection({
           </View>
         </View>
 
-        {/* Отступы по бокам */}
+        {}
         <View>
-          <View style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}>
-            <Text style={{
-              fontSize: 15,
-              fontWeight: "700",
-              letterSpacing: 0.2,
-              color: colors.txt,
-            }}>
-              {t("settings.grid.sidePadding")}
-            </Text>
-            <View style={{
-              backgroundColor: colors.accent + "20",
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              borderRadius: 8,
-            }}>
-              <Text style={{
-                fontSize: 13,
-                fontWeight: "800",
-                letterSpacing: 0.2,
-                color: colors.accent,
-              }}>
-                {profCfg.paddingHorizontal}
-              </Text>
+          <View style={styles.settingHeader}>
+            <Text style={[styles.settingLabel, { color: colors.txt }]}>{t("settings.grid.sidePadding")}</Text>
+            <View style={[styles.valueBadge, { backgroundColor: colors.accent + "20" }]}>
+              <Text style={[styles.valueText, { color: colors.accent }]}>{profCfg.paddingHorizontal}</Text>
             </View>
           </View>
-          <View style={{
-            backgroundColor: colors.page + "50",
-            borderRadius: 12,
-            paddingVertical: 8,
-            paddingHorizontal: 4,
-          }}>
+          <View style={[styles.sliderContainer, { backgroundColor: colors.page + "50" }]}>
             <Slider
               style={{ height: 40 }}
               minimumValue={0}
@@ -419,44 +328,15 @@ export default function GridSection({
           </View>
         </View>
 
-        {/* Расстояние между колонками */}
+        {}
         <View>
-          <View style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}>
-            <Text style={{
-              fontSize: 15,
-              fontWeight: "700",
-              letterSpacing: 0.2,
-              color: colors.txt,
-            }}>
-              {t("settings.grid.columnGap")}
-            </Text>
-            <View style={{
-              backgroundColor: colors.accent + "20",
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              borderRadius: 8,
-            }}>
-              <Text style={{
-                fontSize: 13,
-                fontWeight: "800",
-                letterSpacing: 0.2,
-                color: colors.accent,
-              }}>
-                {profCfg.columnGap}
-              </Text>
+          <View style={styles.settingHeader}>
+            <Text style={[styles.settingLabel, { color: colors.txt }]}>{t("settings.grid.columnGap")}</Text>
+            <View style={[styles.valueBadge, { backgroundColor: colors.accent + "20" }]}>
+              <Text style={[styles.valueText, { color: colors.accent }]}>{profCfg.columnGap}</Text>
             </View>
           </View>
-          <View style={{
-            backgroundColor: colors.page + "50",
-            borderRadius: 12,
-            paddingVertical: 8,
-            paddingHorizontal: 4,
-          }}>
+          <View style={[styles.sliderContainer, { backgroundColor: colors.page + "50" }]}>
             <Slider
               style={{ height: 40 }}
               minimumValue={0}
@@ -472,80 +352,92 @@ export default function GridSection({
         </View>
       </View>
 
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          marginTop: 12,
-        }}
-      >
+      {}
+      <View style={styles.actionsContainer}>
         <Pressable
           onPress={resetProfile}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderRadius: 12,
-            flex: 1,
-            backgroundColor: colors.page,
-            borderWidth: 1.5,
-            borderColor: colors.page + "80",
-          }}
+          style={[styles.resetButton, { backgroundColor: colors.page, borderColor: colors.page + "80" }]}
           android_ripple={{ color: colors.accent + "22", borderless: false }}
         >
-          <Feather name="rotate-ccw" size={16} color={colors.txt} />
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: "700",
-              letterSpacing: 0.2,
-              color: colors.txt,
-            }}
-          >
+          <Feather name="rotate-ccw" size={14} color={colors.txt} />
+          <Text style={[styles.resetButtonText, { color: colors.txt }]}>
             {t("settings.grid.resetProfile")}
           </Text>
         </Pressable>
 
         <Pressable
           onPress={resetAll}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderRadius: 12,
-            flex: 1,
-            backgroundColor: colors.accent,
-            borderWidth: 1.5,
-            borderColor: colors.accent + "80",
-          }}
+          style={[styles.resetButton, { backgroundColor: colors.accent, borderColor: colors.accent + "80" }]}
           android_ripple={{ color: "#ffffff22", borderless: false }}
         >
-          <Feather name="trash-2" size={16} color={colors.bg} />
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: "700",
-              letterSpacing: 0.2,
-              color: colors.bg,
-            }}
-          >
+          <Feather name="trash-2" size={14} color={colors.bg} />
+          <Text style={[styles.resetButtonText, { color: colors.bg }]}>
             {t("settings.grid.resetAll")}
           </Text>
         </Pressable>
       </View>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  profileSelector: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  designSegmentContainer: {
+    flexDirection: "row",
+    borderRadius: 10,
+    overflow: "hidden",
+    alignSelf: "flex-start",
+  },
+  settingHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  settingLabel: {
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  valueBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  valueText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  sliderContainer: {
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  actionsContainer: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+  resetButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    flex: 1,
+    borderWidth: 1.5,
+  },
+  resetButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
 });
 

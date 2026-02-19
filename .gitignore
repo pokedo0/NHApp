@@ -17,6 +17,8 @@ api/*
 dist/
 web-build/
 expo-env.d.ts
+ELECTRON_SETUP.md
+
 
 # Electron
 electron-dist/

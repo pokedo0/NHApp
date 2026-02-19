@@ -1,28 +1,28 @@
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { Feather } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  LayoutChangeEvent,
-  Modal,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useWindowDimensions
+    FlatList,
+    LayoutChangeEvent,
+    Modal,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+    useWindowDimensions
 } from "react-native";
 
 import {
-  Rect as CardRect,
-  CharacterCatalogItemDto,
-  deleteCharacterCard,
-  getCharacterCatalog,
-  updateCharacterCard,
+    Rect as CardRect,
+    CharacterCatalogItemDto,
+    deleteCharacterCard,
+    getCharacterCatalog,
+    updateCharacterCard,
 } from "@/api/characterCards";
 import { TagLite } from "@/components/book/TagBlock";
 import EditCharacterCardModal from "@/components/EditCharacterCardModal";
@@ -598,9 +598,7 @@ export default function CharactersScreen() {
       </View>
 
       {initialLoading ? (
-        <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color={accent} />
-        </View>
+        <LoadingSpinner fullScreen size="large" color={accent} />
       ) : (
         <FlatList
           data={flatListData}
@@ -888,7 +886,6 @@ export default function CharactersScreen() {
         userId: me?.id!,
       });
 
-      // Оптимистично обновляем локальный каталог, чтобы не ждать TTL кеша на бэке
       const updatedImageUrl =
         (res as any)?.card?.imageUrl ?? editingTag.tag.cardImageUrl ?? null;
       const updatedRect = (res as any)?.card?.rect ?? newRect ?? editingTag.tag.cardRect ?? null;
@@ -903,7 +900,6 @@ export default function CharactersScreen() {
                 ...it,
                 characterName: trimmedName,
                 parodyName: newParody,
-                // добавляем cache-busting к URL, чтобы ExpoImage не показывал старый диск-кеш
                 imageUrl: withBust(updatedImageUrl),
                 rect: updatedRect,
               }
@@ -928,7 +924,6 @@ export default function CharactersScreen() {
     setEditSaving(true);
     try {
       await deleteCharacterCard(editingTag.tag.cardId!, me?.id!);
-      // Удаляем локально, чтобы не ждать TTL кеша на бэке
       setCatalog((prev) => {
         const next = prev.filter((it) => it.cardId !== editingTag.tag.cardId);
         buildGroups(next);
@@ -957,7 +952,6 @@ const CroppedImage: React.FC<CroppedImageProps> = React.memo(({ uri, rect, style
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
-    // Предотвращаем обновление состояния, если размер не изменился значительно
     if (
       Math.abs(width - layoutRef.current.width) > 1 ||
       Math.abs(height - layoutRef.current.height) > 1
@@ -1019,7 +1013,6 @@ const CroppedImage: React.FC<CroppedImageProps> = React.memo(({ uri, rect, style
     </View>
   );
 }, (prevProps, nextProps) => {
-  // Кастомная функция сравнения для предотвращения лишних ре-рендеров
   return (
     prevProps.uri === nextProps.uri &&
     prevProps.rect?.x === nextProps.rect?.x &&

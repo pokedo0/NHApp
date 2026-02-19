@@ -4,17 +4,14 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as IntentLauncher from "expo-intent-launcher";
 import { useCallback, useEffect, useState } from "react";
 import { Linking, Platform, ToastAndroid } from "react-native";
-
 type UpdateInfo = {
   versionName: string;
   notes: string;
   apkUrl: string;
 };
-
 export function useUpdateCheck() {
   const [update,   setUpdate]   = useState<UpdateInfo | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
-
   const checkUpdate = useCallback(async () => {
     try {
       const res = await fetch(
@@ -24,7 +21,6 @@ export function useUpdateCheck() {
       const tag     = j.tag_name as string;
       const current =
         Constants.expoConfig?.version ?? Application.nativeBuildVersion;
-
       if (tag && tag !== current && j.assets?.length) {
         setUpdate({
           versionName: tag,
@@ -38,9 +34,7 @@ export function useUpdateCheck() {
       console.warn("[update-check]", e);
     }
   }, []);
-
   useEffect(() => { checkUpdate(); }, [checkUpdate]);
-
   const launchInstaller = async (file: string) => {
     const uri = await FileSystem.getContentUriAsync(file);
     await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {
@@ -49,20 +43,16 @@ export function useUpdateCheck() {
       flags: 1 | 0x10000000,
     });
   };
-
   const downloadAndInstall = useCallback(async () => {
     if (!update || progress !== null) return;
-
     if (Platform.OS === "android" && (Platform.Version as number) >= 26) {
       ToastAndroid.show("Скачивание через браузер…", ToastAndroid.SHORT);
       Linking.openURL(update.apkUrl);
       return;
     }
-
     try {
       const dest = `${FileSystem.documentDirectory}NHApp_update.apk`;
       setProgress(0);
-
       await FileSystem.createDownloadResumable(
         update.apkUrl,
         dest,
@@ -70,7 +60,6 @@ export function useUpdateCheck() {
         ({ totalBytesWritten, totalBytesExpectedToWrite }) =>
           setProgress(totalBytesWritten / totalBytesExpectedToWrite)
       ).downloadAsync();
-
       setProgress(null);
       ToastAndroid.show("APK загружен, открываю установщик…", ToastAndroid.SHORT);
       await launchInstaller(dest);
@@ -80,6 +69,5 @@ export function useUpdateCheck() {
       setProgress(null);
     }
   }, [update, progress]);
-
   return { update, progress, downloadAndInstall, checkUpdate };
 }

@@ -1,20 +1,20 @@
-﻿import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 import {
-  Book,
-  DateSearchPhase,
-  DateSearchProgress,
-  searchBooks,
+    Book,
+    DateSearchPhase,
+    DateSearchProgress,
+    searchBooks,
 } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
@@ -25,6 +25,8 @@ import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
+import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
+import { scrollToTop } from "@/utils/scrollToTop";
 
 const EXPLORE_CACHE = new Map<string, { books: Book[]; totalPages: number }>();
 
@@ -95,10 +97,30 @@ export default function ExploreScreen() {
   } | null>(null);
 
   const [isPaginating, setPaginating] = useState(false);
+  const [infiniteScroll, setInfiniteScroll] = useState(false);
+  const scrollRef = useRef<FlatList<Book> | null>(null);
 
   const searching = dateFilterActive && stage !== "idle" && stage !== "done";
   const reqIdRef = useRef(0);
+  const skipPageChangeRef = useRef(false);
+  const booksLengthRef = useRef(books.length);
   const gridConfig = useGridConfig();
+
+  const loadInfiniteScrollSetting = useCallback(() => {
+    AsyncStorage.getItem(INFINITE_SCROLL_KEY).then((value) => {
+      setInfiniteScroll(value === "true");
+    });
+  }, []);
+
+  useEffect(() => {
+    loadInfiniteScrollSetting();
+  }, [loadInfiniteScrollSetting]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadInfiniteScrollSetting();
+    }, [loadInfiniteScrollSetting])
+  );
 
   useEffect(() => {
     AsyncStorage.getItem("bookFavorites").then(
@@ -278,14 +300,17 @@ export default function ExploreScreen() {
     );
   };
 
+  useEffect(() => {
+    booksLengthRef.current = books.length;
+  }, [books.length]);
+
   const fetchPage = useCallback(
-    async (page: number, keyForCache: string) => {
+    async (page: number, keyForCache: string, append = false) => {
       const q = query.trim();
       const myReqId = ++reqIdRef.current;
+      const isFirstLoad = booksLengthRef.current === 0;
 
-      const isFirstLoad = books.length === 0;
-
-      if (!dateFilterActive) {
+      if (!dateFilterActive && !append) {
         const cached = EXPLORE_CACHE.get(keyForCache);
         if (cached) {
           if (myReqId !== reqIdRef.current) return;
@@ -348,12 +373,23 @@ export default function ExploreScreen() {
         clearTimeout(timer);
         if (myReqId !== reqIdRef.current) return;
 
-        setBooks(res.books);
+        if (append && page > 1) {
+          setBooks((prev) => {
+            const existingIds = new Set(prev.map((b: Book) => b.id));
+            const newBooks = res.books.filter((b: Book) => !existingIds.has(b.id));
+            const combined = [...prev, ...newBooks];
+            return combined;
+          });
+        } else {
+          setBooks(res.books);
+          if (page === 1 || !append) {
+            EXPLORE_CACHE.set(keyForCache, {
+              books: res.books,
+              totalPages: res.totalPages,
+            });
+          }
+        }
         setTotal(res.totalPages);
-        EXPLORE_CACHE.set(keyForCache, {
-          books: res.books,
-          totalPages: res.totalPages,
-        });
 
         if (!dateFilterActive) {
           setResultState(res.books.length ? "idle" : "no-results");
@@ -383,13 +419,17 @@ export default function ExploreScreen() {
       dateFilterActive,
       activeIncludes,
       activeExcludes,
-      books.length,
+      infiniteScroll,
     ]
   );
 
   useEffect(() => {
     if (!isHydrated) return;
-    fetchPage(currentPage, cacheKey);
+    if (skipPageChangeRef.current) {
+      skipPageChangeRef.current = false;
+      return;
+    }
+    fetchPage(currentPage, cacheKey, false);
   }, [isHydrated, cacheKey, currentPage, fetchPage]);
 
   useEffect(() => {
@@ -398,12 +438,33 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     setPage(1);
+    scrollToTop(scrollRef);
   }, [query, sort, incStr, excStr, dateFrom, dateTo]);
 
   const onRefresh = useCallback(async () => {
     if (!isHydrated) return;
     await fetchPage(currentPage, cacheKey);
   }, [isHydrated, currentPage, cacheKey, fetchPage]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const handleRefresh = async () => {
+      globalThis.dispatchEvent?.(
+        new globalThis.CustomEvent("app:refresh-content-start")
+      );
+      try {
+        await onRefresh();
+      } finally {
+        globalThis.dispatchEvent?.(
+          new globalThis.CustomEvent("app:refresh-content-end")
+        );
+      }
+    };
+    globalThis.addEventListener?.("app:refresh-content", handleRefresh);
+    return () => {
+      globalThis.removeEventListener?.("app:refresh-content", handleRefresh);
+    };
+  }, [onRefresh]);
 
   const toggleFav = useCallback(
     (id: number, next: boolean) => {
@@ -558,20 +619,65 @@ export default function ExploreScreen() {
               });
             }}
             gridConfig={{ default: gridConfig }}
+            scrollRef={scrollRef}
+            onEndReached={
+              infiniteScroll && currentPage < totalPages && !isPaginating
+                ? () => {
+                    setPaginating(true);
+                    if (dateFilterActive) {
+                      setStage("fetch");
+                      setProbeNow(null);
+                      setWindowInfo(null);
+                    }
+                    const nextPage = currentPage + 1;
+                    const nextCacheKey = JSON.stringify({
+                      q: query.trim(),
+                      sort,
+                      inc: activeIncludes,
+                      exc: activeExcludes,
+                      page: nextPage,
+                      from: dateFrom
+                        ? new Date(dateFrom as any).toISOString().slice(0, 10)
+                        : null,
+                      to: dateTo ? new Date(dateTo as any).toISOString().slice(0, 10) : null,
+                    });
+                    skipPageChangeRef.current = true;
+                    fetchPage(nextPage, nextCacheKey, true);
+                    setPage(nextPage);
+                  }
+                : undefined
+            }
           />
-          <PaginationBar
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onChange={(p) => {
-              setPaginating(true);
-              if (dateFilterActive) {
-                setStage("fetch");
-                setProbeNow(null);
-                setWindowInfo(null);
-              }
-              setPage(p);
-            }}
-          />
+          {!infiniteScroll && (
+            <PaginationBar
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onChange={(p) => {
+                setPaginating(true);
+                if (dateFilterActive) {
+                  setStage("fetch");
+                  setProbeNow(null);
+                  setWindowInfo(null);
+                }
+                skipPageChangeRef.current = true;
+                const paginationCacheKey = JSON.stringify({
+                  q: query.trim(),
+                  sort,
+                  inc: activeIncludes,
+                  exc: activeExcludes,
+                  page: p,
+                  from: dateFrom
+                    ? new Date(dateFrom as any).toISOString().slice(0, 10)
+                    : null,
+                  to: dateTo ? new Date(dateTo as any).toISOString().slice(0, 10) : null,
+                });
+                fetchPage(p, paginationCacheKey, false);
+                setPage(p);
+              }}
+              scrollRef={scrollRef}
+              hideWhenInfiniteScroll={false}
+            />
+          )}
         </>
       )}
     </View>

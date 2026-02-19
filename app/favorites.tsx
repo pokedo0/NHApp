@@ -1,10 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
 import { Book, getFavorites } from "@/api/nhentai";
 import BookList from "@/components/BookList";
+import { scrollToTop } from "@/utils/scrollToTop";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
 
@@ -18,6 +19,7 @@ export default function FavoritesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const gridConfig = useGridConfig();
+  const scrollRef = useRef<FlatList<Book> | null>(null);
 
   const loadFavoriteIds = useCallback(() => {
     AsyncStorage.getItem("bookFavorites").then((j) => {
@@ -75,7 +77,28 @@ export default function FavoritesScreen() {
     setRefreshing(true);
     await loadBooks(1);
     setRefreshing(false);
+    scrollToTop(scrollRef);
   }, [loadBooks]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const handleRefresh = async () => {
+      globalThis.dispatchEvent?.(
+        new globalThis.CustomEvent("app:refresh-content-start")
+      );
+      try {
+        await onRefresh();
+      } finally {
+        globalThis.dispatchEvent?.(
+          new globalThis.CustomEvent("app:refresh-content-end")
+        );
+      }
+    };
+    globalThis.addEventListener?.("app:refresh-content", handleRefresh);
+    return () => {
+      globalThis.removeEventListener?.("app:refresh-content", handleRefresh);
+    };
+  }, [onRefresh]);
 
   const toggleFavorite = useCallback((id: number, next: boolean) => {
     setFavorites((prev) => {
@@ -119,6 +142,7 @@ export default function FavoritesScreen() {
           ) : null
         }
         gridConfig={{ default: gridConfig }}
+        scrollRef={scrollRef}
       />
     </View>
   );

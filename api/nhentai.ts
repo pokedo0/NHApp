@@ -1,23 +1,23 @@
+import { electronFileSystem } from "@/utils/electronFileSystem";
 import axios from "axios";
 import * as FileSystem from "expo-file-system/legacy";
 import { Image, Platform } from "react-native";
-import { electronFileSystem } from "@/utils/electronFileSystem";
 
-// Proxy URL for web version to bypass CORS (но НЕ для Electron)
-// Проверяем Electron динамически, так как window.electron может быть недоступен при инициализации модуля
+
+
 const checkIsElectron = () => Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
 
 const isElectron = checkIsElectron();
-// Логируем только для Electron или web
+
 if (Platform.OS === "web") {
   console.log(`[api] Platform.OS: ${Platform.OS}, isElectron: ${isElectron}, electron available: ${!!(typeof window !== "undefined" && (window as any).electron)}`);
 }
 
 const PROXY_BASE = Platform.OS === "web" && !isElectron
-  ? (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3002") + "/fpi"
+  ? (process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3002") + "/fpi"
   : null;
 
-// Для Electron всегда используем прямой URL, для обычного web - proxy, для Android/iOS - прямой URL
+
 const baseURL = Platform.OS === "web" && PROXY_BASE && !isElectron
   ? `${PROXY_BASE}/nhentai/api`
   : "https://nhentai.net/api";
@@ -26,46 +26,32 @@ if (Platform.OS === "web") {
   console.log(`[api] baseURL: ${baseURL}, PROXY_BASE: ${PROXY_BASE}`);
 }
 
-// On web, don't set User-Agent header (browser doesn't allow it)
+
 const headers: Record<string, string> = {};
 if (Platform.OS !== "web") {
   headers["User-Agent"] = "nh-client";
 }
 
-// Кастомный адаптер для Electron (проверяем динамически)
+
 const electronAdapter = async (config: any) => {
-  // Проверяем Electron динамически при каждом запросе
   const isElectronNow = Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
-  
   if (!isElectronNow) {
-    // Не Electron (Android/iOS), используем стандартный адаптер axios
-    // Для нативных платформ axios использует встроенный адаптер (fetch для React Native)
     if (axios.defaults.adapter && typeof axios.defaults.adapter === 'function') {
       return axios.defaults.adapter(config);
     }
-    // Fallback: используем встроенный адаптер axios
     return Promise.reject(new Error('No adapter available'));
   }
-  
-  // Логируем только для Electron
   console.log(`[api adapter] Request intercepted: ${config.method?.toUpperCase()} ${config.url}`);
-  
   const electron = (window as any).electron;
   if (!electron || !electron.fetchJson) {
-    // Fallback к обычному fetch через proxy
     console.warn("[api adapter] Electron fetchJson not available, using proxy");
-    // Используем стандартный адаптер axios
     if (axios.defaults.adapter && typeof axios.defaults.adapter === 'function') {
       return axios.defaults.adapter(config);
     }
-    // Fallback: используем встроенный адаптер axios
     return Promise.reject(new Error('No adapter available'));
   }
 
-  // Формируем URL с учетом параметров запроса
-  // Axios может передавать URL в разных форматах, нужно проверить все варианты
   const urlPath = config.url || '';
-  
   if (!urlPath && !config.baseURL) {
     console.error(`[api adapter] Both config.url and config.baseURL are undefined! config:`, {
       method: config.method,
@@ -75,33 +61,24 @@ const electronAdapter = async (config: any) => {
     });
     return Promise.reject(new Error('URL is required'));
   }
-  
-  // Формируем полный URL
   let url: string;
   if (config.baseURL) {
-    // Если есть baseURL, объединяем его с url
     url = urlPath.startsWith('/') 
       ? `${config.baseURL}${urlPath}`
       : `${config.baseURL}/${urlPath}`;
   } else if (urlPath.startsWith("http")) {
-    // Если URL уже полный
     url = urlPath;
   } else {
-    // Иначе используем дефолтный baseURL
     url = urlPath.startsWith('/')
       ? `https://nhentai.net/api${urlPath}`
       : `https://nhentai.net/api/${urlPath}`;
   }
 
-  // Axios может передавать параметры отдельно в config.params
-  // Нужно добавить их к URL, если они есть
   if (config.params && Object.keys(config.params).length > 0) {
     const params = new URLSearchParams();
     Object.keys(config.params).forEach(key => {
       const value = config.params[key];
-      // Пропускаем только undefined и null, но включаем пустые строки и 0
       if (value !== undefined && value !== null) {
-        // Для пустых строк и пробелов используем правильное значение
         const stringValue = String(value);
         params.append(key, stringValue);
       }
@@ -111,21 +88,15 @@ const electronAdapter = async (config: any) => {
       url += (url.includes('?') ? '&' : '?') + queryString;
     }
   }
-  
-  // Также проверяем, есть ли параметры уже в config.url
-  // (axios может их добавить автоматически, но мы перехватываем до этого)
 
   console.log(`[api adapter] Using Electron IPC for: ${url}`);
   console.log(`[api adapter] config.url: ${config.url}, config.params:`, config.params);
 
-  // Получаем cookies из AsyncStorage для Electron
   const { cookieHeaderString } = await import("@/api/auth");
   const cookieHeader = await cookieHeaderString({ preferNative: false });
-  
   const requestHeaders: Record<string, string> = {
     ...config.headers,
   };
-  
   if (cookieHeader) {
     requestHeaders["Cookie"] = cookieHeader;
     console.log(`[api adapter] Added Cookie header (length: ${cookieHeader.length})`);
@@ -139,7 +110,6 @@ const electronAdapter = async (config: any) => {
       headers: requestHeaders,
       body: config.data,
     });
-    
     console.log(`[api adapter] IPC result: success=${result.success}, status=${result.status}`);
 
     if (!result.success) {
@@ -154,12 +124,10 @@ const electronAdapter = async (config: any) => {
       throw error;
     }
 
-    // Логируем ошибки 403/401 для отладки
     if (result.status === 403 || result.status === 401) {
       console.error(`[api adapter] Access denied (${result.status}), response body:`, result.body?.substring(0, 500));
     }
 
-    // Проверяем на Cloudflare challenge в теле ответа
     if (result.body && typeof result.body === 'string' && (
       result.body.includes('challenges.cloudflare.com') ||
       result.body.includes('cf-browser-verification') ||
@@ -177,14 +145,11 @@ const electronAdapter = async (config: any) => {
       throw error;
     }
 
-    // Парсим JSON если это JSON ответ
     let data = result.body;
     const contentType = result.headers?.["content-type"] || result.headers?.["Content-Type"] || "";
     if (contentType.includes("application/json") || !contentType) {
       try {
         data = JSON.parse(result.body);
-        
-        // Проверяем, что это не Cloudflare challenge в JSON
         if (data && typeof data === 'object' && (
           JSON.stringify(data).includes('cloudflare') ||
           JSON.stringify(data).includes('challenge')
@@ -199,32 +164,27 @@ const electronAdapter = async (config: any) => {
           };
           throw error;
         }
-        
         if (result.status === 403 || result.status === 401) {
           console.error(`[api adapter] Parsed error response:`, data);
         } else {
           console.log(`[api adapter] Parsed JSON response, data keys:`, Object.keys(data || {}));
         }
       } catch (e: any) {
-        // Если это наша ошибка Cloudflare, пробрасываем дальше
         if (e?.message?.includes('Cloudflare')) {
           throw e;
         }
         console.warn(`[api adapter] Failed to parse JSON:`, e);
-        // Если не JSON, возвращаем как есть
       }
     }
 
     console.log(`[api adapter] Returning response with status ${result.status || 200}`);
-    
-    // Axios ожидает специфический формат ответа
     return {
       data,
       status: result.status || 200,
       statusText: result.statusText || "OK",
       headers: result.headers || {},
       config,
-      request: {}, // Axios может ожидать request объект
+      request: {}, 
     };
   } catch (err: any) {
     console.error(`[api adapter] Error in adapter:`, err);
@@ -232,15 +192,15 @@ const electronAdapter = async (config: any) => {
   }
 };
 
-// Устанавливаем адаптер только для Electron, для Android/iOS axios использует стандартный
+
 const api = axios.create({
   baseURL,
   headers,
   timeout: 10_000,
-  ...(isElectron ? { adapter: electronAdapter } : {}), // Адаптер только для Electron
+  ...(isElectron ? { adapter: electronAdapter } : {}), 
 });
 
-// Request interceptor removed - no proxy needed for web
+
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const readRetryAfterMs = (headers?: any): number | null => {
@@ -265,7 +225,7 @@ api.interceptors.response.use(
     const retryAfter = readRetryAfterMs(err?.response?.headers);
     const backoff =
       (retryAfter ?? Math.min(1000 * 2 ** (cfg.__retryCount - 1), 8000)) +
-      Math.floor(Math.random() * 300); // jitter
+      Math.floor(Math.random() * 300); 
 
     await sleep(backoff);
     return api(cfg);
@@ -343,17 +303,17 @@ const absolutizeAvatar = (u?: string): string => {
 };
 
 const mapComment = (c: any): GalleryComment => {
-  const epochSec = Number(c?.post_date ?? 0); // из API приходит в секундах
+  const epochSec = Number(c?.post_date ?? 0); 
   const poster: ApiUser = {
     ...(c.poster || {}),
-    avatar: absolutizeAvatar(c.poster?.avatar_url), // <— alias
+    avatar: absolutizeAvatar(c.poster?.avatar_url), 
   };
 
   return {
     id: c.id,
     gallery_id: c.gallery_id,
     poster,
-    post_date: epochSec * 1000, // <— теперь ms-таймстамп
+    post_date: epochSec * 1000, 
     body: String(c.body ?? ""),
     avatar: absolutizeAvatar(c.poster?.avatar_url),
   };
@@ -364,8 +324,6 @@ export const getComments = async (id: number): Promise<GalleryComment[]> => {
   try {
     console.log(`[getComments] Fetching comments for gallery ${id}`);
     const { data } = await api.get(`/gallery/${id}/comments`);
-    
-    // Проверяем, что это не Cloudflare challenge
     if (data && typeof data === 'string' && (
       data.includes('challenges.cloudflare.com') ||
       data.includes('cf-browser-verification')
@@ -373,12 +331,10 @@ export const getComments = async (id: number): Promise<GalleryComment[]> => {
       console.warn(`[getComments] Cloudflare challenge detected for ${id}`);
       return [];
     }
-    
     console.log(`[getComments] Response data:`, Array.isArray(data) ? `${data.length} items` : typeof data);
     const arr = Array.isArray(data) ? data : [];
     return arr.map(mapComment);
   } catch (err: any) {
-    // Если это Cloudflare challenge, возвращаем пустой массив вместо ошибки
     if (err?.response?.data?.error?.includes('Cloudflare') || 
         err?.response?.data?.includes('Cloudflare') ||
         err?.message?.includes('Cloudflare')) {
@@ -395,8 +351,6 @@ export const getRelatedByApi = async (id: number): Promise<Book[]> => {
   try {
     console.log(`[getRelatedByApi] Fetching related books for gallery ${id}`);
     const { data } = await api.get(`/gallery/${id}/related`);
-    
-    // Проверяем, что это не Cloudflare challenge
     if (data && typeof data === 'string' && (
       data.includes('challenges.cloudflare.com') ||
       data.includes('cf-browser-verification')
@@ -404,12 +358,10 @@ export const getRelatedByApi = async (id: number): Promise<Book[]> => {
       console.warn(`[getRelatedByApi] Cloudflare challenge detected for ${id}`);
       return [];
     }
-    
     console.log(`[getRelatedByApi] Response data:`, data?.result ? `${data.result.length} items` : 'no result');
     const arr = Array.isArray(data?.result) ? data.result : [];
     return arr.map(parseBookData);
   } catch (err: any) {
-    // Если это Cloudflare challenge, возвращаем пустой массив вместо ошибки
     if (err?.response?.data?.error?.includes('Cloudflare') || 
         err?.response?.data?.includes('Cloudflare') ||
         err?.message?.includes('Cloudflare')) {
@@ -466,26 +418,21 @@ export const getRelatedBooks = async (
 };
 
 export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
-  // Для Electron используем electronFileSystem, для нативных платформ - expo-file-system
   const isElectron = Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
-  
   let nhDir: string;
   let fs: any;
   let pathJoinSync: (...paths: string[]) => string;
   let pathJoinAsync: ((...paths: string[]) => Promise<string>) | null = null;
-  
   if (isElectron) {
     try {
       const baseDir = await electronFileSystem.getDocumentDirectory();
       const electron = (window as any).electron;
-      // Убираем завершающий разделитель перед pathJoin, чтобы избежать двойных слэшей
       const baseDirTrimmed = baseDir.endsWith(await electron.pathSep()) 
         ? baseDir.slice(0, -1) 
         : baseDir;
       nhDir = await electron.pathJoin(baseDirTrimmed, "NHAppAndroid") + await electron.pathSep();
       fs = electronFileSystem;
       pathJoinAsync = async (...paths: string[]) => {
-        // Убираем завершающие разделители из всех путей кроме последнего
         const sep = await electron.pathSep();
         const cleanedPaths: string[] = [];
         for (let i = 0; i < paths.length; i++) {
@@ -507,7 +454,6 @@ export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
     nhDir = `${FileSystem.documentDirectory}NHAppAndroid/`;
     fs = FileSystem;
     pathJoinSync = (...paths: string[]) => {
-      // Убираем завершающие слэши из всех путей кроме последнего
       const cleanedPaths = paths.map((p, i) => {
         if (i === paths.length - 1) return p;
         return p.endsWith("/") ? p.slice(0, -1) : p;
@@ -515,8 +461,6 @@ export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
       return cleanedPaths.join("/");
     };
   }
-  
-  // Универсальная функция pathJoin
   const pathJoin = async (...paths: string[]): Promise<string> => {
     if (pathJoinAsync) {
       return await pathJoinAsync(...paths);
@@ -573,7 +517,11 @@ export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
         try {
           images = (await fs.readDirectoryAsync(langDir))
             .filter((f: string) => f.startsWith("Image"))
-            .sort();
+            .sort((a, b) => {
+              const numA = parseInt(a.match(/\d+/)?.[0] || '0');
+              const numB = parseInt(b.match(/\d+/)?.[0] || '0');
+              return numA - numB;
+            });
         } catch (err) {
           continue;
         }
@@ -582,15 +530,9 @@ export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
           images.map(
             async (img, idx): Promise<BookPage> => {
               const imgPath = await pathJoin(langDir, img);
-              // Для Android используем путь напрямую (expo-file-system работает с путями)
-              // Для Electron используем local:// протокол (обходит webSecurity)
-              // Для Windows путей используем формат local:///C:/... (три слэша для абсолютного пути)
-              // Нормализуем путь: заменяем обратные слэши на прямые
               const uri = isElectron 
                 ? `local:///${imgPath.replace(/\\/g, '/')}`
-                : imgPath; // Для Android expo-file-system работает с путями напрямую
-              
-              // Для Electron может потребоваться другой способ получения размеров
+                : imgPath; 
               return new Promise<BookPage>((res, rej) => {
                 Image.getSize(
                   uri,
@@ -603,7 +545,6 @@ export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
                       page: idx + 1,
                     }),
                   (err) => {
-                    // Fallback: используем дефолтные размеры если не удалось получить
                     console.warn(`[loadBookFromLocal] Failed to get size for ${uri}:`, err);
                     res({
                       url: uri,
@@ -969,7 +910,7 @@ async function fetchSearchPage(
   });
   const arr = Array.isArray(data?.result) ? data.result : [];
   const books = arr.map(parseBookData) as Book[];
-  putLRU(PAGE_CACHE, PAGE_ORDER, PAGE_LIMIT, key, books); // перезапись свежими
+  putLRU(PAGE_CACHE, PAGE_ORDER, PAGE_LIMIT, key, books); 
   return books;
 }
 
@@ -1487,7 +1428,7 @@ export const searchBooks = async (
     realSort || "",
     Math.max(1, endServerPage + 1),
     serverPerPage
-  ); // без force
+  ); 
   void fetchSearchPage(
     nhQuery,
     realSort || "",
@@ -1523,6 +1464,23 @@ const siteBase = Platform.OS === "web" && PROXY_BASE
   : "https://nhentai.net";
 
 async function getRandomId(): Promise<number> {
+  const isElectronNow = Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
+  if (isElectronNow) {
+    try {
+      const electron = (window as any).electron;
+      if (electron?.getRandomId) {
+        console.log(`[getRandomId] Using Electron IPC method`);
+        const result = await electron.getRandomId();
+        if (result.success && typeof result.id === "number") {
+          return result.id;
+        }
+        throw new Error(result.error || "IPC getRandomId failed");
+      }
+    } catch (e) {
+      console.error(`[getRandomId] Electron IPC error:`, e);
+      throw new Error(`getRandomId failed: ${(e as Error)?.message || String(e)}`);
+    }
+  }
   try {
     const res = await axios.get(siteBase + "/random", {
       transformResponse: (r) => r,

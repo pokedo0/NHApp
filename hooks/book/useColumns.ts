@@ -1,14 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList } from "react-native";
-
 const COLS_KEY = "galleryColumns";
-
 export const useColumns = (wide: boolean) => {
   const [cols, setCols] = useState(1);
   const listRef = useRef<FlatList>(null);
   const scrollY = useRef(0);
-
   useEffect(() => {
     AsyncStorage.getItem(COLS_KEY).then((s) => {
       const saved = Math.min(Math.max(parseInt(s ?? "0") || 0, 1), 4);
@@ -16,7 +13,6 @@ export const useColumns = (wide: boolean) => {
       else setCols(wide ? 3 : 1);
     });
   }, [wide]);
-
   const cycleCols = useCallback(() => {
     const keep = scrollY.current;
     setCols((c) => {
@@ -30,8 +26,6 @@ export const useColumns = (wide: boolean) => {
       0
     );
   }, [wide]);
-
   const setScrollY = (y: number) => (scrollY.current = y);
-
   return { cols, setCols, cycleCols, listRef, setScrollY };
 };

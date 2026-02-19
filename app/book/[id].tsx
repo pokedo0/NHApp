@@ -1,4 +1,6 @@
 import { Book, getRandomBook } from "@/api/nhentai";
+import { updateReadHistory } from "@/app/read";
+import LoadingSpinner from "@/components/LoadingSpinner";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
@@ -6,19 +8,18 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Animated,
-  FlatList,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  ViewToken,
+    Animated,
+    FlatList,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+    ViewToken,
 } from "react-native";
-import { updateReadHistory } from "@/app/read";
 
 import { getMe } from "@/api/nhentaiOnline";
+import { isElectron, openReaderWindow } from "@/electron/bridge";
 import { useBookData } from "@/hooks/book/useBookData";
 import { useColumns } from "@/hooks/book/useColumns";
 import { useDownload } from "@/hooks/book/useDownload";
@@ -26,7 +27,6 @@ import { useFab } from "@/hooks/book/useFab";
 import { useFavorites } from "@/hooks/book/useFavorites";
 import { useRelatedComments } from "@/hooks/book/useRelatedComments";
 import { useWindowLayout } from "@/hooks/book/useWindowLayout";
-import { openReaderWindow, isElectron } from "@/electron/bridge";
 
 import Footer from "@/components/book/Footer";
 import Hero from "@/components/book/Hero";
@@ -94,40 +94,39 @@ export default function BookScreen() {
   const prevColsRef = useRef<number>(cols);
   const lastSavedPageRef = useRef<number | null>(null);
   const historyUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  // Callback для отслеживания видимых элементов - выносим наружу
+  const bookRef = useRef(book);
+  const bookIdRef = useRef(book?.id);
+  const bookPagesRef = useRef(book?.pages);
+  useEffect(() => {
+    bookRef.current = book;
+    bookIdRef.current = book?.id;
+    bookPagesRef.current = book?.pages;
+  }, [book]);
   const handleViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    if (!book?.id || !book?.pages || viewableItems.length === 0) return;
-    
-    // Находим первую видимую страницу
+    const currentBook = bookRef.current;
+    const currentBookId = bookIdRef.current;
+    const currentPages = bookPagesRef.current;
+    if (!currentBookId || !currentPages || viewableItems.length === 0) return;
     const firstVisible = viewableItems[0];
     if (!firstVisible?.item) return;
-    
     const currentPage = firstVisible.item.page;
-    
-    // Сохраняем историю с debounce (максимум раз в 2 секунды)
     if (lastSavedPageRef.current !== currentPage) {
       if (historyUpdateTimeoutRef.current) {
         clearTimeout(historyUpdateTimeoutRef.current);
       }
-      
       historyUpdateTimeoutRef.current = setTimeout(() => {
-        updateReadHistory(book.id, currentPage, book.pages.length);
+        updateReadHistory(currentBookId, currentPage, currentPages.length);
         lastSavedPageRef.current = currentPage;
-        console.log('[Book] History saved:', book.id, currentPage, book.pages.length);
+        console.log('[Book] History saved:', currentBookId, currentPage, currentPages.length);
       }, 2000) as any;
     }
-  }, [book?.id, book?.pages]);
-  
-  // Отслеживаем изменение размера окна для адаптивной сетки
+  }, []); 
   useEffect(() => {
     setListW(win.w);
   }, [win.w]);
 
-  // Сохраняем позицию прокрутки при изменении сетки
   useEffect(() => {
     if (prevColsRef.current !== cols && scrollPositionRef.current > 0) {
-      // При изменении количества колонок сохраняем позицию
       const currentScrollY = scrollPositionRef.current;
       requestAnimationFrame(() => {
         setTimeout(() => {
@@ -223,27 +222,19 @@ export default function BookScreen() {
 
   const horizPad = Math.max(0, innerPadding - GAP / 2);
 
-  // Вычисляем ограниченное количество элементов для отображения (кратное колонкам, ближе к 24)
   const limitedPages = useMemo(() => {
     if (!book?.pages || showAllPages) {
       return book?.pages || [];
     }
-    
     const targetCount = 24;
-    // Вычисляем количество строк для достижения примерно 24 элементов
     const rows = Math.floor(targetCount / cols);
-    // Округляем до ближайшего кратного колонкам
     const limitedCount = rows * cols;
-    
     return book.pages.slice(0, limitedCount);
   }, [book?.pages, cols, showAllPages]);
 
-  // Сохраняем позицию прокрутки при изменении данных
   useEffect(() => {
     if (showAllPages && prevDataLengthRef.current > 0) {
-      // При показе всех страниц сохраняем позицию
       const currentScrollY = scrollPositionRef.current;
-      // Небольшая задержка для завершения рендеринга
       requestAnimationFrame(() => {
         setTimeout(() => {
           if (listRef.current && currentScrollY > 0) {
@@ -255,12 +246,10 @@ export default function BookScreen() {
     prevDataLengthRef.current = limitedPages.length;
   }, [showAllPages, limitedPages.length]);
 
-  // Компонент кнопки "Показать всё"
   const showAllButton = useMemo(() => {
     if (showAllPages || !book?.pages || limitedPages.length >= book.pages.length) {
       return null;
     }
-    
     return (
       <View style={{ paddingVertical: 20, paddingHorizontal: horizPad, alignItems: 'center' }}>
         <Pressable
@@ -336,28 +325,15 @@ export default function BookScreen() {
     handleCommentSectionLayout,
   ]);
 
-  // Используем useMemo для пересчета itemW при изменении размера окна или количества колонок
-  // Это обеспечивает адаптивную сетку, которая пересчитывается при изменении размера окна
   const itemW = useMemo(() => {
-    // Получаем доступную ширину с учетом отступов
     const availableWidth = Math.max(100, (listW || win.w) - 2 * horizPad);
-    
-    // Вычисляем ширину элемента: (доступная ширина - зазоры между элементами) / количество колонок
-    // Для 1 колонки: вся доступная ширина
-    // Для нескольких колонок: (ширина - (колонки-1) * GAP) / колонки
     if (cols === 1) {
       return availableWidth;
     }
-    
     const calculatedWidth = Math.floor((availableWidth - (cols - 1) * GAP) / cols);
-    
-    // Минимальная ширина 100px для читаемости
-    // Максимальная - не больше доступной ширины
     return Math.max(100, Math.min(calculatedWidth, availableWidth));
   }, [cols, listW, win.w, horizPad]);
 
-  // Функция для вычисления высоты элемента на основе его размеров
-  // Это позволяет заранее знать размеры до загрузки изображений
   const getItemHeight = useCallback((page: Book["pages"][number]) => {
     const aspectRatio = page.width / page.height;
     const isVertical = page.height > page.width;
@@ -366,22 +342,15 @@ export default function BookScreen() {
     const imageHeight = maxHeight
       ? Math.min(itemW / aspectRatio, maxHeight)
       : itemW / aspectRatio;
-    
-    // Высота контейнера = высота изображения + номер страницы (12px) + отступы (4px + GAP)
     return imageHeight + 12 + 4 + GAP;
   }, [itemW]);
 
-  // Вычисляем высоты всех элементов для оптимизации фона (showBackground)
   const itemHeights = useMemo(() => {
     if (!book?.pages) return [];
     return book.pages.map(page => getItemHeight(page));
   }, [book?.pages, getItemHeight]);
 
-  // getItemLayout убран, так как он вызывает проблемы с пропадающими элементами при использовании numColumns
-  // Фиксированные размеры контейнеров в PageItem обеспечивают стабильность прокрутки
 
-  // Вычисляем высоты изображений (без учета отступов) для оптимизации фона
-  // Используем limitedPages для соответствия с отображаемыми данными
   const imageHeights = useMemo(() => {
     if (!limitedPages.length) return [];
     return limitedPages.map(page => {
@@ -398,7 +367,6 @@ export default function BookScreen() {
   const renderItem = useCallback(
     ({ item, index }: { item: Book["pages"][number]; index: number }) => {
       const onPress = async () => {
-        // Для Electron открываем отдельное окно, для Android - обычная навигация
         if (isElectron() && book?.id) {
           await openReaderWindow(book.id, item.page);
         } else {
@@ -409,35 +377,23 @@ export default function BookScreen() {
         }
       };
 
-      // Определяем, нужно ли показывать фон для оптимизации
       let showBackground = false;
-      
       if (cols > 1) {
-        // Для сетки проверяем размеры элементов в строке
         const rowIndex = Math.floor(index / cols);
         const rowStart = rowIndex * cols;
         const rowEnd = Math.min(rowStart + cols, imageHeights.length);
-        
-        // Получаем высоты всех элементов в строке
         const rowHeights = imageHeights.slice(rowStart, rowEnd);
         if (rowHeights.length > 0) {
           const minHeight = Math.min(...rowHeights);
           const maxHeight = Math.max(...rowHeights);
           const currentHeight = imageHeights[index];
-          
-          // Если все элементы одинакового размера (разница < 5px) - не показываем фон
           const allSameSize = Math.abs(maxHeight - minHeight) < 5;
-          
           if (!allSameSize) {
-            // Если размеры разные, показываем фон только у маленьких элементов
-            // У больших элементов убираем фон для оптимизации
-            const isSmaller = currentHeight < maxHeight - 5; // Текущий элемент меньше максимального
+            const isSmaller = currentHeight < maxHeight - 5; 
             showBackground = isSmaller;
           }
-          // Если все одинаковые - showBackground остается false
         }
       } else {
-        // Для одной колонки показываем фон только для супер длинных
         const aspectRatio = item.width / item.height;
         const isVertical = item.height > item.width;
         const isSuperLong = isVertical && item.height > item.width * 3;
@@ -458,14 +414,8 @@ export default function BookScreen() {
     [book?.id, cols, itemW, colors.metaText, router, imageHeights]
   );
 
-  // Обработчик изменения размера контента для обновления позиции комментариев
   const handleContentSizeChange = useCallback((contentWidth: number, contentHeight: number) => {
-    // Позиция комментариев примерно равна высоте контента минус высота footer
-    // Это приблизительно, но работает для прокрутки к комментариям
     if (contentHeight > 0) {
-      // Комментарии находятся в footer, который добавляется в конец списка
-      // Используем примерно 75-80% контента как позицию начала комментариев
-      // (header + страницы + related books + секция комментариев)
       const estimatedCommentOffset = contentHeight * 0.75;
       setCommentSectionOffset(estimatedCommentOffset);
     }
@@ -487,16 +437,7 @@ export default function BookScreen() {
 
   if (!book) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.bg,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.accent} />
-      </View>
+      <LoadingSpinner fullScreen size="large" color={colors.accent} />
     );
   }
 
@@ -532,18 +473,16 @@ export default function BookScreen() {
         }}
         onContentSizeChange={(w, h) => {
           handleContentSizeChange(w, h);
-          // При изменении размера контента обновляем позицию комментариев
           if (h > 0) {
             setCommentSectionOffset(h * 0.8);
           }
         }}
         onViewableItemsChanged={handleViewableItemsChanged}
         viewabilityConfig={{
-          itemVisiblePercentThreshold: 50, // Элемент считается видимым если видно 50%
-          minimumViewTime: 500, // Минимум 500ms видимости
+          itemVisiblePercentThreshold: 50, 
+          minimumViewTime: 500, 
         }}
         onLayout={(e) => {
-          // Обновляем ширину при изменении layout для адаптивности
           const newWidth = e.nativeEvent.layout.width;
           if (Math.abs(newWidth - listW) > 1) {
             setListW(newWidth);
@@ -551,15 +490,14 @@ export default function BookScreen() {
         }}
         scrollEventThrottle={16}
         columnWrapperStyle={cols > 1 ? { 
-          alignItems: "stretch", // Растягиваем элементы до высоты самого высокого в строке
+          alignItems: "stretch", 
           paddingHorizontal: 0,
-          justifyContent: 'center', // Центрируем элементы по горизонтали, если строка не полная
+          justifyContent: 'center', 
         } : undefined}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: 40,
           paddingHorizontal: horizPad,
-          // Убираем flexGrow чтобы контент не растягивался
         }}
         ListHeaderComponent={headerEl}
         ListFooterComponent={
@@ -611,7 +549,7 @@ export default function BookScreen() {
               ]}
             >
               {rndLoading ? (
-                <ActivityIndicator size="small" color={colors.bg} />
+                <LoadingSpinner size="small" color={colors.bg} />
               ) : (
                 <>
                   <Feather name="shuffle" size={16} color={colors.bg} />

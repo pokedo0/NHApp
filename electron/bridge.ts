@@ -1,7 +1,4 @@
-/**
- * TypeScript типы и обёртки для Electron моста
- * Используется в React Native Web коде для взаимодействия с Electron
- */
+
 
 import type {
   ElectronMessageBoxOptions,
@@ -28,23 +25,21 @@ declare global {
       minimize: () => Promise<void>;
       maximize: () => Promise<void>;
       close: () => Promise<void>;
+      isMaximized: () => Promise<boolean>;
       openReaderWindow: (options: { bookId: number; page?: number }) => Promise<{ success: boolean; windowId?: number }>;
+      onWindowMaximizeChanged: (callback: (maximized: boolean) => void) => (() => void) | undefined;
       on: (channel: string, callback: (...args: any[]) => void) => void;
       off: (channel: string, callback: (...args: any[]) => void) => void;
     };
   }
 }
 
-/**
- * Проверяет, запущено ли приложение в Electron
- */
+
 export function isElectron(): boolean {
   return typeof window !== 'undefined' && typeof window.electron !== 'undefined';
 }
 
-/**
- * Получить версию Electron приложения
- */
+
 export async function getElectronVersion(): Promise<string | null> {
   if (!isElectron()) return null;
   try {
@@ -55,9 +50,7 @@ export async function getElectronVersion(): Promise<string | null> {
   }
 }
 
-/**
- * Получить платформу Electron
- */
+
 export async function getElectronPlatform(): Promise<string | null> {
   if (!isElectron()) return null;
   try {
@@ -68,9 +61,7 @@ export async function getElectronPlatform(): Promise<string | null> {
   }
 }
 
-/**
- * Показать диалог сообщения
- */
+
 export async function showMessageBox(options: ElectronMessageBoxOptions): Promise<ElectronMessageBoxReturnValue | null> {
   if (!isElectron()) return null;
   try {
@@ -81,9 +72,7 @@ export async function showMessageBox(options: ElectronMessageBoxOptions): Promis
   }
 }
 
-/**
- * Показать диалог открытия файла
- */
+
 export async function showOpenDialog(options: ElectronOpenDialogOptions): Promise<ElectronOpenDialogReturnValue | null> {
   if (!isElectron()) return null;
   try {
@@ -94,9 +83,7 @@ export async function showOpenDialog(options: ElectronOpenDialogOptions): Promis
   }
 }
 
-/**
- * Показать диалог сохранения файла
- */
+
 export async function showSaveDialog(options: ElectronSaveDialogOptions): Promise<ElectronSaveDialogReturnValue | null> {
   if (!isElectron()) return null;
   try {
@@ -107,9 +94,7 @@ export async function showSaveDialog(options: ElectronSaveDialogOptions): Promis
   }
 }
 
-/**
- * Читать файл
- */
+
 export async function readFile(filePath: string): Promise<string | null> {
   if (!isElectron()) return null;
   try {
@@ -124,9 +109,7 @@ export async function readFile(filePath: string): Promise<string | null> {
   }
 }
 
-/**
- * Записать файл
- */
+
 export async function writeFile(filePath: string, content: string): Promise<boolean> {
   if (!isElectron()) return false;
   try {
@@ -138,9 +121,7 @@ export async function writeFile(filePath: string, content: string): Promise<bool
   }
 }
 
-/**
- * Читать директорию
- */
+
 export async function readDir(dirPath: string): Promise<Array<{ name: string; isDirectory: boolean; isFile: boolean }> | null> {
   if (!isElectron()) return null;
   try {
@@ -155,9 +136,7 @@ export async function readDir(dirPath: string): Promise<Array<{ name: string; is
   }
 }
 
-/**
- * Получить системный путь
- */
+
 export async function getPath(name: 'home' | 'appData' | 'userData' | 'cache' | 'temp' | 'exe' | 'module' | 'desktop' | 'documents' | 'downloads' | 'music' | 'pictures' | 'videos' | 'recent' | 'logs' | 'crashDumps'): Promise<string | null> {
   if (!isElectron()) return null;
   try {
@@ -168,12 +147,9 @@ export async function getPath(name: 'home' | 'appData' | 'userData' | 'cache' | 
   }
 }
 
-/**
- * Открыть внешнюю ссылку
- */
+
 export async function openExternal(url: string): Promise<boolean> {
   if (!isElectron()) {
-    // Fallback для веб-версии
     window.open(url, '_blank');
     return true;
   }
@@ -186,9 +162,7 @@ export async function openExternal(url: string): Promise<boolean> {
   }
 }
 
-/**
- * Управление окном
- */
+
 export const windowControls = {
   minimize: async () => {
     if (!isElectron()) return;
@@ -214,11 +188,18 @@ export const windowControls = {
       console.error('[Electron Bridge] Error closing:', error);
     }
   },
+  isMaximized: async (): Promise<boolean> => {
+    if (!isElectron()) return false;
+    try {
+      return await window.electron!.isMaximized();
+    } catch (error) {
+      console.error('[Electron Bridge] Error checking maximize state:', error);
+      return false;
+    }
+  },
 };
 
-/**
- * Открыть окно чтения в Electron
- */
+
 export async function openReaderWindow(bookId: number, page?: number): Promise<boolean> {
   if (!isElectron()) return false;
   try {

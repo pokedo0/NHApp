@@ -2,22 +2,20 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-// Proxy URL for web version to bypass CORS
+
 const PROXY_BASE = Platform.OS === "web" 
-  ? (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3002") + "/fpi"
+  ? (process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3002") + "/fpi"
   : null;
 
 export const NH_HOST = "https://nhentai.net";
 export const LOGIN_URL = `${NH_HOST}/login/?next=/`;
 
-// Helper to get proxied URL on web
+
 function getProxiedUrl(path: string): string {
-  // Для Electron не используем proxy - используем IPC
   const isElectron = Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
   if (isElectron) {
-    return path; // Возвращаем оригинальный URL, IPC обработает его
+    return path; 
   }
-  
   if (Platform.OS === "web" && PROXY_BASE && path.startsWith("https://nhentai.net")) {
     return path.replace("https://nhentai.net", `${PROXY_BASE}/nhentai`);
   }
@@ -26,13 +24,12 @@ function getProxiedUrl(path: string): string {
 
 export type AuthTokens = {
   csrftoken?: string;
-  /** sessionid чаще всего HttpOnly → из JS его не видно */
   sessionid?: string;
 };
 
 const STORAGE_KEY = "@auth.tokens.v1";
 
-// Доп. ключи, которые мы сохраняли из WebView/скрейперов:
+
 const EXTRA_AUTH_KEYS = ["nh.csrf", "nh.session", "nh.cf_clearance", "nh.me"];
 
 const COOKIE_NAMES = [
@@ -43,18 +40,17 @@ const COOKIE_NAMES = [
   "csrftoken_legacy",
 ];
 
-// -------- CookieManager (лениво и безопасно для Expo Go) ----------
+
 let CookieManager: any = null;
 if (Constants.appOwnership !== "expo") {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     CookieManager = require("@react-native" + "-cookies/cookies").default;
   } catch {}
 }
 
 export const hasNativeCookieJar = () => Boolean(CookieManager);
 
-// --------- helpers ----------
+
 function normalizeTokens(obj: any): AuthTokens {
   const rawCsrf =
     typeof obj?.csrftoken === "string" ? obj.csrftoken.trim() : "";
@@ -102,14 +98,13 @@ async function applyTokensToNativeJar(tokens: AuthTokens): Promise<void> {
           })
         );
       }
-      // sessionid не пишем руками — сервер кладёт HttpOnly сам
     }
     await Promise.all(ops);
     if (Platform.OS === "android") await CookieManager.flush?.();
   } catch {}
 }
 
-// --------- storage ----------
+
 export async function saveTokens(tokens: AuthTokens): Promise<void> {
   const prev = await loadTokens();
   const next = normalizeTokens({
@@ -120,7 +115,7 @@ export async function saveTokens(tokens: AuthTokens): Promise<void> {
   await applyTokensToNativeJar(next);
 }
 
-/** Всегда возвращает объект с ключами { csrftoken?, sessionid? } */
+
 export async function loadTokens(): Promise<AuthTokens> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -132,12 +127,11 @@ export async function loadTokens(): Promise<AuthTokens> {
   }
 }
 
-/** Полная очистка наших токенов + всех доп. ключей, которые могли сохранить WebView/скрейперы */
+
 export async function clearTokens(): Promise<void> {
   try {
     await AsyncStorage.multiRemove([STORAGE_KEY, ...EXTRA_AUTH_KEYS]);
   } catch {
-    // fallback: удалить по одному
     await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
     for (const k of EXTRA_AUTH_KEYS)
       await AsyncStorage.removeItem(k).catch(() => {});
@@ -148,12 +142,12 @@ export async function getCookieHeader(): Promise<string> {
   return buildCookieHeader(await loadTokens());
 }
 
-// --------- manual ----------
+
 export async function setManualTokens(csrftoken?: string, sessionid?: string) {
   await saveTokens({ csrftoken, sessionid });
 }
 
-// --------- native jar sync ----------
+
 function pickCookieValue(cookies: any, name: string): string | undefined {
   if (!cookies) return undefined;
   return cookies?.[name]?.value ?? cookies?.[name];
@@ -183,10 +177,7 @@ export async function syncNativeCookiesFromJar(): Promise<AuthTokens> {
   return next;
 }
 
-/**
- * Строка Cookie. В НАТИВНЫХ сборках НЕ подставляем вручную,
- * иначе затрём HttpOnly sessionid из системного джара.
- */
+
 export async function cookieHeaderString(opts?: {
   preferNative?: boolean;
 }): Promise<string> {
@@ -195,7 +186,7 @@ export async function cookieHeaderString(opts?: {
   return buildCookieHeader(await loadTokens());
 }
 
-/** Чек авторизации */
+
 export async function hasValidTokens(): Promise<boolean> {
   const t = await loadTokens();
   if (t.csrftoken && t.sessionid) return true;
@@ -213,7 +204,7 @@ export async function hasValidTokens(): Promise<boolean> {
   return false;
 }
 
-// ---------- fetch helpers ----------
+
 export type NHFetchInit = RequestInit & {
   csrf?: boolean;
   withAuth?: boolean;
@@ -224,18 +215,13 @@ export async function nhFetch(
   path: string,
   init: NHFetchInit = {}
 ): Promise<Response> {
-  // Для Electron используем IPC метод вместо fetch
   const isElectron = Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
-  
   console.log(`[nhFetch] Platform.OS: ${Platform.OS}, isElectron: ${isElectron}, path: ${path}`);
-  
   if (isElectron) {
     const electron = (window as any).electron;
     if (!electron || !electron.fetchJson) {
       console.warn("[nhFetch] Electron detected but fetchJson not available, falling back to proxy");
-      // Fallback to proxy if IPC method not available - continue to normal fetch below
     } else {
-      // Используем IPC метод для Electron
       const urlBase = path.startsWith("http") ? path : `${NH_HOST}${path}`;
       let url =
         init.noCache === true
@@ -244,10 +230,7 @@ export async function nhFetch(
 
       const withAuth = init.withAuth !== false;
       const tokens = await loadTokens();
-      
-      // Формируем заголовки
       const headers: Record<string, string> = {};
-      
       if (withAuth) {
         const cookieHeader = await cookieHeaderString({ preferNative: false });
         if (cookieHeader) {
@@ -265,7 +248,6 @@ export async function nhFetch(
         headers["Referer"] = NH_HOST + "/";
       }
 
-      // Добавляем пользовательские заголовки
       if (init.headers) {
         const customHeaders = new Headers(init.headers);
         customHeaders.forEach((value, key) => {
@@ -273,9 +255,7 @@ export async function nhFetch(
         });
       }
 
-      // Используем IPC метод для запроса
       console.log(`[nhFetch] Using Electron IPC for: ${url}`);
-      
       try {
         const result = await electron.fetchJson(url, {
           method: init.method || "GET",
@@ -285,7 +265,6 @@ export async function nhFetch(
 
         if (!result.success) {
           console.error(`[nhFetch] IPC request failed:`, result.error);
-          // Создаём Response с ошибкой
           return new Response(JSON.stringify({ error: result.error || "Request failed" }), {
             status: 500,
             statusText: result.error || "Request failed",
@@ -293,7 +272,6 @@ export async function nhFetch(
           });
         }
 
-        // Создаём Response-подобный объект
         const responseHeaders = new Headers();
         if (result.headers) {
           Object.keys(result.headers).forEach(key => {
@@ -309,7 +287,6 @@ export async function nhFetch(
         });
       } catch (err: any) {
         console.error("[nhFetch] Electron IPC error:", err);
-        // Fallback: возвращаем ошибку
         return new Response(JSON.stringify({ error: err.message || "IPC request failed" }), {
           status: 500,
           statusText: err.message || "IPC request failed",
@@ -319,20 +296,17 @@ export async function nhFetch(
     }
   }
 
-  // Для нативных платформ и обычного браузера используем обычный fetch
   const urlBase = path.startsWith("http") ? path : `${NH_HOST}${path}`;
   let url =
     init.noCache === true
       ? `${urlBase}${urlBase.includes("?") ? "&" : "?"}ts=${Date.now()}`
       : urlBase;
 
-  // Use proxy on web to bypass CORS
   url = getProxiedUrl(url);
 
   const withAuth = init.withAuth !== false;
   const headers = new Headers(init.headers || {});
 
-  // On web, don't set User-Agent (browser doesn't allow it)
   if (Platform.OS !== "web") {
     if (!headers.has("User-Agent")) {
       headers.set("User-Agent", "nh-client");
@@ -374,10 +348,9 @@ export function nhFetchPublic(
   return nhFetch(path, { ...init, withAuth: false });
 }
 
-/* ================== LOGOUT ================== */
+
 
 async function deepCookiePurge(): Promise<void> {
-  // 1) Native (RN)
   if (CookieManager) {
     try {
       if (typeof CookieManager.clearByName === "function") {
@@ -389,7 +362,6 @@ async function deepCookiePurge(): Promise<void> {
           }
         }
       } else {
-        // Фолбэк через «просрочку»
         const expired = "1970-01-01T00:00:00.000Z";
         for (const host of HOST_VARIANTS) {
           for (const name of COOKIE_NAMES) {
@@ -405,24 +377,19 @@ async function deepCookiePurge(): Promise<void> {
         }
       }
 
-      // На Android обязательно flush
       if (Platform.OS === "android") await CookieManager.flush?.();
 
-      // И «последний шанс»
       try {
         await CookieManager.clearAll?.();
       } catch {}
     } catch {}
   }
 
-  // 2) Web (если Expo web): удалим то, что доступно текущему домену
   if (Platform.OS === "web") {
     try {
       const expire = "Thu, 01 Jan 1970 00:00:00 GMT";
       for (const name of COOKIE_NAMES) {
-        // Текущий хост
         document.cookie = `${name}=; expires=${expire}; path=/`;
-        // Варианты домена (если совпадает с текущим — сработает)
         for (const d of DOMAIN_VARIANTS) {
           document.cookie = `${name}=; expires=${expire}; path=/; domain=${d}`;
         }
@@ -453,7 +420,6 @@ async function tryRemoteLogout(): Promise<boolean> {
 }
 
 export async function logout(): Promise<void> {
-  // Попробовать сообщить серверу
   try {
     await tryRemoteLogout();
   } catch {}
@@ -488,10 +454,7 @@ export async function setAuthCookies(tokens: AuthTokens): Promise<void> {
   await saveTokens(tokens);
 }
 
-/**
- * Синхронизирует cookies из Electron session в AsyncStorage
- * Используется после логина через Electron окно
- */
+
 export async function syncElectronCookies(): Promise<AuthTokens> {
   if (Platform.OS !== "web" || typeof window === "undefined") {
     return await loadTokens();
@@ -510,7 +473,6 @@ export async function syncElectronCookies(): Promise<AuthTokens> {
         csrftoken: cookies.csrftoken,
         sessionid: cookies.sessionid,
       };
-      
       if (tokens.csrftoken || tokens.sessionid) {
         await saveTokens(tokens);
         return tokens;

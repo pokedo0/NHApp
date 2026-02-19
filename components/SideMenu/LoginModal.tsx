@@ -4,7 +4,6 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { ActivityIndicator, Modal, Platform, Pressable, Text, View } from "react-native";
 
-// Динамический импорт WebView только для нативных платформ
 let WebView: any = null;
 if (Platform.OS !== "web") {
   try {
@@ -14,9 +13,7 @@ if (Platform.OS !== "web") {
   }
 }
 
-// Проверка Electron
 const isElectron = Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
-
 const injected = `
 (function () {
   function getCookieMap() {
@@ -53,30 +50,25 @@ const injected = `
 })();
 true;
 `;
-
 export type LoginModalProps = {
   visible: boolean;
   onRequestClose: () => void;
   colors: any;
   t: (k: string, p?: any) => string;
-
   canUseNativeJar: boolean;
   isExpoGo: boolean;
   wvBusy: boolean;
   setWvBusy: (b: boolean) => void;
-
   csrfInput: string;
   setCsrfInput: (s: string) => void;
   sessInput: string;
   setSessInput: (s: string) => void;
-
   applyManual: (csrf: string, sess: string) => Promise<void>;
   refreshTokensFromJar: (reason: string) => Promise<void>;
   fetchMeAndMaybeClose: (why: string) => Promise<void>;
   handleNavChange: any;
   onWvMessage: any;
 };
-
 export function LoginModal(props: LoginModalProps) {
   const {
     visible,
@@ -97,56 +89,38 @@ export function LoginModal(props: LoginModalProps) {
     handleNavChange,
     onWvMessage,
   } = props;
-
   const [electronLoading, setElectronLoading] = React.useState(false);
   const [electronError, setElectronError] = React.useState<string | null>(null);
-
   const showManualInputs = !canUseNativeJar || isExpoGo;
-
-  // Electron login handler
   const handleElectronLogin = React.useCallback(async () => {
     if (electronLoading) return;
-    
     setElectronLoading(true);
     setElectronError(null);
-    
     try {
       const electron = (window as any).electron;
       console.log("[Electron Login] Starting login...");
-      
       const result = await electron.login();
       console.log("[Electron Login] Result:", result);
-      
       if (result.success && result.tokens) {
         const { csrftoken, sessionid } = result.tokens;
         console.log("[Electron Login] Tokens received:", { csrf: !!csrftoken, session: !!sessionid });
-        
         if (sessionid) {
-          // Save tokens to AsyncStorage
           console.log("[Electron Login] Saving tokens...");
           await saveTokens({ csrftoken, sessionid });
-          
-          // ВАЖНО: Синхронизируем cookies из Electron session в AsyncStorage
-          // Это нужно потому что nhFetch использует cookies из AsyncStorage
           console.log("[Electron Login] Syncing cookies from Electron session...");
           const syncedTokens = await syncElectronCookies();
           console.log("[Electron Login] Synced tokens:", { 
             csrf: !!syncedTokens.csrftoken, 
             session: !!syncedTokens.sessionid 
           });
-          
-          // Fetch user profile and close modal
           console.log("[Electron Login] Fetching user profile...");
           await fetchMeAndMaybeClose("electron-login");
-          
-          // Close modal
           console.log("[Electron Login] Closing modal...");
           onRequestClose();
         } else {
           setElectronError("Авторизация отменена");
         }
       } else if (result.tokens === null) {
-        // User closed window without logging in
         setElectronError("Окно закрыто без авторизации");
       } else {
         setElectronError(result.error || "Ошибка авторизации");
@@ -158,8 +132,6 @@ export function LoginModal(props: LoginModalProps) {
       setElectronLoading(false);
     }
   }, [electronLoading, fetchMeAndMaybeClose, onRequestClose]);
-
-  // Electron-specific UI
   if (isElectron) {
     return (
       <Modal
@@ -183,7 +155,7 @@ export function LoginModal(props: LoginModalProps) {
             width: "100%",
             maxWidth: 400,
           }}>
-            {/* Header */}
+            {}
             <View style={{
               flexDirection: "row",
               alignItems: "center",
@@ -202,8 +174,7 @@ export function LoginModal(props: LoginModalProps) {
                 <Feather name="x" size={20} color={colors.title} />
               </IconBtn>
             </View>
-
-            {/* Description */}
+            {}
             <Text style={{ 
               color: colors.sub, 
               fontSize: 14, 
@@ -212,8 +183,7 @@ export function LoginModal(props: LoginModalProps) {
             }}>
               Нажмите кнопку ниже, чтобы открыть окно авторизации. После входа в аккаунт окно закроется автоматически.
             </Text>
-
-            {/* Error */}
+            {}
             {electronError && (
               <View style={{
                 backgroundColor: "#ff4444" + "22",
@@ -226,8 +196,7 @@ export function LoginModal(props: LoginModalProps) {
                 </Text>
               </View>
             )}
-
-            {/* Login Button */}
+            {}
             <Pressable
               onPress={handleElectronLogin}
               disabled={electronLoading}
@@ -258,8 +227,7 @@ export function LoginModal(props: LoginModalProps) {
                 </>
               )}
             </Pressable>
-
-            {/* Footer */}
+            {}
             <Text style={{ 
               color: colors.sub, 
               fontSize: 11, 
@@ -274,8 +242,6 @@ export function LoginModal(props: LoginModalProps) {
       </Modal>
     );
   }
-
-  // Web without Electron - show message
   if (Platform.OS === "web" && !WebView) {
     return (
       <Modal
@@ -317,7 +283,6 @@ export function LoginModal(props: LoginModalProps) {
                 <Feather name="x" size={20} color={colors.title} />
               </IconBtn>
             </View>
-            
             <Text style={{ color: colors.error || "#ff6666", fontSize: 14 }}>
               React Native WebView does not support this platform.
             </Text>
@@ -326,8 +291,6 @@ export function LoginModal(props: LoginModalProps) {
       </Modal>
     );
   }
-
-  // Native platforms - use WebView
   return (
     <Modal
       statusBarTranslucent
@@ -371,9 +334,7 @@ export function LoginModal(props: LoginModalProps) {
             </IconBtn>
           </View>
         </View>
-
         <View style={{ height: 10 }} />
-
         {WebView && (
           <WebView
             originWhitelist={["*"]}
@@ -404,7 +365,6 @@ export function LoginModal(props: LoginModalProps) {
             style={{ flex: 1 }}
           />
         )}
-
         <View style={{ padding: 8 }}>
           <Text
             style={{ color: colors.sub, fontSize: 12, textAlign: "center" }}

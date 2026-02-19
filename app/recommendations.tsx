@@ -1,14 +1,16 @@
 import { CandidateBook, getRecommendations } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
+import { scrollToTop } from "@/utils/scrollToTop";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { FlatList, Platform, StyleSheet, View } from "react-native";
 
 type RecBook = CandidateBook & { explain: string[]; score: number };
 
@@ -25,9 +27,11 @@ export default function RecommendationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const scrollRef = useRef<FlatList<RecBook> | null>(null);
   const gridConfig = useGridConfig();
 
   const perPage = 50;
+  const infiniteScroll = true;
 
   useEffect(() => {
     AsyncStorage.getItem("bookFavorites").then((j) => {
@@ -61,6 +65,7 @@ export default function RecommendationsScreen() {
       });
       setBooks(recs);
       setHasMore(recs.length === perPage);
+      scrollToTop(scrollRef);
     } catch (e) {
       setBooks([]);
       setHasMore(false);
@@ -97,7 +102,28 @@ export default function RecommendationsScreen() {
     setRefreshing(true);
     await fetchRecs();
     setRefreshing(false);
+    scrollToTop(scrollRef);
   }, [fetchRecs]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const handleRefresh = async () => {
+      globalThis.dispatchEvent?.(
+        new globalThis.CustomEvent("app:refresh-content-start")
+      );
+      try {
+        await onRefresh();
+      } finally {
+        globalThis.dispatchEvent?.(
+          new globalThis.CustomEvent("app:refresh-content-end")
+        );
+      }
+    };
+    globalThis.addEventListener?.("app:refresh-content", handleRefresh);
+    return () => {
+      globalThis.removeEventListener?.("app:refresh-content", handleRefresh);
+    };
+  }, [onRefresh]);
 
   const toggleFav = useCallback((id: number, next: boolean) => {
     setFav((prev) => {
@@ -150,7 +176,7 @@ export default function RecommendationsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {loading && books.length === 0 ? (
-        <ActivityIndicator style={{ flex: 1 }} />
+        <LoadingSpinner fullScreen />
       ) : (
         <>
           <BookList
@@ -158,6 +184,7 @@ export default function RecommendationsScreen() {
             loading={loading}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            isFavorite={(id) => favorites.has(id)}
             onToggleFavorite={toggleFav}
             onEndReached={hasMore ? loadMoreRecommendations : undefined}
             getScore={(b) =>
@@ -185,6 +212,7 @@ export default function RecommendationsScreen() {
               ) : null
             }
             gridConfig={{ default: gridConfig }}
+            scrollRef={scrollRef}
           />
         </>
       )}

@@ -1,11 +1,8 @@
-﻿
 import { Book, Tag } from "@/api/nhentai";
 import React from "react";
-
 import BookCardClassic, { BookCardClassicProps } from "./design/BookCardClassic";
 import BookCardImage, { BookCardImageProps } from "./design/BookCardImage";
 import BookCardStable, { BookCardStableProps } from "./design/BookCardStable";
-
 export type BookCardProps = {
   book: Book;
   cardWidth?: number;
@@ -24,10 +21,8 @@ export type BookCardProps = {
   historyMap?: Record<number, { current: number; total: number; ts: number }>;
   hydrateFromStorage?: boolean;
 };
-
 export default function BookCard(props: BookCardProps) {
   const { design = "classic", ...rest } = props;
-
   if (design === "image") {
     const imageProps: BookCardImageProps = {
       book: rest.book,
@@ -38,7 +33,6 @@ export default function BookCard(props: BookCardProps) {
     };
     return <BookCardImage {...imageProps} />;
   }
-
   if (design === "classic") {
     const classicProps: BookCardClassicProps = {
       book: rest.book,
@@ -50,7 +44,6 @@ export default function BookCard(props: BookCardProps) {
     };
     return <BookCardClassic {...classicProps} />;
   }
-
   const stableProps: BookCardStableProps = {
     book: rest.book,
     cardWidth: rest.cardWidth,
@@ -68,12 +61,8 @@ export default function BookCard(props: BookCardProps) {
     historyMap: rest.historyMap,
     hydrateFromStorage: rest.hydrateFromStorage,
   };
-
   return <BookCardStable {...stableProps} />;
 }
-
 export { default as BookCardClassic } from "./design/BookCardClassic";
 export { default as BookCardImage } from "./design/BookCardImage";
 export { default as BookCardStable } from "./design/BookCardStable";
-
-

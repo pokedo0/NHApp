@@ -1,12 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useState } from "react";
-
 const FAVORITES = "bookFavorites";
-
 export const useFavorites = (currentId: number) => {
   const [favorites, setFav] = useState<Set<number>>(new Set());
   const [liked, setLiked] = useState(false);
-
   useEffect(() => {
     AsyncStorage.getItem(FAVORITES).then((j) => {
       const arr: number[] = j ? JSON.parse(j) : [];
@@ -14,7 +11,6 @@ export const useFavorites = (currentId: number) => {
       setLiked(arr.includes(currentId));
     });
   }, [currentId]);
-
   const toggleFav = useCallback((bid: number, next: boolean) => {
     setFav((prev) => {
       const cp = new Set(prev);
@@ -24,7 +20,6 @@ export const useFavorites = (currentId: number) => {
       return cp;
     });
   }, [currentId]);
-
   const toggleLike = useCallback(async () => {
     const j = await AsyncStorage.getItem(FAVORITES);
     const arr: number[] = j ? JSON.parse(j) : [];
@@ -35,6 +30,5 @@ export const useFavorites = (currentId: number) => {
     setFav(new Set(nextArr));
     await AsyncStorage.setItem(FAVORITES, JSON.stringify(nextArr));
   }, [currentId]);
-
   return { favorites, toggleFav, liked, toggleLike };
 };

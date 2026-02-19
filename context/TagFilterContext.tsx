@@ -9,9 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-
 const KEY = "globalTagFilter.v3";
-
 export type TagMode = "include" | "exclude";
 export interface FilterItem {
   type: Tag["type"];
@@ -19,7 +17,6 @@ export interface FilterItem {
   mode: TagMode;
 }
 type ModeMap = Record<string, TagMode>;
-
 interface Ctx {
   filters: FilterItem[];
   cycle: (t: { type: string; name: string }) => void;
@@ -31,7 +28,6 @@ interface Ctx {
   epoch: number;
   modeOf: (type: string, name: string) => TagMode | undefined;
 }
-
 const TagCtx = createContext<Ctx>({
   filters: [],
   cycle: () => {},
@@ -43,25 +39,20 @@ const TagCtx = createContext<Ctx>({
   epoch: 0,
   modeOf: () => undefined,
 });
-
 export function useFilterTags() {
   return useContext(TagCtx);
 }
-
 const keyOf = (t: { type: string; name: string }) => `${t.type}:${t.name}`;
-
 export function TagProvider({ children }: { children: React.ReactNode }) {
   const [filters, setFilters] = useState<FilterItem[]>([]);
   const [filtersReady, setFiltersReady] = useState(false);
   const [lastChangedKey, setLastChangedKey] = useState<string | null>(null);
   const [epoch, setEpoch] = useState(0);
-
   const [modeMap, setModeMap] = useState<ModeMap>({});
   const modeMapRef = useRef(modeMap);
   useEffect(() => {
     modeMapRef.current = modeMap;
   }, [modeMap]);
-
   const includes = useMemo(
     () => filters.filter((f) => f.mode === "include"),
     [filters]
@@ -70,7 +61,6 @@ export function TagProvider({ children }: { children: React.ReactNode }) {
     () => filters.filter((f) => f.mode === "exclude"),
     [filters]
   );
-
   useEffect(() => {
     AsyncStorage.getItem(KEY)
       .then((j) => {
@@ -83,7 +73,6 @@ export function TagProvider({ children }: { children: React.ReactNode }) {
       })
       .finally(() => setFiltersReady(true));
   }, []);
-
   const saveTimer = useRef<ReturnType<typeof global.setTimeout> | null>(null);
   useEffect(() => {
     if (!filtersReady) return;
@@ -95,18 +84,14 @@ export function TagProvider({ children }: { children: React.ReactNode }) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
   }, [filters, filtersReady]);
-
   const modeOf = useCallback(
     (type: string, name: string) => modeMapRef.current[`${type}:${name}`],
     []
   );
-
   const cycle = useCallback((t: { type: string; name: string }) => {
     const k = keyOf(t);
-
     setEpoch((e) => e + 1);
     setLastChangedKey(`${k}:${Date.now()}`);
-
     setFilters((prev) => {
       const idx = prev.findIndex((x) => x.type === t.type && x.name === t.name);
       if (idx === -1) {
@@ -130,14 +115,12 @@ export function TagProvider({ children }: { children: React.ReactNode }) {
       return cp;
     });
   }, []);
-
   const clear = useCallback(() => {
     setFilters([]);
     setModeMap({});
     setEpoch((e) => e + 1);
     setLastChangedKey(null);
   }, []);
-
   return (
     <TagCtx.Provider
       value={{

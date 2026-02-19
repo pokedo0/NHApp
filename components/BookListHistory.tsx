@@ -2,23 +2,25 @@ import { Book } from "@/api/nhentai";
 import { format, Locale } from "date-fns";
 import { enUS, ja, ru, zhCN } from "date-fns/locale";
 import React, {
-  ReactElement,
-  ReactNode,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
+    ReactElement,
+    ReactNode,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import {
-  ActivityIndicator,
-  RefreshControl,
-  SectionList,
-  SectionListData,
-  SectionListRenderItem,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
+    ActivityIndicator,
+    Platform,
+    RefreshControl,
+    SectionList,
+    SectionListData,
+    SectionListRenderItem,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View,
 } from "react-native";
 
 import { useFavHistory } from "@/hooks/useFavHistory";
@@ -60,6 +62,7 @@ export interface BookListHistoryProps<T extends Book = Book> {
   getScore?: (book: T) => number | undefined;
   children?: ReactNode;
   cardDesign?: "classic" | "stable" | "image";
+  scrollRef?: React.RefObject<SectionList<SectionRow<T>>>;
 }
 
 type RowItem<T extends Book> = {
@@ -93,10 +96,12 @@ export default function BookListHistory<T extends Book = Book>({
   getScore,
   children,
   cardDesign,
+  scrollRef: externalScrollRef,
 }: BookListHistoryProps<T>) {
   const { colors } = useTheme();
   const { t, resolved } = useI18n();
-  const listRef = useRef<SectionList<SectionRow<T>>>(null);
+  const internalListRef = useRef<SectionList<SectionRow<T>>>(null);
+  const listRef = externalScrollRef || internalListRef;
   const { width, height } = useWindowDimensions();
 
   const { favoritesSet, toggleFavorite } = useFavHistory();
@@ -237,10 +242,9 @@ export default function BookListHistory<T extends Book = Book>({
         }}
       >
         {row.map((cell) => {
-          const fav =
-            favoritesSet.has(cell.book.id) ||
-            isFavorite?.(cell.book.id) ||
-            false;
+          const fav = isFavorite
+            ? isFavorite(cell.book.id)
+            : favoritesSet.has(cell.book.id) || false;
           const entry = historyIndex[cell.book.id];
           const cur = entry ? Number(entry[1]) || 0 : 0;
           const total = entry ? Math.max(1, Number(entry[2]) || 1) : 1;
@@ -293,7 +297,7 @@ export default function BookListHistory<T extends Book = Book>({
                 onPress={() => onPress?.(cell.book.id)}
                 score={getScore?.(cell.book)}
                 showProgressOnCard={false}
-                favoritesSet={favoritesSet}
+                favoritesSet={isFavorite ? undefined : favoritesSet}
                 historyMap={historyMap}
                 hydrateFromStorage={false}
               />
@@ -335,7 +339,17 @@ export default function BookListHistory<T extends Book = Book>({
   }, [sections, rowKey]);
 
   const lastKeyHandledRef = useRef<string>("");
+  const onEndReachedRef = useRef(onEndReached);
+  const lastRowKeyRef = useRef(lastRowKey);
   const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    onEndReachedRef.current = onEndReached;
+  }, [onEndReached]);
+
+  useEffect(() => {
+    lastRowKeyRef.current = lastRowKey;
+  }, [lastRowKey]);
 
   const onViewableItemsChanged = useCallback(
     ({
@@ -343,17 +357,19 @@ export default function BookListHistory<T extends Book = Book>({
     }: {
       viewableItems: Array<{ key?: string; isViewable: boolean }>;
     }) => {
-      if (!onEndReached || !lastRowKey) return;
+      const currentOnEndReached = onEndReachedRef.current;
+      const currentLastRowKey = lastRowKeyRef.current;
+      if (!currentOnEndReached || !currentLastRowKey) return;
       const seen = viewableItems.some(
-        (v) => v.isViewable && v.key === lastRowKey
+        (v) => v.isViewable && v.key === currentLastRowKey
       );
-      if (seen && lastKeyHandledRef.current !== lastRowKey) {
-        lastKeyHandledRef.current = lastRowKey;
-        onEndReached();
+      if (seen && lastKeyHandledRef.current !== currentLastRowKey) {
+        lastKeyHandledRef.current = currentLastRowKey;
+        currentOnEndReached();
         setTick((x) => (x + 1) % 100000);
       }
     },
-    [onEndReached, lastRowKey]
+    [] 
   );
 
   const viewabilityConfig = useMemo(
@@ -397,11 +413,11 @@ export default function BookListHistory<T extends Book = Book>({
             paddingTop: paddingHorizontal / 2,
             paddingBottom: 16,
           }}
-          removeClippedSubviews={cardDesign === "image"}
-          windowSize={7}
-          maxToRenderPerBatch={10}
-          initialNumToRender={8}
-          updateCellsBatchingPeriod={40}
+          removeClippedSubviews={Platform.OS === 'android' || cardDesign === "image"}
+          windowSize={Platform.OS === 'android' ? 5 : 7}
+          maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 10}
+          initialNumToRender={Platform.OS === 'android' ? 6 : 8}
+          updateCellsBatchingPeriod={Platform.OS === 'android' ? 50 : 40}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           extraData={tick}

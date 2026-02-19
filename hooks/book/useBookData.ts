@@ -2,12 +2,10 @@ import { Book, getBook, loadBookFromLocal } from "@/api/nhentai";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Platform, ToastAndroid } from "react-native";
-
 export const useBookData = (idNum: number) => {
   const router = useRouter();
   const [book, setBook] = useState<Book | null>(null);
   const [local, setLocal] = useState(false);
-
   useEffect(() => {
     (async () => {
       const bLocal = await loadBookFromLocal(idNum);
@@ -25,6 +23,5 @@ export const useBookData = (idNum: number) => {
       }
     })();
   }, [idNum, router]);
-
   return { book, setBook, local, setLocal };
 };

@@ -19,26 +19,17 @@ import {
   View,
 } from "react-native";
 import { WebView, WebViewMessageEvent } from "react-native-webview";
-
 type ForceCss = Record<string, string | string[]>;
-
 type Props = {
   visible: boolean;
   galleryId?: number;
   onClose: () => void;
-
   prefillText?: string;
-
   onlyCommentFormCss?: boolean;
-
   customCss?: string | string[];
-
   forceHide?: string[];
-
   forceCss?: ForceCss;
-
   onPosted?: (json: any) => void;
-
   colors: {
     text: string;
     sub: string;
@@ -48,7 +39,6 @@ type Props = {
     backdrop: string;
   };
 };
-
 const S = StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -74,19 +64,15 @@ const S = StyleSheet.create({
   btn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
   btnTxt: { fontWeight: "700" },
 });
-
 const NH = "https://nhentai.net";
 const UA =
   "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36";
-
 const COLLAPSED_H = 160;
 const EXPANDED_H = 100;
-
 function cssString(x?: string | string[]) {
   if (!x) return "";
   return Array.isArray(x) ? x.join("\n") : x;
 }
-
 export default function CloudflareGate({
   visible,
   galleryId,
@@ -100,74 +86,51 @@ export default function CloudflareGate({
   colors,
 }: Props) {
   const { t } = useI18n();
-
-  // Проверяем, это Electron?
   const isElectron = Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
-
   const [loading, setLoading] = useState(true);
   const [tries, setTries] = useState(0);
   const [showWeb, setShowWeb] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
   const webRef = useRef<WebView>(null);
-
-  // Для Electron используем IPC метод
   const handleElectronCloudflare = useCallback(async () => {
     if (!isElectron || !visible) return;
-
     try {
       setLoading(true);
       const electron = (window as any).electron;
-      
       if (!electron || !electron.openCloudflareChallenge) {
         console.warn("[CloudflareGate] Electron IPC method not available");
         setLoading(false);
         return;
       }
-
-      // Небольшая задержка, чтобы избежать множественных вызовов
       await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Проверяем авторизацию через cookies
       try {
         const cookiesResult = await electron.getCookies('https://nhentai.net');
         const hasSession = cookiesResult.success && cookiesResult.cookies && cookiesResult.cookies.sessionid;
-        
         if (!hasSession) {
           console.warn("[CloudflareGate] User not logged in, cannot post comments");
-          // Можно показать сообщение или предложить авторизоваться
-          // Но для простоты просто открываем окно - пользователь может авторизоваться там
         }
       } catch (err) {
         console.warn("[CloudflareGate] Failed to check cookies:", err);
       }
-
-      // Используем URL с якорем на форму комментария, чтобы сразу показать форму
       const url = galleryId 
         ? `https://nhentai.net/g/${galleryId}/#comment_form` 
         : 'https://nhentai.net/#comment_form';
       console.log(`[CloudflareGate] Opening Cloudflare challenge window for: ${url}`);
-      
       const result = await electron.openCloudflareChallenge({
         url,
         galleryId,
         prefillText,
       });
-
       if (result.success) {
-        // Синхронизируем cookies
         if (result.cookies) {
           const { csrf, session, cf } = result.cookies;
           if (csrf) await AsyncStorage.setItem("nh.csrf", csrf);
           if (session) await AsyncStorage.setItem("nh.session", session);
           if (cf) await AsyncStorage.setItem("nh.cf_clearance", cf);
         }
-
-        // Если комментарий был отправлен
         if (result.comment) {
           onPosted?.(result.comment);
         }
-
-        // Закрываем модалку
         onClose();
       } else {
         console.warn("[CloudflareGate] Cloudflare challenge failed:", result.error);
@@ -180,21 +143,17 @@ export default function CloudflareGate({
       setLoading(false);
     }
   }, [isElectron, visible, galleryId, prefillText, onPosted, onClose]);
-
   useEffect(() => {
     if (visible) {
       setShowWeb(false);
       setLoading(true);
       progress.setValue(0);
       setTries(0);
-      
-      // Для Electron используем IPC метод вместо WebView
       if (isElectron) {
         handleElectronCloudflare();
       }
     }
   }, [visible, progress, isElectron, handleElectronCloudflare]);
-
   useEffect(() => {
     if (showWeb) {
       Animated.timing(progress, {
@@ -205,12 +164,10 @@ export default function CloudflareGate({
       }).start();
     }
   }, [showWeb, progress]);
-
   const url = useMemo(
     () => (galleryId ? `${NH}/g/${galleryId}/` : `${NH}/`),
     [galleryId]
   );
-
   const prefillJSON = useMemo(
     () =>
       JSON.stringify(
@@ -218,7 +175,6 @@ export default function CloudflareGate({
       ),
     [prefillText]
   );
-
   const baseCss = useMemo(() => {
     if (!onlyCommentFormCss) return "";
     return `
@@ -227,7 +183,6 @@ export default function CloudflareGate({
       .btn{font-size:14px}
     `;
   }, [onlyCommentFormCss]);
-
   const mergedCss = useMemo(
     () => `
       html,body{background:#2b2b2b;color:#ddd}
@@ -236,8 +191,6 @@ export default function CloudflareGate({
     `,
     [baseCss, customCss]
   );
-
-  // ------ ранний инжект ------
   const earlyInject = useMemo(
     () => `
       (function(){
@@ -262,7 +215,6 @@ export default function CloudflareGate({
             ],
             ...forceCss,
           })};
-
           function applyForceCss(){
             try{
               Object.keys(FORCE_CSS||{}).forEach(function(sel){
@@ -284,7 +236,6 @@ export default function CloudflareGate({
               });
             }catch(_){}
           }
-
           // meta viewport
           try{
             var vp = document.querySelector('meta[name="viewport"]');
@@ -298,7 +249,6 @@ export default function CloudflareGate({
               vp.setAttribute("content", content);
             }
           }catch(_){}
-
           // обычный CSS
           var css = ${JSON.stringify(mergedCss)};
           var style = document.createElement('style');
@@ -306,7 +256,6 @@ export default function CloudflareGate({
           style.type='text/css';
           style.appendChild(document.createTextNode(css));
           (document.head||document.documentElement).appendChild(style);
-
           // плавное появление
           var hide = document.createElement('style');
           hide.id='rn-gate-hide';
@@ -320,7 +269,6 @@ export default function CloudflareGate({
           }else{
             reveal();
           }
-
           try{
             var mo = new MutationObserver(function(){ applyForceCss(); });
             mo.observe(document.documentElement,{subtree:true, childList:true, attributes:true});
@@ -330,16 +278,12 @@ export default function CloudflareGate({
     `,
     [mergedCss, forceCss]
   );
-
-  // ------ основной инжект ------
   const injectedJS = `
     (function(){
       var PREFILL=${prefillJSON};
       var FORCE_HIDE=${JSON.stringify(forceHide || [])};
       var clickedOnce=false, clickedAfterToken=false;
-
       function post(o){ try{ window.ReactNativeWebView.postMessage(JSON.stringify(o)); }catch(_){ } }
-
       function absUrl(u){
         if(!u) return "";
         var s=String(u).trim();
@@ -353,7 +297,6 @@ export default function CloudflareGate({
         if(s.startsWith("/")) return "${NH}"+s;
         return s;
       }
-
       function getMeFromDom(){
         try{
           // пробуем правое меню
@@ -394,7 +337,6 @@ export default function CloudflareGate({
         }catch(e){}
         return null;
       }
-
       function enrichPostedJson(j){
         try{
           var me = getMeFromDom();
@@ -414,19 +356,16 @@ export default function CloudflareGate({
           return j;
         }catch(e){ return j; }
       }
-
       function sendMeTick(){
         try{
           var me = getMeFromDom();
           if(me){ post({type:'me', me: me}); }
         }catch(_){}
       }
-
       function getCookie(n){
         var m=document.cookie.match(new RegExp('(?:^|;\\\\s*)'+n+'=([^;]+)'));
         return m?decodeURIComponent(m[1]):'';
       }
-
       (function intercept(){
         try{
           var _open=XMLHttpRequest.prototype.open, _send=XMLHttpRequest.prototype.send;
@@ -451,7 +390,6 @@ export default function CloudflareGate({
             return _send.apply(this,arguments);
           };
         }catch(_){}
-
         try{
           var _fetch=window.fetch;
           window.fetch=function(input, init){
@@ -480,7 +418,6 @@ export default function CloudflareGate({
           };
         }catch(_){}
       })();
-
       function findForm(){ return document.getElementById('comment_form'); }
       function findBtn(form){
         return form.querySelector('button[type="submit"],.btn.btn-primary[type="submit"]')
@@ -501,7 +438,6 @@ export default function CloudflareGate({
           return true;
         }catch(_){ return false; }
       }
-
       function focusTurnstile(){
         var ifr=document.querySelector('iframe[src*="challenges.cloudflare.com"]');
         if(ifr){
@@ -513,7 +449,6 @@ export default function CloudflareGate({
         }
         return false;
       }
-
       function applyForceHide(){
         try{
           ${JSON.stringify(forceHide || [])}.forEach(function(sel){
@@ -527,7 +462,6 @@ export default function CloudflareGate({
           });
         }catch(_){}
       }
-
       function pollToken(){
         try{
           if(window.turnstile && typeof window.turnstile.getResponse==='function'){
@@ -539,7 +473,6 @@ export default function CloudflareGate({
           }
         }catch(_){}
       }
-
       function tickCookies(){
         post({
           type:'cookies',
@@ -550,43 +483,35 @@ export default function CloudflareGate({
           location:location.href
         });
       }
-
       function init(){
         applyForceHide();
         try{
           var mo=new MutationObserver(applyForceHide);
           mo.observe(document.documentElement,{subtree:true,childList:true,attributes:true});
         }catch(_){}
-
         prefill();
         setTimeout(function(){ clickedOnce = clickComment(); }, 300);
-
         clearInterval(window.__fTick); window.__fTick=setInterval(focusTurnstile,600);
         clearInterval(window.__tTick); window.__tTick=setInterval(pollToken,500);
         clearInterval(window.__cTick); window.__cTick=setInterval(tickCookies,800);
         clearInterval(window.__mTick); window.__mTick=setInterval(sendMeTick,1200);
         sendMeTick();
       }
-
       if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',init); } else { init(); }
     })(); true;
   `;
-
   const handleMessage = useCallback(
     async (e: WebViewMessageEvent) => {
       try {
         const msg = JSON.parse(e.nativeEvent.data || "{}");
-
         if (msg?.type === "posted" && msg.json) {
           onPosted?.(msg.json);
           return;
         }
-
         if (msg?.type === "captcha_required") {
           if (!showWeb) setShowWeb(true);
           return;
         }
-
         if (msg?.type === "cookies") {
           const { csrf, session, cf } = msg;
           if (csrf) await AsyncStorage.setItem("nh.csrf", csrf);
@@ -594,8 +519,6 @@ export default function CloudflareGate({
           if (cf) await AsyncStorage.setItem("nh.cf_clearance", cf);
           return;
         }
-
-        // ⬇️ сохраняем профиль в кэш (на случай, если понадобится фоллбек)
         if (msg?.type === "me" && msg.me) {
           try {
             await AsyncStorage.setItem("nh.me", JSON.stringify(msg.me));
@@ -606,7 +529,6 @@ export default function CloudflareGate({
     },
     [onPosted, showWeb]
   );
-
   const reload = () => {
     setTries((t) => t + 1);
     if (isElectron) {
@@ -615,7 +537,6 @@ export default function CloudflareGate({
       webRef.current?.reload();
     }
   };
-
   const allowNav = useCallback((req: any): boolean => {
     const u: string = String(req?.url || "");
     if (
@@ -624,10 +545,9 @@ export default function CloudflareGate({
       u.startsWith("blob:")
     )
       return true;
-    const host = u.replace(/^[a-z]+:\/\//i, "").split("/")[0];
+    const host = u.replace(/^[a-z]+:\/\//, '');
     return /(?:^|\.)nhentai\.net$|^challenges\.cloudflare\.com$/.test(host);
   }, []);
-
   const wrapHeight = progress.interpolate({
     inputRange: [0, 1],
     outputRange: [COLLAPSED_H, EXPANDED_H],
@@ -640,12 +560,9 @@ export default function CloudflareGate({
     inputRange: [0, 1],
     outputRange: [0.985, 1],
   });
-
-  // В Electron не показываем модалку - всё работает в фоне
   if (isElectron) {
     return null;
   }
-
   return (
     <Modal
       visible={visible}
@@ -664,13 +581,11 @@ export default function CloudflareGate({
           <Text style={[S.title, { color: colors.text }]}>
             {t("cloudflare.title")}
           </Text>
-
           <Text style={[S.text, { color: colors.sub }]}>
             {showWeb
               ? t("cloudflare.caption.tap")
               : t("cloudflare.caption.preparing")}
           </Text>
-
           <Animated.View
             style={{ height: wrapHeight, borderRadius: 10, overflow: "hidden" }}
           >
@@ -688,7 +603,6 @@ export default function CloudflareGate({
                 </Text>
               </View>
             )}
-
             {!isElectron ? (
               <Animated.View
                 pointerEvents={showWeb ? "auto" : "none"}
@@ -757,7 +671,6 @@ export default function CloudflareGate({
               </View>
             )}
           </Animated.View>
-
           <View style={S.row}>
             <Pressable
               onPress={reload}
@@ -776,7 +689,6 @@ export default function CloudflareGate({
               </Text>
             </Pressable>
           </View>
-
           <Text style={[S.text, { color: colors.sub, marginTop: 8 }]}>
             {t("cloudflare.stats.attempts", { n: tries })}
           </Text>

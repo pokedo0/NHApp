@@ -169,7 +169,7 @@
       "library": "ライブラリ"
     },
     "favoritesOnline": "オンラインのお気に入り",
-    "brand": "NHAppAndroid",
+    "brand": "NHApp",
     "brandTag": "非公式",
     "characters": "キャラクター",
     "discordJoin": "Discord に参加する",
@@ -206,11 +206,19 @@
     },
     "controls": {
       "back": "戻る",
+      "settings": "設定",
+      "vertical": "縦",
+      "horizontal": "横",
+      "dual": "見開きモード",
+      "fit": "フィット",
       "fitContain": "合わせる",
       "fitCover": "全画面",
+      "tap": "タップで切り替え",
+      "handSwap": "利き手切替",
       "inspect": "検証",
       "orientation": "向き",
-      "tap": "タップ"
+      "continuous": "連続スクロール",
+      "scroll": "スクロール"
     },
     "menuHint": "操作を開く",
     "pagination": {
@@ -234,7 +242,9 @@
       "hue": "色相: {deg}°",
       "theme": "アプリのテーマ",
       "presets": "プリセット",
-      "fullPalette": "フルパレット"
+      "fullPalette": "フルパレット",
+      "infiniteScroll": "無限スクロール",
+      "infiniteScrollDesc": "ページネーションの代わりに下にスクロールすると次のページを自動的に読み込む"
     },
     "display": {
       "androidNote": "Androidではフルスクリーン中でも下からスワイプでシステムバーを表示できます。",
@@ -255,6 +265,10 @@
       "hideHints": "ヒントを非表示",
       "hideHintsDesc": "リーダーでのヒントやジェスチャーの強調を隠す。"
     },
+    "storage": {
+      "savePath": "保存パス",
+      "savePathDesc": "ダウンロードした本を保存するディレクトリ"
+    },
     "section": {
       "appearance": "外観",
       "display": "表示",
@@ -272,6 +286,10 @@
     "grid": {
       "resetProfile": "このプロファイルをリセット",
       "resetAll": "すべてのプロファイルをリセット",
+      "cardDesignTitle": "カードデザイン",
+      "preview": "プレビュー",
+      "layout": "レイアウト",
+      "spacing": "間隔",
       "cardDesign": {
         "image": "画像",
         "classic": "クラシック",

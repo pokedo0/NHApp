@@ -634,7 +634,6 @@ export default function Hero({
               <View style={{ borderRadius: 14, overflow: "hidden", flex: 1 }}>
                 <Pressable
                   onPress={async () => {
-                    // Для Electron открываем отдельное окно, для Android - обычная навигация
                     if (isElectron() && book.id) {
                       await openReaderWindow(book.id, readBtn.page);
                     } else {
@@ -958,7 +957,6 @@ export default function Hero({
           <View style={{ borderRadius: 14, overflow: "hidden", flex: 1 }}>
             <Pressable
               onPress={async () => {
-                // Для Electron открываем отдельное окно, для Android - обычная навигация
                 if (isElectron() && book.id) {
                   await openReaderWindow(book.id, readBtn.page);
                 } else {
