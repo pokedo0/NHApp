@@ -85,7 +85,8 @@
     "delete": "删除",
     "close": "关闭",
     "hide": "隐藏",
-    "clearSelection": "清除选择"
+    "clearSelection": "清除选择",
+    "retry": "重试"
   },
   "explore": {
     "sort": {
@@ -152,6 +153,50 @@
     }
   },
   "historyNotFound": "历史为空 ¯\\_(ツ)_/¯",
+  "profile": {
+    "edit": {
+      "title": "个人资料设置",
+      "button": "个人资料设置",
+      "electronOnly": "个人资料设置仅在桌面应用中可用。",
+      "loading": "加载中…",
+      "avatar": "头像",
+      "changeAvatar": "更换头像",
+      "removeAvatar": "删除头像",
+      "username": "用户名",
+      "email": "邮箱",
+      "about": "关于",
+      "favoriteTags": "收藏标签",
+      "theme": "网站主题",
+      "changePassword": "修改密码",
+      "oldPassword": "当前密码",
+      "newPassword": "新密码",
+      "newPasswordAgain": "新密码（再次输入）",
+      "blacklist": "黑名单",
+      "saved": "已保存",
+      "errorNetwork": "无法发送请求。请检查网络后重试，或在浏览器中打开 nhentai.net 修改个人资料。",
+      "notLoggedIn": "你尚未登录，请先登录 nhentai。",
+      "permissionTitle": "需要权限",
+      "permissionMessage": "选择头像需要访问相册权限。"
+    },
+    "blacklist": {
+      "title": "黑名单",
+      "tags": "标签",
+      "artists": "作者",
+      "parodies": "原作",
+      "characters": "角色",
+      "groups": "团体",
+      "languages": "语言",
+      "categories": "分类",
+      "save": "保存",
+      "addPlaceholder": "搜索…",
+      "loading": "加载中…",
+      "saved": "已保存",
+      "empty": "暂未添加",
+      "toRemove": "待删除",
+      "unsaved": "有未保存的更改",
+      "description": "管理隐藏的标签、作者等分类"
+    }
+  },
   "menu": {
     "downloaded": "已下载",
     "explore": "探索",

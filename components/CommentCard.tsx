@@ -293,7 +293,22 @@ export default function CommentCard({
     onPress?.();
   };
   const profilePressRef = useRef(false);
-  const handleProfilePress = (e?: any) => {
+  const handleAvatarPress = (e?: any) => {
+    e?.stopPropagation?.();
+    if (profilePressRef.current) return;
+    profilePressRef.current = true;
+    if (onPressAvatar) {
+      onPressAvatar();
+    } else if (onPressName) {
+      onPressName();
+    } else {
+      onPress?.();
+    }
+    setTimeout(() => {
+      profilePressRef.current = false;
+    }, 500);
+  };
+  const handleNamePress = (e?: any) => {
     e?.stopPropagation?.();
     if (profilePressRef.current) return;
     profilePressRef.current = true;
@@ -463,7 +478,7 @@ export default function CommentCard({
         </Modal>
         <View style={R.header}>
           <Pressable
-            onPress={handleProfilePress}
+            onPress={handleAvatarPress}
             hitSlop={4}
           >
             {avatarSrc ? (
@@ -474,7 +489,7 @@ export default function CommentCard({
           </Pressable>
           <Pressable
             style={{ flex: 1, marginLeft: 10 }}
-            onPress={handleProfilePress}
+            onPress={handleNamePress}
             hitSlop={4}
           >
             <View style={R.nameTime}>

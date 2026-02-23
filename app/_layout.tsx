@@ -268,11 +268,14 @@ function AppContent() {
         <Stack.Screen name="explore" />
         <Stack.Screen name="book/[id]" />
         <Stack.Screen name="profile/[id]/[slug]" />
+        <Stack.Screen name="profile/[id]/edit" />
+        <Stack.Screen name="profile/[id]/blacklist" />
         <Stack.Screen name="read" />
         <Stack.Screen name="downloaded" />
         <Stack.Screen name="recommendations" />
         <Stack.Screen name="tags/index" />
         <Stack.Screen name="settings/index" />
+        <Stack.Screen name="whats-new" />
         <Stack.Screen name="+not-found" />
       </Stack>
     </>
@@ -281,6 +284,18 @@ function AppContent() {
 
 export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(!(Platform.OS === "web" && isElectron()));
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const style = document.createElement("style");
+    style.setAttribute("data-hide-scrollbar", "1");
+    style.textContent = `
+      * { scrollbar-width: none; -ms-overflow-style: none; }
+      *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    `;
+    document.head.appendChild(style);
+    return () => { style.remove(); };
+  }, []);
 
   useEffect(() => {
     if (Platform.OS === "web" && isElectron()) {

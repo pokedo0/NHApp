@@ -85,7 +85,8 @@
     "delete": "Удалить",
     "close": "Закрыть",
     "hide": "Скрыть",
-    "clearSelection": "Снять всё"
+    "clearSelection": "Снять всё",
+    "retry": "Повторить"
   },
   "explore": {
     "sort": {
@@ -152,6 +153,50 @@
     }
   },
   "historyNotFound": "История пуста ¯\\_(ツ)_/¯",
+  "profile": {
+    "edit": {
+      "title": "Настройки профиля",
+      "button": "Настройки профиля",
+      "electronOnly": "Настройки профиля доступны только в десктопном приложении.",
+      "loading": "Загрузка…",
+      "avatar": "Аватар",
+      "changeAvatar": "Сменить аватар",
+      "removeAvatar": "Удалить аватар",
+      "username": "Имя пользователя",
+      "email": "Email",
+      "about": "О себе",
+      "favoriteTags": "Любимые теги",
+      "theme": "Тема сайта",
+      "changePassword": "Сменить пароль",
+      "oldPassword": "Текущий пароль",
+      "newPassword": "Новый пароль",
+      "newPasswordAgain": "Новый пароль (ещё раз)",
+      "blacklist": "Чёрный список",
+      "saved": "Сохранено",
+      "errorNetwork": "Не удалось отправить запрос. Проверьте подключение и попробуйте снова или измените профиль на nhentai.net в браузере.",
+      "notLoggedIn": "Вы не авторизованы. Сначала войдите на nhentai.",
+      "permissionTitle": "Требуется разрешение",
+      "permissionMessage": "Для выбора аватара нужен доступ к галерее."
+    },
+    "blacklist": {
+      "title": "Чёрный список",
+      "tags": "Теги",
+      "artists": "Художники",
+      "parodies": "Пародии",
+      "characters": "Персонажи",
+      "groups": "Группы",
+      "languages": "Языки",
+      "categories": "Категории",
+      "save": "Сохранить",
+      "addPlaceholder": "Поиск…",
+      "loading": "Загрузка…",
+      "saved": "Сохранено",
+      "empty": "Ничего не добавлено",
+      "toRemove": "к удалению",
+      "unsaved": "Есть несохранённые изменения",
+      "description": "Управление скрытыми тегами, художниками и другими категориями"
+    }
+  },
   "menu": {
     "downloaded": "Загруженное",
     "explore": "Обзор",

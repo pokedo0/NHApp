@@ -1,9 +1,22 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, Platform, StyleSheet, View } from "react-native";
+import {
+  FlatList,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { Book } from "@/api/nhentai";
-import { getFavoritesOnline, getMe } from "@/api/nhentaiOnline";
+import {
+  BATCH_SIZE,
+  getBooksBatch,
+  getFavoritesPageIds,
+  getMe,
+  yieldToUi,
+} from "@/api/nhentaiOnline";
 import BookListOnline from "@/components/BookListOnline";
 import PaginationBar from "@/components/PaginationBar";
 import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
@@ -26,6 +39,13 @@ export default function FavoritesOnlineScreen() {
 
   const [hasAuth, setHasAuth] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [loadingBooks, setLoadingBooks] = useState(false);
+  const loadingRef = useRef(false);
+  const [everLoaded, setEverLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const LOAD_SAFETY_MS = 25_000;
 
   useEffect(() => {
     AsyncStorage.getItem(INFINITE_SCROLL_KEY).then((value) => {
@@ -37,20 +57,17 @@ export default function FavoritesOnlineScreen() {
     try {
       const me = await getMe();
       setHasAuth(!!me);
+    } catch {
+      setHasAuth(false);
     } finally {
       setAuthChecked(true);
     }
   }, []);
 
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
   useFocusEffect(
     useCallback(() => {
-      setAuthChecked(false);
-      checkAuth();
-    }, [checkAuth])
+      if (!authChecked) checkAuth();
+    }, [authChecked, checkAuth])
   );
 
   const loadPage = useCallback(
@@ -59,35 +76,91 @@ export default function FavoritesOnlineScreen() {
         setBooks([]);
         setPage(1);
         setTotalPages(1);
+        setEverLoaded(true);
+        setLoadError(false);
         return;
       }
-      const { books: fetched, totalPages: tp } = await getFavoritesOnline({
-        page: pageNum,
-      });
-      if (infiniteScroll) {
-        setBooks((prev) => (pageNum === 1 ? fetched : [...prev, ...fetched]));
-      } else {
-        setBooks(fetched);
-        if (pageNum > 1) {
-          scrollToTop(scrollRef);
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+      setLoadingBooks(true);
+      setLoadError(false);
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+      loadTimeoutRef.current = setTimeout(() => {
+        if (!loadingRef.current) return;
+        loadingRef.current = false;
+        setLoadingBooks(false);
+        setEverLoaded(true);
+        setLoadError(true);
+        loadTimeoutRef.current = null;
+      }, LOAD_SAFETY_MS);
+
+      try {
+        const { ids, totalPages: tp } = await getFavoritesPageIds({
+          page: pageNum,
+        });
+        setTotalPages(tp);
+        setPage(pageNum);
+        if (pageNum === 1 || !infiniteScroll) setBooks([]);
+        if (pageNum > 1 && !infiniteScroll) scrollToTop(scrollRef);
+
+        if (ids.length === 0) {
+          setEverLoaded(true);
+          return;
         }
+
+        const isAppend = pageNum > 1 && infiniteScroll;
+        let accumulated: Book[] = [];
+
+        for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+          if (!loadingRef.current) return;
+          const batch = ids.slice(i, i + BATCH_SIZE);
+          const batchResults = await getBooksBatch(batch);
+          const batchBooks = batchResults.filter(Boolean) as Book[];
+
+          if (isAppend) {
+            const orderMap = new Map(ids.map((id, idx) => [id, idx]));
+            const sorted = [...batchBooks].sort(
+              (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0)
+            );
+            setBooks((prev) => [...prev, ...sorted]);
+          } else {
+            accumulated = [...accumulated, ...batchBooks];
+            const orderMap = new Map(ids.map((id, idx) => [id, idx]));
+            accumulated.sort(
+              (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0)
+            );
+            setBooks([...accumulated]);
+          }
+          await yieldToUi();
+        }
+      } finally {
+        if (loadTimeoutRef.current) {
+          clearTimeout(loadTimeoutRef.current);
+          loadTimeoutRef.current = null;
+        }
+        loadingRef.current = false;
+        setLoadingBooks(false);
+        setEverLoaded(true);
       }
-      setTotalPages(tp);
-      setPage(pageNum);
     },
     [hasAuth, infiniteScroll]
   );
 
+  const initialLoadDone = useRef(false);
   useEffect(() => {
-    loadPage(1);
-    scrollToTop(scrollRef);
-  }, [hasAuth, loadPage]);
+    if (!hasAuth || !authChecked) return;
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+    const t = setTimeout(() => {
+      loadPage(1);
+      scrollToTop(scrollRef);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [hasAuth, authChecked, loadPage]);
 
-  const onEnd = () => {
-    if (infiniteScroll && page < totalPages) {
-      loadPage(page + 1);
-    }
-  };
+  const onEnd = useCallback(() => {
+    if (infiniteScroll && page < totalPages) loadPage(page + 1);
+  }, [infiniteScroll, page, totalPages, loadPage]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -120,11 +193,38 @@ export default function FavoritesOnlineScreen() {
     setBooks((prev) => prev.filter((b) => !removedIds.includes(b.id)));
   }, []);
 
+  const showLoading = loadingBooks || (hasAuth && authChecked && !everLoaded);
+
+  if (loadError && books.length === 0 && !loadingBooks && hasAuth) {
+    return (
+      <View
+        style={[
+          styles.flex,
+          styles.retryWrap,
+          { backgroundColor: colors.bg },
+        ]}
+      >
+        <Text style={[styles.retryText, { color: colors.sub }]}>
+          Не удалось загрузить. Проверьте сеть или попробуйте позже.
+        </Text>
+        <Pressable
+          onPress={() => {
+            setLoadError(false);
+            loadPage(1);
+          }}
+          style={[styles.retryBtn, { backgroundColor: colors.accent }]}
+        >
+          <Text style={styles.retryBtnText}>Повторить</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
       <BookListOnline
         data={books}
-        loading={hasAuth && books.length === 0 && authChecked}
+        loading={showLoading}
         refreshing={refreshing}
         onRefresh={onRefresh}
         onEndReached={infiniteScroll ? onEnd : undefined}
@@ -145,9 +245,7 @@ export default function FavoritesOnlineScreen() {
         <PaginationBar
           currentPage={page}
           totalPages={totalPages}
-          onChange={(p) => {
-            loadPage(p);
-          }}
+          onChange={(p) => loadPage(p)}
           scrollRef={scrollRef}
           hideWhenInfiniteScroll={false}
         />
@@ -156,4 +254,26 @@ export default function FavoritesOnlineScreen() {
   );
 }
 
-const styles = StyleSheet.create({ flex: { flex: 1 } });
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  retryWrap: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  retryText: {
+    fontSize: 15,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryBtnText: {
+    color: "#000",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+});

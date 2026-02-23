@@ -99,6 +99,7 @@ export default function ExploreScreen() {
   const [isPaginating, setPaginating] = useState(false);
   const [infiniteScroll, setInfiniteScroll] = useState(false);
   const scrollRef = useRef<FlatList<Book> | null>(null);
+  const prevPageRef = useRef(currentPage);
 
   const searching = dateFilterActive && stage !== "idle" && stage !== "done";
   const reqIdRef = useRef(0);
@@ -440,6 +441,19 @@ export default function ExploreScreen() {
     setPage(1);
     scrollToTop(scrollRef);
   }, [query, sort, incStr, excStr, dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (prevPageRef.current === currentPage) return;
+    prevPageRef.current = currentPage;
+    if (infiniteScroll) return;
+    if (Platform.OS === "web") {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => scrollToTop(scrollRef));
+      });
+    } else {
+      scrollToTop(scrollRef);
+    }
+  }, [currentPage, infiniteScroll]);
 
   const onRefresh = useCallback(async () => {
     if (!isHydrated) return;

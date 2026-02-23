@@ -3,7 +3,7 @@ import { NH_HOST } from "@/api/auth";
 import type { Me } from "./types";
 export function extractGalleryIdsFromHtml(html: string): number[] {
   const ids = new Set<number>();
-  const re = /\/g\/(\d+)\//;
+  const re = /\/g\/(\d+)\//g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) ids.add(Number(m[1]));
   return [...ids];

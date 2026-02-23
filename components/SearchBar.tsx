@@ -188,7 +188,7 @@ export function SearchBar() {
       return q ? t("menu.search") + ": " + q : t("menu.search");
     if (has("tags")) return t("menu.tags");
     if (has("profile")) return `${t("menu.profile")}: ${userName}`;
-    return "NH App";
+    return "NHApp";
   }
 
   const [sortOpen, setSortOpen] = useState(false);

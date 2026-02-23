@@ -1,6 +1,6 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, {
   useCallback,
   useEffect,
@@ -12,6 +12,7 @@ import {
   Animated,
   Image,
   Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,9 +35,11 @@ import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { differenceInDays, differenceInMonths } from "date-fns";
+import { Feather } from "@expo/vector-icons";
 const AVATAR_SIZE = 112;
 const BANNER_HEIGHT = 140;
 const DESKTOP_BREAKPOINT = 900;
+const TABLET_BREAKPOINT = 600;
 let ImageColors: any = null;
 try {
   ImageColors = require("react-native-image-colors");
@@ -197,7 +200,11 @@ export default function UserProfileScreen() {
   const { innerPadding } = useWindowLayout();
   const { width: winW, height: winH } = useWindowDimensions();
   const isDesktop = winW >= DESKTOP_BREAKPOINT;
-  const isMobile = !isDesktop;
+  const isTabletOrDesktop = winW >= TABLET_BREAKPOINT;
+  const isMobile = !isTabletOrDesktop;
+  const isTablet = winW >= TABLET_BREAKPOINT && winW < DESKTOP_BREAKPOINT;
+  const isWide = isTabletOrDesktop;
+  const panelWidth = isDesktop ? 360 : isTablet ? 300 : undefined;
   const [busy, setBusy] = useState(true);
   const [ov, setOv] = useState<UserOverview | null>(null);
   const [viewer, setViewer] = useState<Me | null>(null);
@@ -205,6 +212,11 @@ export default function UserProfileScreen() {
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [bannerColor, setBannerColor] = useState<string>("#2a2a2a");
   const [avatarLoaded, setAvatarLoaded] = useState(false);
+  const [avatarPreviewUri, setAvatarPreviewUri] = useState<string | null>(null);
+  const favListRef = useRef<any>(null);
+  const [favScrollX, setFavScrollX] = useState(0);
+  const [favContentW, setFavContentW] = useState(0);
+  const [favViewportW, setFavViewportW] = useState(0);
   const joinedAgoLabel = useMemo(() => {
     if (!ov?.joinedAt) return "";
     const now = new Date();
@@ -305,24 +317,32 @@ export default function UserProfileScreen() {
       return copy;
     });
   }, []);
+  const loadOverview = useCallback(async () => {
+    const overview = await getUserOverview(Number(id), slug).catch(() => null);
+    setOv(overview);
+    const ids = (overview?.recentFavoriteIds || []).slice(0, 12);
+    const books = (
+      await Promise.all(ids.map((g) => getBook(g).catch(() => null)))
+    ).filter(Boolean) as Book[];
+    setRecent(books.map(toLightBook));
+  }, [id, slug]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
       setBusy(true);
-      const overview = await getUserOverview(Number(id), slug).catch(
-        () => null
-      );
+      await loadOverview();
       if (!mounted) return;
-      setOv(overview);
-      const ids = (overview?.recentFavoriteIds || []).slice(0, 12);
-      const books = (
-        await Promise.all(ids.map((g) => getBook(g).catch(() => null)))
-      ).filter(Boolean) as Book[];
-      setRecent(books.map(toLightBook));
       setBusy(false);
     })();
     return () => void (mounted = false);
-  }, [id, slug]);
+  }, [loadOverview]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadOverview();
+    }, [loadOverview])
+  );
   const baseGrid = useGridConfig();
   const favGrid = useMemo(
     () => ({
@@ -361,13 +381,13 @@ export default function UserProfileScreen() {
         {
           backgroundColor: ui.card,
           paddingBottom: isMobile ? 0 : PAD,
-          borderRadius: isMobile ? 0 : 18,
+          borderRadius: isMobile ? 0 : 20,
         },
       ]}
     >
       {busy && !ov ? (
         <Skeleton
-          style={{ height: BANNER_HEIGHT, borderRadius: isMobile ? 0 : 18 }}
+          style={{ height: BANNER_HEIGHT, borderRadius: isMobile ? 0 : 20 }}
         />
       ) : (
         <View
@@ -376,41 +396,46 @@ export default function UserProfileScreen() {
             {
               height: BANNER_HEIGHT,
               backgroundColor: bannerColor,
-              borderTopLeftRadius: isMobile ? 0 : 18,
-              borderTopRightRadius: isMobile ? 0 : 18,
+              borderTopLeftRadius: isMobile ? 0 : 20,
+              borderTopRightRadius: isMobile ? 0 : 20,
             },
           ]}
         />
       )}
       <View style={{ marginTop: -AVATAR_SIZE / 2, paddingHorizontal: PAD }}>
         <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
-          <View>
-            {(!avatarLoaded || (busy && !ov)) && (
-              <Skeleton
+          <Pressable
+            onPress={() => ov?.me?.avatar_url && setAvatarPreviewUri(ov.me.avatar_url)}
+            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+          >
+            <View>
+              {(!avatarLoaded || (busy && !ov)) && (
+                <Skeleton
+                  style={{
+                    width: AVATAR_SIZE,
+                    height: AVATAR_SIZE,
+                    borderRadius: AVATAR_SIZE / 2,
+                  }}
+                />
+              )}
+              <Image
+                source={{ uri: ov?.me?.avatar_url }}
+                onLoadEnd={() => {
+                  setAvatarLoaded(true);
+                  pickBannerFrom(ov?.me?.avatar_url);
+                }}
                 style={{
                   width: AVATAR_SIZE,
                   height: AVATAR_SIZE,
-                  borderRadius: 32,
+                  borderRadius: AVATAR_SIZE / 2,
+                  borderWidth: 4,
+                  borderColor: ui.card,
+                  position: avatarLoaded ? "relative" : "absolute",
+                  opacity: avatarLoaded ? 1 : 0,
                 }}
               />
-            )}
-            <Image
-              source={{ uri: ov?.me?.avatar_url }}
-              onLoadEnd={() => {
-                setAvatarLoaded(true);
-                pickBannerFrom(ov?.me?.avatar_url);
-              }}
-              style={{
-                width: AVATAR_SIZE,
-                height: AVATAR_SIZE,
-                borderRadius: 32,
-                borderWidth: 6,
-                borderColor: ui.card,
-                position: avatarLoaded ? "relative" : "absolute",
-                opacity: avatarLoaded ? 1 : 0,
-              }}
-            />
-          </View>
+            </View>
+          </Pressable>
         </View>
       </View>
       <View style={{ paddingHorizontal: PAD, marginTop: 12 }}>
@@ -439,8 +464,7 @@ export default function UserProfileScreen() {
           </>
         )}
       </View>
-      {}
-      {false && (
+      {canEdit && (
         <View
           style={{
             paddingHorizontal: PAD,
@@ -450,12 +474,21 @@ export default function UserProfileScreen() {
           }}
         >
           <Pressable
-            onPress={() => router.push("/settings")}
+            onPress={() =>
+              router.push({
+                pathname: "/profile/[id]/edit",
+                params: {
+                  id: String(ov?.me?.id ?? id),
+                  slug: ov?.me?.slug ?? slug ?? ov?.me?.username ?? "",
+                  avatarUrl: ov?.me?.avatar_url ?? "",
+                },
+              })
+            }
             android_ripple={{ color: ui.ripple, borderless: true }}
             style={[styles.primaryBtn, { backgroundColor: ui.accent }]}
           >
             <Text style={[styles.primaryBtnTxt, { color: ui.onAccent }]}>
-              {t("storageManager.actions.edit")}
+              {t("profile.edit.button")}
             </Text>
           </Pressable>
         </View>
@@ -513,14 +546,45 @@ export default function UserProfileScreen() {
         styles.panel,
         {
           backgroundColor: ui.card,
-          borderRadius: isMobile ? 0 : 18,
+          borderRadius: isMobile ? 0 : 20,
           paddingTop: PAD,
           paddingBottom: PAD,
         },
       ]}
     >
-      <View style={{ paddingHorizontal: PAD, marginBottom: 8 }}>
+      <View style={{ paddingHorizontal: PAD, marginBottom: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <Title>{t("menu.favorites")}</Title>
+        {isWide && recent.length > 0 && !busy && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Pressable
+              onPress={() => {
+                const next = Math.max(0, favScrollX - 220);
+                favListRef.current?.scrollToOffset?.({ offset: next, animated: true });
+              }}
+              style={({ pressed }) => [
+                styles.favArrow,
+                { backgroundColor: ui.chipBg, opacity: favScrollX <= 8 ? 0.4 : pressed ? 0.8 : 1 },
+              ]}
+              disabled={favScrollX <= 8}
+            >
+              <Feather name="chevron-left" size={22} color={ui.text} />
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                const max = Math.max(0, favContentW - favViewportW);
+                const next = Math.min(max, favScrollX + 220);
+                favListRef.current?.scrollToOffset?.({ offset: next, animated: true });
+              }}
+              style={({ pressed }) => [
+                styles.favArrow,
+                { backgroundColor: ui.chipBg, opacity: favContentW > 0 && favScrollX >= favContentW - favViewportW - 8 ? 0.4 : pressed ? 0.8 : 1 },
+              ]}
+              disabled={favContentW > 0 && favScrollX >= favContentW - favViewportW - 8}
+            >
+              <Feather name="chevron-right" size={22} color={ui.text} />
+            </Pressable>
+          </View>
+        )}
       </View>
       {busy && recent.length === 0 ? (
         <ScrollView
@@ -547,24 +611,34 @@ export default function UserProfileScreen() {
           {t("historyNotFound")}
         </Text>
       ) : (
-        <BookList
-          data={recent}
-          loading={busy && recent.length === 0}
-          refreshing={false}
-          onRefresh={async () => {}}
-          isFavorite={(bid) => favorites.has(bid)}
-          onToggleFavorite={toggleFav}
-          onPress={(bid) => {
-            const b = recent.find((x) => x.id === bid);
-            router.push({
-              pathname: "/book/[id]",
-              params: { id: String(bid), title: b?.title.pretty },
-            });
-          }}
-          gridConfig={{ default: favGrid }}
-          horizontal
-          background={ui.card}
-        />
+        <View
+          onLayout={(e) => setFavViewportW(e.nativeEvent.layout.width)}
+          style={recent.length > 0 ? undefined : { minHeight: 120 }}
+        >
+          <BookList
+            data={recent}
+            loading={busy && recent.length === 0}
+            refreshing={false}
+            onRefresh={async () => {}}
+            isFavorite={(bid) => favorites.has(bid)}
+            onToggleFavorite={toggleFav}
+            onPress={(bid) => {
+              const b = recent.find((x) => x.id === bid);
+              router.push({
+                pathname: "/book/[id]",
+                params: { id: String(bid), title: b?.title.pretty },
+              });
+            }}
+            gridConfig={{ default: favGrid }}
+            horizontal
+            background={ui.card}
+            scrollRef={favListRef}
+            onScrollHorizontal={(e) => {
+              setFavScrollX(e.nativeEvent.contentOffset.x);
+              setFavContentW(e.nativeEvent.contentSize.width);
+            }}
+          />
+        </View>
       )}
       <View style={{ paddingHorizontal: PAD, marginTop: 14, marginBottom: 8 }}>
         <Title>{t("comments.title")}</Title>
@@ -615,6 +689,16 @@ export default function UserProfileScreen() {
                     params: { id: String(c.gallery_id) },
                   })
                 }
+                onPressName={() =>
+                  router.push({
+                    pathname: "/book/[id]",
+                    params: { id: String(c.gallery_id) },
+                  })
+                }
+                onPressAvatar={() => {
+                  const uri = c.avatar_url || ov?.me?.avatar_url;
+                  if (uri) setAvatarPreviewUri(uri);
+                }}
               />
             ))}
             {(ov?.recentComments?.length || 0) === 0 && !busy && (
@@ -630,52 +714,88 @@ export default function UserProfileScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: ui.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
-      {isDesktop ? (
-        <View
-          style={[
-            styles.desktopRow,
-            {
-              paddingHorizontal: innerPadding,
-              paddingTop: 22,
-              paddingBottom: 22,
-              gap: 18,
-            },
-          ]}
-        >
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={
+          isWide
+            ? {
+                paddingHorizontal: innerPadding,
+                paddingTop: 16,
+                paddingBottom: 24,
+                flexGrow: 1,
+              }
+            : { paddingBottom: 24 }
+        }
+        showsVerticalScrollIndicator={true}
+      >
+        {isWide ? (
           <View
-            style={{
-              width: 380,
-              flexShrink: 0,
-              borderRadius: 18,
-              overflow: "hidden",
-            }}
+            style={[
+              styles.desktopRow,
+              {
+                gap: 20,
+                alignItems: "flex-start",
+              },
+            ]}
           >
-            <ScrollView
-              style={{ maxHeight: winH }}
-              showsVerticalScrollIndicator={false}
+            <View
+              style={{
+                width: panelWidth,
+                maxWidth: panelWidth,
+                flexShrink: 0,
+                borderRadius: 20,
+                overflow: "hidden",
+              }}
             >
               {ProfilePanel}
-            </ScrollView>
+            </View>
+            <View
+              style={{
+                flex: 1,
+                minWidth: 0,
+                borderRadius: 20,
+                overflow: "hidden",
+              }}
+            >
+              {RightPanel}
+            </View>
           </View>
-          <View style={{ flex: 1, borderRadius: 18, overflow: "hidden" }}>
-            <ScrollView showsVerticalScrollIndicator>{RightPanel}</ScrollView>
-          </View>
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 0 }}
-          showsVerticalScrollIndicator={false}
+        ) : (
+          <>
+            {ProfilePanel}
+            {RightPanel}
+          </>
+        )}
+      </ScrollView>
+
+      <Modal
+        visible={!!avatarPreviewUri}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAvatarPreviewUri(null)}
+      >
+        <Pressable
+          style={styles.avatarPreviewBackdrop}
+          onPress={() => setAvatarPreviewUri(null)}
         >
-          {ProfilePanel}
-          {RightPanel}
-        </ScrollView>
-      )}
+          <View style={styles.avatarPreviewContent}>
+            <Pressable onPress={() => setAvatarPreviewUri(null)}>
+              {avatarPreviewUri ? (
+                <Image
+                  source={{ uri: avatarPreviewUri }}
+                  style={styles.avatarPreviewImage}
+                  resizeMode="contain"
+                />
+              ) : null}
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 const styles = StyleSheet.create({
   desktopRow: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "flex-start",
   },
@@ -693,7 +813,7 @@ const styles = StyleSheet.create({
   },
   displayName: { fontWeight: "900", fontSize: 24, letterSpacing: 0.2 },
   subline: { marginTop: 4, fontSize: 13, letterSpacing: 0.2 },
-  sectionTitle: { fontWeight: "700", fontSize: 16, letterSpacing: 0.6 },
+  sectionTitle: { fontWeight: "700", fontSize: 17, letterSpacing: 0.5 },
   subheader: { fontWeight: "700", fontSize: 16, letterSpacing: 0.6 },
   primaryBtn: {
     height: 40,
@@ -712,4 +832,29 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   tagTxt: { fontWeight: "700", fontSize: 12 },
+  avatarPreviewBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  avatarPreviewContent: {
+    maxWidth: "100%",
+    maxHeight: "80%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarPreviewImage: {
+    width: 280,
+    height: 280,
+    borderRadius: 20,
+  },
+  favArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });

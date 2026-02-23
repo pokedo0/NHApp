@@ -7,17 +7,18 @@ import {
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
 import PaginationBar from "@/components/PaginationBar";
-import WhatsNewModal from "@/components/WhatsNewModal";
+import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
 import { useDateRange } from "@/context/DateRangeContext";
 import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useUpdateCheck } from "@/hooks/useUpdateCheck";
 import { useI18n } from "@/lib/i18n/I18nContext";
-import { useTheme } from "@/lib/ThemeContext";
-import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
+import { getBannerAssetDataUrls, isElectron } from "@/electron/bridge";
+import { useTheme, type ThemeColors } from "@/lib/ThemeContext";
 import { scrollToTop } from "@/utils/scrollToTop";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setPendingWhatsNew } from "@/store/pendingWhatsNew";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, {
   useCallback,
@@ -28,18 +29,24 @@ import React, {
 } from "react";
 import {
   FlatList,
+  Image,
+  ImageBackground,
   Linking,
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 
 type CacheEntry = { books: Book[]; totalPages: number; ts: number };
 const EXPLORE_CACHE = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 30_000;
+
+const UPDATE_BANNER_BG = require("@/assets/images/upd.png");
+const UPDATE_BANNER_ICON = require("@/assets/images/adaptive-icon.png");
 
 type ProbeNow = {
   which: "start" | "end";
@@ -107,6 +114,7 @@ export default function HomeScreen() {
   const [isPaginating, setPaginating] = useState(false);
   const [infiniteScroll, setInfiniteScroll] = useState(false);
   const scrollRef = useRef<FlatList<Book> | null>(null);
+  const prevPageRef = useRef(currentPage);
 
   const searching = dateFilterActive && stage !== "idle" && stage !== "done";
   const gridConfig = useGridConfig();
@@ -115,7 +123,6 @@ export default function HomeScreen() {
   const booksLengthRef = useRef(books.length);
 
   const { update, checkUpdate } = useUpdateCheck();
-  const [showNotes, setShowNotes] = useState(false);
 
   const loadInfiniteScrollSetting = useCallback(() => {
     AsyncStorage.getItem(INFINITE_SCROLL_KEY).then((value) => {
@@ -296,68 +303,6 @@ export default function HomeScreen() {
     );
   };
 
-  const UpdateBanner = () => {
-    if (!update) return null;
-    return (
-      <View
-        style={{
-          backgroundColor: colors.accent + "10",
-          borderBottomColor: colors.page,
-        }}
-      >
-        <View
-          style={{
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ color: colors.txt, fontWeight: "700" }}>
-              {t("NewUpdate")} {update.versionName}
-            </Text>
-            {!!update.notes?.trim() && (
-              <TouchableOpacity onPress={() => setShowNotes(true)}>
-                <Text
-                  style={{
-                    color: colors.txt,
-                    opacity: 0.8,
-                    marginTop: 2,
-                    textDecorationLine: "underline",
-                  }}
-                  numberOfLines={1}
-                >
-                  {t("whatsNewUpdate")}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <TouchableOpacity
-            onPress={() =>
-              Linking.openURL(
-                "https://github.com/e18lab/NHAppAndroid/releases/latest"
-              )
-            }
-            style={[
-              styles.ctaBtn,
-              {
-                backgroundColor: colors.accent + "33",
-                borderColor: colors.accent,
-              },
-            ]}
-          >
-            <Text style={{ color: colors.accent, fontWeight: "700" }}>
-              {t("downloadUpdate")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
   useEffect(() => {
     booksLengthRef.current = books.length;
   }, [books.length]);
@@ -507,6 +452,19 @@ export default function HomeScreen() {
     scrollToTop(scrollRef);
   }, [query, sort, incStr, excStr, dateFrom, dateTo]);
 
+  useEffect(() => {
+    if (prevPageRef.current === currentPage) return;
+    prevPageRef.current = currentPage;
+    if (infiniteScroll) return;
+    if (Platform.OS === "web") {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => scrollToTop(scrollRef));
+      });
+    } else {
+      scrollToTop(scrollRef);
+    }
+  }, [currentPage, infiniteScroll]);
+
   const onRefresh = useCallback(async () => {
     if (!isHydrated) return;
     await fetchPage(currentPage, cacheKey, true, false);
@@ -642,11 +600,16 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <UpdateBanner />
-      <WhatsNewModal
-        visible={!!update && showNotes}
-        onClose={() => setShowNotes(false)}
-        notes={update?.notes ?? ""}
+      <UpdateBanner
+        update={update}
+        colors={colors}
+        t={t}
+        onOpenWhatsNewPage={() => {
+          if (update) {
+            setPendingWhatsNew(update);
+            router.push("/whats-new");
+          }
+        }}
       />
 
       {dateFilterActive && searching && <DateSearchPanel />}
@@ -755,4 +718,235 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
+  updateBannerOuter: {
+    overflow: "hidden",
+    position: "relative",
+    alignSelf: "stretch",
+  },
+  updateBannerBgImage: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+    backfaceVisibility: "hidden",
+  },
+  updateBannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.52)",
+  },
+  updateBannerPlankBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  updateBannerInnerWrap: {
+    position: "relative",
+    zIndex: 1,
+  },
+  updateBannerInnerWrapCentered: {
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 860,
+  },
+  updateBannerInner: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  updateAppIcon: {
+    overflow: "hidden",
+  },
+  updateTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
+  },
+  updateTitle: {
+    fontWeight: "700",
+  },
+  updateWhatsNew: {
+    fontSize: 13,
+    textDecorationLine: "underline",
+    opacity: 0.95,
+  },
+  updateCtaBtn: {
+    borderWidth: 1.5,
+  },
+  updateCtaText: {
+    fontWeight: "700",
+    fontSize: 14,
+  },
+  updatePlankTitle: {
+    color: "#fff",
+  },
+  updatePlankLink: {
+    color: "rgba(255,255,255,0.82)",
+    marginTop: 2,
+  },
+  updatePlankCta: {
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.28)",
+    borderWidth: 1,
+  },
+  updatePlankCtaText: {
+    color: "#fff",
+  },
+});
+
+type UpdateBannerLayout = {
+  layoutWidth: number;
+  isWide: boolean;
+  isDesktop: boolean;
+  padH: number;
+  iconSize: number;
+};
+
+function UpdateBanner(props: {
+  update: { versionName: string; notes: string; apkUrl: string } | null;
+  colors: ThemeColors;
+  t: (key: string) => string;
+  onOpenWhatsNewPage: () => void;
+}) {
+  const { update, colors, t, onOpenWhatsNewPage } = props;
+  const { width } = useWindowDimensions();
+  const [electronAssets, setElectronAssets] = useState<{
+    bg: string | null;
+    icon: string | null;
+  }>({ bg: null, icon: null });
+  useEffect(() => {
+    if (Platform.OS !== "web" || !isElectron()) return;
+    getBannerAssetDataUrls().then(setElectronAssets);
+  }, []);
+  const layout = useMemo(() => {
+    const isWide = width >= 520;
+    const isDesktop = width >= 900;
+    return {
+      layoutWidth: width,
+      isWide,
+      isDesktop,
+      padH: isWide ? 20 : 14,
+      iconSize: isWide ? 48 : 40,
+    };
+  }, [width]);
+  if (!update) return null;
+  return (
+    <UpdateBannerContent
+      layout={layout}
+      update={update}
+      colors={colors}
+      t={t}
+      onOpenWhatsNewPage={onOpenWhatsNewPage}
+      bannerWidth={Platform.OS === "web" ? width : "100%"}
+      alignSelfCenter={Platform.OS === "web"}
+      electronBgUri={electronAssets.bg}
+      electronIconUri={electronAssets.icon}
+    />
+  );
+}
+
+const UpdateBannerContent = React.memo(function UpdateBannerContent(props: {
+  layout: UpdateBannerLayout;
+  update: { versionName: string; notes: string; apkUrl: string };
+  colors: ThemeColors;
+  t: (key: string) => string;
+  onOpenWhatsNewPage: () => void;
+  bannerWidth: number | "100%";
+  alignSelfCenter: boolean;
+  electronBgUri: string | null;
+  electronIconUri: string | null;
+}) {
+  const { layout, update, colors, t, onOpenWhatsNewPage, bannerWidth, alignSelfCenter, electronBgUri, electronIconUri } = props;
+  const { padH, iconSize, isWide, isDesktop } = layout;
+  const bgSource = electronBgUri ? { uri: electronBgUri } : UPDATE_BANNER_BG;
+  const iconSource = electronIconUri ? { uri: electronIconUri } : UPDATE_BANNER_ICON;
+  return (
+    <View
+      style={[
+        styles.updateBannerOuter,
+        styles.updateBannerPlankBorder,
+        {
+          width: bannerWidth,
+          ...(alignSelfCenter && { alignSelf: "center" as const }),
+        },
+      ]}
+    >
+      <ImageBackground
+        source={bgSource}
+        style={styles.updateBannerBgImage}
+        resizeMode="cover"
+      >
+        <View style={styles.updateBannerOverlay} />
+      </ImageBackground>
+      <View
+        style={[
+          styles.updateBannerInnerWrap,
+          isDesktop && styles.updateBannerInnerWrapCentered,
+        ]}
+      >
+        <View
+          style={[
+            styles.updateBannerInner,
+            {
+              paddingHorizontal: padH,
+              paddingVertical: isWide ? 14 : 12,
+              gap: isWide ? 14 : 10,
+              maxWidth: isDesktop ? 860 : undefined,
+            },
+          ]}
+        >
+          <Image
+            source={iconSource}
+            style={[
+              styles.updateAppIcon,
+              { width: iconSize, height: iconSize, borderRadius: iconSize / 4 },
+            ]}
+            resizeMode="cover"
+          />
+          <View style={styles.updateTextBlock}>
+            <Text
+              style={[
+                styles.updateTitle,
+                styles.updatePlankTitle,
+                { fontSize: isWide ? 17 : 15 },
+              ]}
+              numberOfLines={1}
+            >
+              {t("NewUpdate")} {update.versionName}
+            </Text>
+            <TouchableOpacity onPress={onOpenWhatsNewPage} activeOpacity={0.7}>
+              <Text
+                style={[styles.updateWhatsNew, styles.updatePlankLink]}
+                numberOfLines={1}
+              >
+                {t("whatsNewUpdate")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            onPress={() =>
+              Linking.openURL(
+                "https://github.com/e18lab/NHAppAndroid/releases/latest"
+              )
+            }
+            activeOpacity={0.8}
+            style={[
+              styles.updateCtaBtn,
+              styles.updatePlankCta,
+              {
+                paddingVertical: isWide ? 10 : 8,
+                paddingHorizontal: isWide ? 18 : 14,
+                borderRadius: isWide ? 12 : 10,
+              },
+            ]}
+          >
+            <Text style={[styles.updateCtaText, styles.updatePlankCtaText]}>
+              {t("downloadUpdate")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
 });

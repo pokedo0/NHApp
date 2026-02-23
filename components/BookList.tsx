@@ -19,6 +19,7 @@ import {
     NativeSyntheticEvent,
     Platform,
     RefreshControl,
+    ScrollView,
     StyleSheet,
     View,
     useWindowDimensions,
@@ -61,7 +62,10 @@ export interface BookListProps<T extends Book = Book> {
   children?: ReactNode;
   cardDesign?: "classic" | "stable" | "image";
   scrollRef?: React.RefObject<FlatList<T> | null>;
+  onScrollHorizontal?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
+
+const _isWebGrid = Platform.OS === "web";
 
 export default function BookList<T extends Book = Book>({
   data,
@@ -84,6 +88,7 @@ export default function BookList<T extends Book = Book>({
   children,
   cardDesign,
   scrollRef: externalScrollRef,
+  onScrollHorizontal,
 }: BookListProps<T>) {
   const { colors } = useTheme();
   const internalListRef = useRef<FlatList<T> | null>(null);
@@ -204,6 +209,7 @@ export default function BookList<T extends Book = Book>({
     const x = e.nativeEvent.contentOffset.x;
     setScrollX(x);
     updateFades(x, contentW, containerW);
+    onScrollHorizontal?.(e);
   };
 
   const renderCard: ListRenderItem<T> = useCallback(
@@ -276,21 +282,108 @@ export default function BookList<T extends Book = Book>({
     </View>
   );
 
+  const topPad = paddingHorizontal / 2;
+  const bottomPad = paddingHorizontal / 2;
+
+  const useWebGrid = _isWebGrid && !horizontal;
+
+  // ─── Web grid: ScrollView + flex-wrap (no FlatList remount on resize) ───
+  if (useWebGrid) {
+    const endFiredRef = useRef(false);
+
+    const handleWebScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+      const distFromEnd =
+        contentSize.height - contentOffset.y - layoutMeasurement.height;
+      const threshold = layoutMeasurement.height * 0.4;
+      if (distFromEnd <= threshold) {
+        if (!endFiredRef.current) {
+          endFiredRef.current = true;
+          onEndReached?.();
+        }
+      } else {
+        endFiredRef.current = false;
+      }
+    };
+
+    return (
+      <View
+        style={[styles.container, { backgroundColor: themeBg, position: "relative" }]}
+      >
+        {uniqueData.length === 0 && !loading ? (
+          (ListEmptyComponent as ReactElement) ?? <Empty />
+        ) : (
+          <ScrollView
+            ref={listRef as React.RefObject<ScrollView>}
+            style={webGridStyles.scroll}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            onScroll={handleWebScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={[
+              webGridStyles.content,
+              {
+                paddingHorizontal,
+                paddingTop: topPad,
+                paddingBottom: bottomPad || undefined,
+              },
+            ]}
+          >
+            {ListHeaderComponent}
+            <View style={[webGridStyles.wrap, { gap: columnGap }]}>
+              {uniqueData.map((item, index) => {
+                const favChecked = isFavorite
+                  ? isFavorite(item.id)
+                  : favoritesSet.has(item.id) || false;
+                return (
+                  <View
+                    key={String(item.id)}
+                    style={{ width: cardWidth }}
+                  >
+                    <BookCard
+                      design={chosenDesign}
+                      book={item}
+                      cardWidth={cardWidth}
+                      isSingleCol={isSingleCol}
+                      contentScale={contentScale}
+                      isFavorite={favChecked}
+                      onToggleFavorite={async (id, next) => {
+                        await toggleFavorite(id, next);
+                        onToggleFavorite?.(id, next);
+                      }}
+                      onPress={() => onPress?.(item.id)}
+                      score={getScore?.(item)}
+                      favoritesSet={isFavorite ? undefined : favoritesSet}
+                      historyMap={historyMap}
+                      hydrateFromStorage={false}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+            {loading ? <LoadingSpinner /> : ListFooterComponent}
+          </ScrollView>
+        )}
+        {children}
+      </View>
+    );
+  }
+
+  // ─── Native / horizontal: FlatList path ───
   const listKey = horizontal
     ? `row-${Math.round(cardWidth)}-${chosenDesign}`
     : `cols-${cols}-${chosenDesign}`;
 
   const canUseFixedLayout = horizontal || chosenDesign === "image";
-
   const rowHeight = estCardH + (horizontal ? 0 : columnGap);
-  const getItemLayout =
-    canUseFixedLayout && !horizontal
-      ? (_: any, index: number) => {
-          const row = Math.floor(index / cols);
-          const offset = paddingHorizontal / 2 + row * rowHeight;
-          return { length: rowHeight, offset, index };
-        }
-      : horizontal
+  const getItemLayout = canUseFixedLayout && !horizontal
+    ? (_: any, index: number) => {
+        const row = Math.floor(index / cols);
+        const offset = paddingHorizontal / 2 + row * rowHeight;
+        return { length: rowHeight, offset, index };
+      }
+    : horizontal
       ? (_: any, index: number) => ({
           length: cardWidth + columnGap,
           offset: (cardWidth + columnGap) * index,
@@ -298,8 +391,6 @@ export default function BookList<T extends Book = Book>({
         })
       : undefined;
 
-  const topPad = paddingHorizontal / 2;
-  const bottomPad = paddingHorizontal / 2;
   const fadeWidth = 36;
 
   return (
@@ -413,6 +504,16 @@ export default function BookList<T extends Book = Book>({
   );
 }
 
+const webGridStyles = StyleSheet.create({
+  scroll: Platform.OS === "web" ? { flex: 1, width: "100%" } : {},
+  content: Platform.OS === "web" ? { width: "100%", flexGrow: 1 } : {},
+  wrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    ...(Platform.OS === "web" ? { width: "100%" } : {}),
+  },
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   rowContainer: { flexGrow: 0 },
@@ -421,4 +522,3 @@ const styles = StyleSheet.create({
   loader: { marginVertical: 16 },
   fade: { position: "absolute", zIndex: 5 },
 });
-

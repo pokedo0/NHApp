@@ -6,9 +6,12 @@ import {
     FlatList,
     ListRenderItem,
     Modal,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
     Platform,
     Pressable,
     RefreshControl,
+    ScrollView,
     StyleSheet,
     Switch,
     Text,
@@ -532,61 +535,203 @@ export default function BookListOnline({
     </View>
   );
 
-  const Empty =
-    !loading && items.length === 0
-      ? (ListEmptyComponent as React.ReactElement) ?? (
-          <Text
-            style={{
-              color: colors.sub,
-              textAlign: "center",
-              marginTop: 40,
-            }}
-          >
-            {t("booklist.notFoundShort") || "Пусто"}
-          </Text>
+  const EmptyOrLoading =
+    loading && items.length === 0
+      ? (
+          <View style={{ marginTop: 40, alignItems: "center" }}>
+            <LoadingSpinner />
+          </View>
         )
-      : null;
+      : items.length === 0
+        ? (ListEmptyComponent as React.ReactElement) ?? (
+            <Text
+              style={{
+                color: colors.sub,
+                textAlign: "center",
+                marginTop: 40,
+              }}
+            >
+              {t("booklist.notFoundShort") || "Пусто"}
+            </Text>
+          )
+        : null;
 
   const contentBottomPad = (paddingHorizontal ?? 0) / 2 + 12 + insets.bottom;
 
   const listRef = React.useRef<FlatList<Book>>(null);
   const flatListRef = scrollRef || listRef;
 
+  const _useWebGrid = Platform.OS === "web";
+  const endFiredRef = React.useRef(false);
+
+  const handleWebScroll = React.useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+      const distFromEnd =
+        contentSize.height - contentOffset.y - layoutMeasurement.height;
+      const threshold = layoutMeasurement.height * 0.4;
+      if (distFromEnd <= threshold) {
+        if (!endFiredRef.current) {
+          endFiredRef.current = true;
+          onEndReached?.();
+        }
+      } else {
+        endFiredRef.current = false;
+      }
+    },
+    [onEndReached]
+  );
+
+  const renderWebCard = React.useCallback(
+    (item: Book, index: number) => {
+      const id = item.id;
+      const isSelected = selected.has(id);
+
+      return (
+        <View
+          key={String(item.id)}
+          style={{ width: cardWidth }}
+        >
+          <View style={{ position: "relative" }}>
+            <BookCard
+              design={chosenDesign}
+              book={item}
+              cardWidth={cardWidth}
+              isSingleCol={isSingleCol}
+              contentScale={contentScale}
+              isFavorite
+              onToggleFavorite={(_, next) => {
+                if (!next) handleSingleUnfavorite(id);
+              }}
+              onPress={() => {
+                if (selectMode) toggleSelect(id);
+                else onPress?.(id);
+              }}
+              favoritesSet={favoritesSet}
+              historyMap={historyMap}
+              hydrateFromStorage={false}
+            />
+
+            {selectMode && (
+              <Pressable
+                onPress={() => toggleSelect(id)}
+                style={[StyleSheet.absoluteFill, styles.overlayHit]}
+                accessibilityLabel={
+                  isSelected
+                    ? t("favorites.accessibility.deselect") || "Снять выбор"
+                    : t("favorites.accessibility.select") || "Выбрать"
+                }
+              >
+                <View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      backgroundColor: isSelected ? "#00000066" : "#00000022",
+                    },
+                  ]}
+                />
+                {isSelected && (
+                  <View style={styles.selectedBadge}>
+                    <Feather name="check" size={16} color={"#000"} />
+                    <Text style={styles.selectedText}>
+                      {t("favorites.selected") || "Выбрано"}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            )}
+          </View>
+        </View>
+      );
+    },
+    [
+      cardWidth,
+      chosenDesign,
+      isSingleCol,
+      contentScale,
+      selectMode,
+      selected,
+      favoritesSet,
+      historyMap,
+      onPress,
+      t,
+    ]
+  );
+
+  const webFooter =
+    loading && items.length > 0 ? (
+      <View style={{ paddingVertical: 16, alignItems: "center" }}>
+        <LoadingSpinner />
+      </View>
+    ) : (
+      ListFooterComponent ?? null
+    );
+
   return (
     <View style={[styles.root, { backgroundColor: themeBg }]}>
-      <FlatList
-        ref={flatListRef}
-        data={items}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        numColumns={cols}
-        columnWrapperStyle={cols > 1 ? { justifyContent: "center" } : undefined}
-        ListHeaderComponent={Header}
-        contentContainerStyle={{
-          paddingHorizontal,
-          paddingTop: (paddingHorizontal ?? 0) / 2,
-          paddingBottom: contentBottomPad,
-        }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        onEndReached={onEndReached}
-        onEndReachedThreshold={0.4}
-        ListFooterComponent={
-          loading ? (
-            <View style={{ height: 16 }} />
+      {_useWebGrid ? (
+        <ScrollView
+          style={{ flex: 1, width: "100%" }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onScroll={handleWebScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{
+            paddingHorizontal,
+            paddingTop: (paddingHorizontal ?? 0) / 2,
+            paddingBottom: contentBottomPad,
+            width: "100%",
+            flexGrow: 1,
+          }}
+        >
+          {Header}
+          {items.length === 0 && !loading ? (
+            EmptyOrLoading
           ) : (
-            ListFooterComponent ?? null
-          )
-        }
-        ListEmptyComponent={Empty}
-        getItemLayout={getItemLayout as any}
-        windowSize={Platform.OS === 'android' ? 5 : 8}
-        maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 12}
-        initialNumToRender={Platform.OS === 'android' ? Math.min(8, items.length) : Math.min(18, items.length)}
-        updateCellsBatchingPeriod={Platform.OS === 'android' ? 50 : 40}
-        removeClippedSubviews={Platform.OS === 'android' || chosenDesign === "image"}
-      />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: columnGap, width: "100%" }}>
+              {items.map((item, i) => renderWebCard(item, i))}
+            </View>
+          )}
+          {webFooter}
+        </ScrollView>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={items}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          numColumns={cols}
+          columnWrapperStyle={cols > 1 ? { justifyContent: "center" } : undefined}
+          ListHeaderComponent={Header}
+          contentContainerStyle={{
+            paddingHorizontal,
+            paddingTop: (paddingHorizontal ?? 0) / 2,
+            paddingBottom: contentBottomPad,
+          }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            loading && items.length > 0 ? (
+              <View style={{ paddingVertical: 16, alignItems: "center" }}>
+                <LoadingSpinner />
+              </View>
+            ) : (
+              ListFooterComponent ?? null
+            )
+          }
+          ListEmptyComponent={EmptyOrLoading}
+          getItemLayout={getItemLayout as any}
+          windowSize={Platform.OS === 'android' ? 5 : 8}
+          maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 12}
+          initialNumToRender={Platform.OS === 'android' ? Math.min(8, items.length) : Math.min(18, items.length)}
+          updateCellsBatchingPeriod={Platform.OS === 'android' ? 50 : 40}
+          removeClippedSubviews={Platform.OS === 'android' || chosenDesign === "image"}
+        />
+      )}
 
       {undoStack.length > 0 && (
         <View

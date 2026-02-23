@@ -1,8 +1,8 @@
-import { isElectron } from "@/electron/bridge";
+import { getElectronVersion, isElectron } from "@/electron/bridge";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import Constants from "expo-constants";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 export default function SettingsLayout({
@@ -16,6 +16,13 @@ export default function SettingsLayout({
   const { width } = useWindowDimensions();
   const isDesktop = isElectron() || (Platform.OS === "web" && width >= 768);
   const isTablet = width >= 600 && width < 768;
+  const [electronVersion, setElectronVersion] = useState<string | null>(null);
+  useEffect(() => {
+    if (isElectron()) getElectronVersion().then(setElectronVersion);
+  }, []);
+  const versionDisplay = isElectron() && electronVersion != null
+    ? electronVersion
+    : Constants.expoConfig?.version ?? "";
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -39,7 +46,7 @@ export default function SettingsLayout({
         </View>
         <View style={styles.footer}>
           <Text style={[styles.caption, { color: colors.sub }]}>
-            v{Constants.expoConfig?.version} {t("app.version.beta")}
+            v{versionDisplay} {t("app.version.beta")}
           </Text>
         </View>
       </ScrollView>

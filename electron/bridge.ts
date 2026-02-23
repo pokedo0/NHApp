@@ -14,6 +14,7 @@ declare global {
     electron?: {
       getVersion: () => Promise<string>;
       getPlatform: () => Promise<string>;
+      getBannerAssetDataUrls: () => Promise<{ bg: string | null; icon: string | null }>;
       showMessageBox: (options: ElectronMessageBoxOptions) => Promise<ElectronMessageBoxReturnValue>;
       showOpenDialog: (options: ElectronOpenDialogOptions) => Promise<ElectronOpenDialogReturnValue>;
       showSaveDialog: (options: ElectronSaveDialogOptions) => Promise<ElectronSaveDialogReturnValue>;
@@ -58,6 +59,16 @@ export async function getElectronPlatform(): Promise<string | null> {
   } catch (error) {
     console.error('[Electron Bridge] Error getting platform:', error);
     return null;
+  }
+}
+
+export async function getBannerAssetDataUrls(): Promise<{ bg: string | null; icon: string | null }> {
+  if (!isElectron()) return { bg: null, icon: null };
+  try {
+    return await window.electron!.getBannerAssetDataUrls();
+  } catch (error) {
+    console.error('[Electron Bridge] Error getting banner assets:', error);
+    return { bg: null, icon: null };
   }
 }
 

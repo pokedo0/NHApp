@@ -85,7 +85,8 @@
     "delete": "Delete",
     "close": "Close",
     "hide": "Hide",
-    "clearSelection": "Clear selection"
+    "clearSelection": "Clear selection",
+    "retry": "Retry"
   },
   "explore": {
     "sort": {
@@ -152,6 +153,50 @@
     }
   },
   "historyNotFound": "History is empty ¯\\_(ツ)_/¯",
+  "profile": {
+    "edit": {
+      "title": "Profile settings",
+      "button": "Profile settings",
+      "electronOnly": "Profile settings are only available in the desktop app.",
+      "loading": "Loading…",
+      "avatar": "Avatar",
+      "changeAvatar": "Change avatar",
+      "removeAvatar": "Remove avatar",
+      "username": "Username",
+      "email": "Email",
+      "about": "About",
+      "favoriteTags": "Favorite tags",
+      "theme": "Site theme",
+      "changePassword": "Change password",
+      "oldPassword": "Current password",
+      "newPassword": "New password",
+      "newPasswordAgain": "New password (again)",
+      "blacklist": "Blacklist Tags",
+      "saved": "Saved",
+      "errorNetwork": "Could not send request. Check your connection and try again, or change profile on nhentai.net in the browser.",
+      "notLoggedIn": "You are not logged in. Please log in to nhentai first.",
+      "permissionTitle": "Permission required",
+      "permissionMessage": "Gallery access is required to pick an avatar."
+    },
+    "blacklist": {
+      "title": "Blacklist Tags",
+      "tags": "Tags",
+      "artists": "Artists",
+      "parodies": "Parodies",
+      "characters": "Characters",
+      "groups": "Groups",
+      "languages": "Languages",
+      "categories": "Categories",
+      "save": "Save",
+      "addPlaceholder": "Search…",
+      "loading": "Loading…",
+      "saved": "Saved",
+      "empty": "Nothing added",
+      "toRemove": "to remove",
+      "unsaved": "Unsaved changes",
+      "description": "Manage hidden tags, artists, and more"
+    }
+  },
   "menu": {
     "downloaded": "Downloaded",
     "explore": "Explore",

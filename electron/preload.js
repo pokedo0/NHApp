@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electron', {
   isElectron: true,
   getVersion: () => ipcRenderer.invoke('electron:getVersion'),
   getPlatform: () => ipcRenderer.invoke('electron:getPlatform'),
+  getBannerAssetDataUrls: () => ipcRenderer.invoke('electron:getBannerAssetDataUrls'),
   onWindowMaximizeChanged: (callback) => {
     const wrappedCallback = (event, maximized) => {
       callback(maximized);
@@ -17,9 +18,15 @@ contextBridge.exposeInMainWorld('electron', {
   login: () => ipcRenderer.invoke('electron:login'),
   getCookies: (url) => ipcRenderer.invoke('electron:getCookies', url),
   fetchHtml: (url) => ipcRenderer.invoke('electron:fetchHtml', url),
+  fetchProfileEditPage: (payload) => ipcRenderer.invoke('electron:fetchProfileEditPage', payload),
+  submitProfileEdit: (payload) => ipcRenderer.invoke('electron:submitProfileEdit', payload),
+  fetchBlacklistPage: (payload) => ipcRenderer.invoke('electron:fetchBlacklistPage', payload),
+  fetchAutocomplete: (payload) => ipcRenderer.invoke('electron:fetchAutocomplete', payload),
+  submitBlacklist: (payload) => ipcRenderer.invoke('electron:submitBlacklist', payload),
   openCloudflareChallenge: (options) => ipcRenderer.invoke('electron:openCloudflareChallenge', options),
   getRandomId: () => ipcRenderer.invoke('electron:getRandomId'),
   readFile: (filePath) => ipcRenderer.invoke('electron:readFile', filePath),
+  getFileAsDataUrl: (filePath) => ipcRenderer.invoke('electron:getFileAsDataUrl', filePath),
   writeFile: (filePath, content) => ipcRenderer.invoke('electron:writeFile', filePath, content),
   getPath: (name) => ipcRenderer.invoke('electron:getPath', name),
   getInfo: (filePath) => ipcRenderer.invoke('electron:getInfo', filePath),
