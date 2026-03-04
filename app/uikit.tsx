@@ -1,40 +1,46 @@
+import {
+  collectLocalStorageForSync,
+  fetchCloudStorage,
+  pushCloudStorage,
+} from "@/api/cloudStorage";
 import HuePaletteSelector from "@/components/settings/HuePaletteSelector";
+import { STORAGE_KEY_HUE, UIKIT_AS_HOME_KEY } from "@/components/settings/keys";
 import SwitchRow from "@/components/settings/rows/SwitchRow";
-import { UIKIT_AS_HOME_KEY, STORAGE_KEY_HUE } from "@/components/settings/keys";
+import { BottomNavBar } from "@/components/uikit/BottomNavBar";
 import { Button } from "@/components/uikit/Button";
-import { Select } from "@/components/uikit/Select";
-import { FilterDropdown } from "@/components/uikit/FilterDropdown";
+import { SwipeableTabStrip } from "@/components/uikit/SwipeableTabStrip";
 import type { SelectItem } from "@/components/uikit/FilterDropdown";
+import { FilterDropdown } from "@/components/uikit/FilterDropdown";
+import { Graph } from "@/components/uikit/Graph";
 import { KeyInputModal } from "@/components/uikit/KeyInputModal";
+import { Select } from "@/components/uikit/Select";
 import { Slider } from "@/components/uikit/Slider";
 import { Toggle } from "@/components/uikit/Toggle";
-import { ViewToggle } from "@/components/uikit/ViewToggle";
-import { Graph } from "@/components/uikit/Graph";
-import { useGraphStorageData } from "@/hooks/useGraphStorageData";
 import { TypographySample } from "@/components/uikit/Typography";
-import { Feather } from "@expo/vector-icons";
+import { ViewToggle } from "@/components/uikit/ViewToggle";
+import { API_BASE_URL, API_BASE_URL_RAW } from "@/config/api";
+import { useGraphStorageData } from "@/hooks/useGraphStorageData";
+import { useOnlineMe } from "@/hooks/useOnlineMe";
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
+import { getDeviceId, getDeviceName } from "@/utils/deviceId";
+import { Feather } from "@expo/vector-icons";
 import { Stack } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Animated,
+  Easing,
+  Image,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
-  View,
+  View
 } from "react-native";
-import { usePersistedState } from "@/hooks/usePersistedState";
-import { useOnlineMe } from "@/hooks/useOnlineMe";
-import { getDeviceId, getDeviceName } from "@/utils/deviceId";
-import { API_BASE_URL, API_BASE_URL_RAW } from "@/config/api";
-import {
-  fetchCloudStorage,
-  pushCloudStorage,
-  collectLocalStorageForSync,
-} from "@/api/cloudStorage";
 
 function DebugInfoBlock() {
   const { colors } = useTheme();
@@ -184,6 +190,158 @@ export default function UIKitScreen() {
   const [volumeValue, setVolumeValue] = useState(75);
   const [keyInputVisible, setKeyInputVisible] = useState(false);
   const [keyInputValue, setKeyInputValue] = useState("50");
+  const [bottomNavTab, setBottomNavTab] = useState<"manga" | "settings" | "profile">("manga");
+  const [swipeableTabIndex, setSwipeableTabIndex] = useState(0);
+  const [searchModeTabIndex, setSearchModeTabIndex] = useState(0);
+  const [swipeableSearchMode, setSwipeableSearchMode] = useState(false);
+  const [swipeableSearchQuery, setSwipeableSearchQuery] = useState("");
+  const swipeableSearchInputRef = useRef<TextInput>(null);
+  const { width: windowWidth } = useWindowDimensions();
+  const slideWidth = Math.min(windowWidth || 400, 420);
+  const mainLayerX = useRef(new Animated.Value(0)).current;
+  const searchLayerX = useRef(new Animated.Value(400)).current;
+  const mainContentX = useRef(new Animated.Value(0)).current;
+  const mainContentOpacity = useRef(new Animated.Value(1)).current;
+  const searchContentX = useRef(new Animated.Value(0)).current;
+  const searchContentOpacity = useRef(new Animated.Value(1)).current;
+  const searchSlot0X = useRef(new Animated.Value(0)).current;
+  const searchSlot1X = useRef(new Animated.Value(420)).current;
+  const prevMainTabRef = useRef<number | null>(null);
+  const prevSearchTabRef = useRef<number | null>(null);
+  const bottomNavContentX = useRef(new Animated.Value(0)).current;
+  const bottomNavContentOpacity = useRef(new Animated.Value(1)).current;
+  const prevBottomNavTabRef = useRef<"manga" | "settings" | "profile" | null>(null);
+  const BOTTOM_NAV_ORDER: Array<"manga" | "settings" | "profile"> = ["manga", "settings", "profile"];
+  const me = useOnlineMe();
+
+  /** direction: 1 = переход вправо (к следующей вкладке), -1 = влево (к предыдущей) */
+  const runCascadeOutIn = useCallback(
+    (
+      contentX: Animated.Value,
+      contentOpacity: Animated.Value,
+      fromX: number,
+      direction: number
+    ) => {
+      const outX = direction > 0 ? -fromX : fromX;
+      const inStartX = direction > 0 ? fromX : -fromX;
+      Animated.parallel([
+        Animated.timing(contentX, {
+          toValue: outX,
+          duration: 120,
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentOpacity, {
+          toValue: 0,
+          duration: 120,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        contentX.setValue(inStartX);
+        contentOpacity.setValue(0);
+        Animated.parallel([
+          Animated.timing(contentX, {
+            toValue: 0,
+            duration: 160,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(contentOpacity, {
+            toValue: 1,
+            duration: 160,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    },
+    []
+  );
+
+  const swipeableTabs = [
+    { label: "Главная", icon: (c: string) => <Feather name="home" size={16} color={c} /> },
+    { label: "Рекомендации", icon: (c: string) => <Feather name="star" size={16} color={c} /> },
+    { label: "Скаченные", icon: (c: string) => <Feather name="download" size={16} color={c} /> },
+    { label: "Лайкнутые", icon: (c: string) => <Feather name="heart" size={16} color={c} /> },
+    { label: "История", icon: (c: string) => <Feather name="clock" size={16} color={c} /> },
+    { label: "Персонажи", icon: (c: string) => <Feather name="users" size={16} color={c} /> },
+  ];
+
+  const searchModeTabs = [
+    { label: t("search.recent"), icon: (c: string) => <Feather name="clock" size={16} color={c} /> },
+    { label: t("menu.search"), icon: (c: string) => <Feather name="search" size={16} color={c} /> },
+  ];
+
+  const mockRecentSearches = ["манга", "теги", "автор"];
+
+  useEffect(() => {
+    const toSearch = swipeableSearchMode;
+    const easing = Easing.out(Easing.cubic);
+    Animated.parallel([
+      Animated.timing(mainLayerX, {
+        toValue: toSearch ? -slideWidth : 0,
+        duration: 280,
+        easing,
+        useNativeDriver: true,
+      }),
+      Animated.timing(searchLayerX, {
+        toValue: toSearch ? 0 : slideWidth,
+        duration: 280,
+        easing,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [swipeableSearchMode, mainLayerX, searchLayerX, slideWidth]);
+
+  const searchSlideDist = Math.max(slideWidth, 360);
+
+  useEffect(() => {
+    if (!swipeableSearchMode) return;
+    const d = searchSlideDist;
+    if (searchModeTabIndex === 0) {
+      searchSlot0X.setValue(0);
+      searchSlot1X.setValue(d);
+    } else {
+      searchSlot0X.setValue(-d);
+      searchSlot1X.setValue(0);
+    }
+  }, [swipeableSearchMode, searchSlideDist]);
+
+  useEffect(() => {
+    if (prevMainTabRef.current !== null && prevMainTabRef.current !== swipeableTabIndex) {
+      const dir = swipeableTabIndex > prevMainTabRef.current ? 1 : -1;
+      runCascadeOutIn(mainContentX, mainContentOpacity, 36, dir);
+    }
+    prevMainTabRef.current = swipeableTabIndex;
+  }, [swipeableTabIndex, mainContentX, mainContentOpacity, runCascadeOutIn]);
+
+  useEffect(() => {
+    const prev = prevSearchTabRef.current;
+    prevSearchTabRef.current = searchModeTabIndex;
+    if (prev === null || prev === searchModeTabIndex) return;
+    const d = searchSlideDist;
+    if (searchModeTabIndex === 1) {
+      searchSlot1X.setValue(d);
+      Animated.parallel([
+        Animated.timing(searchSlot0X, { toValue: -d, duration: 220, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+        Animated.timing(searchSlot1X, { toValue: 0, duration: 220, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+      ]).start();
+    } else {
+      searchSlot0X.setValue(-d);
+      Animated.parallel([
+        Animated.timing(searchSlot0X, { toValue: 0, duration: 220, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+        Animated.timing(searchSlot1X, { toValue: d, duration: 220, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+      ]).start();
+    }
+  }, [searchModeTabIndex, searchSlot0X, searchSlot1X, searchSlideDist]);
+
+  useEffect(() => {
+    if (prevBottomNavTabRef.current !== null && prevBottomNavTabRef.current !== bottomNavTab) {
+      const oldIdx = BOTTOM_NAV_ORDER.indexOf(prevBottomNavTabRef.current);
+      const newIdx = BOTTOM_NAV_ORDER.indexOf(bottomNavTab);
+      const dir = newIdx > oldIdx ? 1 : -1;
+      runCascadeOutIn(bottomNavContentX, bottomNavContentOpacity, 36, dir);
+    }
+    prevBottomNavTabRef.current = bottomNavTab;
+  }, [bottomNavTab, bottomNavContentX, bottomNavContentOpacity, runCascadeOutIn]);
 
   const periodOptions: SelectItem[] = [
     { value: "new", label: t("uikit.periodNew") },
@@ -221,6 +379,41 @@ export default function UIKitScreen() {
     setLoadingWhich(key);
     setTimeout(() => setLoadingWhich(null), 2000);
   }, []);
+
+  const onBottomNavChange = useCallback(
+    (v: string) => {
+      if (v === bottomNavTab) return;
+      setBottomNavTab(v as "manga" | "settings" | "profile");
+    },
+    [bottomNavTab]
+  );
+
+  const bottomNavItems = [
+    {
+      value: "manga",
+      label: "Манга",
+      icon: (c: string) => <Feather name="book" size={22} color={c} />,
+    },
+    {
+      value: "settings",
+      label: "Настройки",
+      icon: (c: string) => <Feather name="settings" size={22} color={c} />,
+    },
+    {
+      value: "profile",
+      label: "Профиль",
+      icon: (c: string) =>
+        me?.avatar_url ? (
+          <Image
+            source={{ uri: me.avatar_url }}
+            style={styles.profileTabAvatar}
+            accessibilityLabel="Аватар профиля"
+          />
+        ) : (
+          <Feather name="user" size={22} color={c} />
+        ),
+    },
+  ];
 
   return (
     <>
@@ -559,6 +752,165 @@ export default function UIKitScreen() {
           </View>
 
           <Text style={[styles.sectionTitle, { color: colors.txt, marginTop: 24 }]}>
+            SwipeableTabStrip (вкладки-пилюли)
+          </Text>
+          <Text style={[styles.bottomNavPlaceholder, { color: colors.sub, marginBottom: 8 }]}>
+            Фокус в поле поиска переключает контент полосы; ввод — текстовый.
+          </Text>
+          <View style={[styles.bottomNavDemo, { backgroundColor: colors.page ?? colors.bg }]}>
+            <Pressable
+              onPress={() => swipeableSearchInputRef.current?.focus()}
+              style={({ pressed, hovered }) => [
+                styles.swipeableSearchBar,
+                { backgroundColor: colors.searchBg ?? colors.bg + "80" },
+                pressed && { opacity: 0.95 },
+                Platform.OS === "web" && hovered && { opacity: 0.92 },
+              ]}
+            >
+              <Feather name="search" size={18} color={colors.sub} style={styles.swipeableSearchBarIcon} />
+              <TextInput
+                ref={swipeableSearchInputRef}
+                style={[styles.swipeableSearchBarInput, { color: colors.txt, backgroundColor: "transparent" }]}
+                placeholder={t("search.placeholder")}
+                placeholderTextColor={colors.sub}
+                value={swipeableSearchQuery}
+                onChangeText={setSwipeableSearchQuery}
+                onFocus={() => setSwipeableSearchMode(true)}
+                selectTextOnFocus={false}
+              />
+              {swipeableSearchMode ? (
+                <Pressable
+                  onPress={() => {
+                    setSwipeableSearchQuery("");
+                    setSwipeableSearchMode(false);
+                    swipeableSearchInputRef.current?.blur();
+                  }}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.swipeableSearchBarClear, pressed && { opacity: 0.7 }]}
+                >
+                  <Feather name="x" size={18} color={colors.sub} />
+                </Pressable>
+              ) : null}
+            </Pressable>
+            <View style={[styles.swipeableStage, { overflow: "hidden" }]}>
+              <Animated.View
+                style={[
+                  styles.swipeableLayer,
+                  { transform: [{ translateX: mainLayerX }] },
+                ]}
+                pointerEvents={swipeableSearchMode ? "none" : "auto"}
+              >
+                <SwipeableTabStrip
+                  tabs={swipeableTabs}
+                  selectedIndex={swipeableTabIndex}
+                  onSelectIndex={setSwipeableTabIndex}
+                />
+                <View style={styles.swipeableContentWrap}>
+                  <Animated.View
+                    style={[
+                      styles.swipeableContentInner,
+                      {
+                        transform: [{ translateX: mainContentX }],
+                        opacity: mainContentOpacity,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.bottomNavPlaceholder, { color: colors.sub, marginTop: 8 }]}>
+                      Выбрана: {swipeableTabs[swipeableTabIndex].label}. На ПК при наведении на полосу — скролл колёсиком влево/вправо.
+                    </Text>
+                  </Animated.View>
+                </View>
+              </Animated.View>
+              <Animated.View
+                style={[
+                  styles.swipeableLayer,
+                  { transform: [{ translateX: searchLayerX }] },
+                ]}
+                pointerEvents={swipeableSearchMode ? "auto" : "none"}
+              >
+                <SwipeableTabStrip
+                  tabs={searchModeTabs}
+                  selectedIndex={searchModeTabIndex}
+                  onSelectIndex={setSearchModeTabIndex}
+                />
+                <View style={styles.swipeableContentWrap}>
+                  <Animated.View
+                    style={[
+                      styles.swipeableContentInner,
+                      styles.swipeableSearchSlot,
+                      { transform: [{ translateX: searchSlot0X }] },
+                    ]}
+                    pointerEvents={searchModeTabIndex === 0 ? "auto" : "none"}
+                  >
+                    <View style={styles.searchModeContent}>
+                      <Text style={[styles.searchModeHead, { color: colors.sub }]}>{t("search.recent")}</Text>
+                      {mockRecentSearches.map((q) => (
+                        <View key={q} style={styles.searchModeRow}>
+                          <Feather name="clock" size={16} color={colors.sub} style={{ marginRight: 8 }} />
+                          <Text style={[styles.searchModeRowTxt, { color: colors.txt }]}>{q}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </Animated.View>
+                  <Animated.View
+                    style={[
+                      styles.swipeableContentInner,
+                      styles.swipeableSearchSlot,
+                      { transform: [{ translateX: searchSlot1X }] },
+                    ]}
+                    pointerEvents={searchModeTabIndex === 1 ? "auto" : "none"}
+                  >
+                    <View style={styles.searchModeSearchBody}>
+                      <Feather name="search" size={32} color={colors.sub} />
+                      <Text style={[styles.searchModeSearchTitle, { color: colors.txt }]}>{t("menu.search")}</Text>
+                      <Text style={[styles.bottomNavPlaceholder, { color: colors.sub }]}>{t("search.placeholder")}</Text>
+                    </View>
+                  </Animated.View>
+                </View>
+              </Animated.View>
+            </View>
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: colors.txt, marginTop: 24 }]}>
+            BottomNavBar (перелистывание страниц)
+          </Text>
+          <View style={[styles.bottomNavDemo, { backgroundColor: colors.page ?? colors.bg }]}>
+            <View style={[styles.bottomNavContent, styles.bottomNavContentOverflow]}>
+              <Animated.View
+                style={[
+                  styles.swipeableContentInner,
+                  {
+                    transform: [{ translateX: bottomNavContentX }],
+                    opacity: bottomNavContentOpacity,
+                  },
+                ]}
+              >
+                {bottomNavTab === "manga" && (
+                  <Text style={[styles.bottomNavPlaceholder, { color: colors.sub }]}>
+                    Контент: Манга — каталог и рекомендации.
+                  </Text>
+                )}
+                {bottomNavTab === "settings" && (
+                  <Text style={[styles.bottomNavPlaceholder, { color: colors.sub }]}>
+                    Контент: Настройки — тема, хранилище, учётная запись.
+                  </Text>
+                )}
+                {bottomNavTab === "profile" && (
+                  <Text style={[styles.bottomNavPlaceholder, { color: colors.sub }]}>
+                    Контент: Профиль — избранное, история, библиотека.
+                  </Text>
+                )}
+              </Animated.View>
+            </View>
+            <BottomNavBar
+              items={bottomNavItems}
+              value={bottomNavTab}
+              onChange={onBottomNavChange}
+              description="Нижняя панель навигации. Плавная анимация переключения и hover на Electron/ПК."
+            />
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: colors.txt, marginTop: 24 }]}>
             Graph
           </Text>
           <View style={[styles.sliderBlock, { marginBottom: 16 }]}>
@@ -672,6 +1024,105 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
   },
   typographyBlock: { marginTop: 4 },
+  bottomNavDemo: {
+    borderRadius: 20,
+    padding: 16,
+    paddingBottom: 8,
+    maxWidth: 420,
+    overflow: "hidden",
+  },
+  swipeableSearchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 25,
+    paddingRight: 8,
+    paddingVertical: 8,
+    borderRadius: 24,
+    marginHorizontal: 12,
+    marginBottom: 10,
+  },
+  swipeableSearchBarIcon: {
+    marginRight: 12,
+  },
+  swipeableSearchBarInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+  },
+  swipeableSearchBarClear: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  swipeableStage: {
+    position: "relative",
+    height: 180,
+  },
+  swipeableLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  swipeableContentWrap: {
+    flex: 1,
+    paddingTop: 4,
+    overflow: "hidden",
+    position: "relative",
+  },
+  swipeableContentInner: {
+    flex: 1,
+  },
+  swipeableSearchSlot: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  bottomNavContent: {
+    minHeight: 80,
+    justifyContent: "center",
+    paddingVertical: 12,
+  },
+  bottomNavContentOverflow: {
+    overflow: "hidden",
+  },
+  profileTabAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 11,
+  },
+  bottomNavPlaceholder: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  searchModeContent: {
+    paddingTop: 12,
+    paddingHorizontal: 4,
+  },
+  searchModeHead: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  searchModeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  searchModeRowTxt: {
+    fontSize: 15,
+  },
+  searchModeSearchBody: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
+  searchModeSearchTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 12,
+  },
   placeholder: {
     fontSize: 15,
     lineHeight: 22,

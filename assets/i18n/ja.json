@@ -186,6 +186,7 @@
   "menu": {
     "downloaded": "ダウンロード済み",
     "explore": "探索",
+    "exploreWithTabs": "タブ（ホーム）",
     "favorites": "お気に入り",
     "history": "履歴",
     "home": "ホーム",

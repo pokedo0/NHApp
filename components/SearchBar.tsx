@@ -2,34 +2,34 @@ import { Feather } from "@expo/vector-icons";
 import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
-  Easing,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    Animated,
+    Easing,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 
+import {
+    getLobbyRole,
+    subscribeToLobbyPeersCount,
+    subscribeToLobbyPeersDevices,
+    subscribeToLobbyRole,
+    type LobbyPeerDevice,
+} from "@/api/lobbyStorage";
 import { CalendarRangePicker } from "@/components/CalendarRangePicker";
 import { useDrawer } from "@/components/DrawerContext";
 import NhModal from "@/components/nhModal";
-import { FilterDropdown } from "@/components/uikit/FilterDropdown";
 import type { SelectItem } from "@/components/uikit/FilterDropdown";
+import { FilterDropdown } from "@/components/uikit/FilterDropdown";
 import { useDateRange } from "@/context/DateRangeContext";
 import { SortKey, useSort } from "@/context/SortContext";
 import { useOnlineMe } from "@/hooks/useOnlineMe";
-import { getDeviceId } from "@/utils/deviceId";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
-import {
-  subscribeToLobbyPeersCount,
-  subscribeToLobbyPeersDevices,
-  subscribeToLobbyRole,
-  getLobbyRole,
-  type LobbyPeerDevice,
-} from "@/api/lobbyStorage";
+import { getDeviceId } from "@/utils/deviceId";
 
 const BAR_HEIGHT = 52;
 const BTN_SIDE = 40;
@@ -474,12 +474,12 @@ export function SearchBar() {
             )}
 
             <IconBtn
-              onPress={() =>
+              onPress={() => {
                 router.push({
                   pathname: "/search",
                   params: q ? { query: q } : {},
-                })
-              }
+                });
+              }}
             >
               <Feather name="search" size={18} color={colors.searchTxt} />
             </IconBtn>
@@ -559,6 +559,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     elevation: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    overflow: "hidden",
     zIndex: 20,
   },
   title: {

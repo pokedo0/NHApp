@@ -186,6 +186,7 @@
   "menu": {
     "downloaded": "Загруженное",
     "explore": "Обзор",
+    "exploreWithTabs": "Вкладки (Главная)",
     "favorites": "Избранное",
     "history": "История",
     "home": "Главная",

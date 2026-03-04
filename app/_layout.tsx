@@ -28,6 +28,7 @@ import SideMenu from "@/components/SideMenu";
 import { getGridConfigMap } from "@/config/gridConfig";
 import AutoImportProvider from "@/context/AutoImportProvider";
 import { DateRangeProvider } from "@/context/DateRangeContext";
+import { SearchContentProvider } from "@/context/SearchContentContext";
 import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
 import { TagLibraryProvider } from "@/context/TagLibraryContext";
@@ -268,7 +269,7 @@ function AppContent() {
   }
 
   return (
-    <>
+    <SearchContentProvider>
       {showSearchBar ? (
         <View style={{ backgroundColor: colors.searchBg }}>
           <SearchBar />
@@ -288,6 +289,7 @@ function AppContent() {
         <Stack.Screen name="favorites" />
         <Stack.Screen name="favoritesOnline" />
         <Stack.Screen name="explore" />
+        <Stack.Screen name="explore-with-tabs" />
         <Stack.Screen name="book/[id]" />
         <Stack.Screen name="profile/[id]/[slug]" />
         <Stack.Screen name="profile/[id]/edit" />
@@ -301,7 +303,7 @@ function AppContent() {
         <Stack.Screen name="whats-new" />
         <Stack.Screen name="+not-found" />
       </Stack>
-    </>
+    </SearchContentProvider>
   );
 }
 

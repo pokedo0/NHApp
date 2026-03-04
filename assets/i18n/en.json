@@ -186,6 +186,7 @@
   "menu": {
     "downloaded": "Downloaded",
     "explore": "Explore",
+    "exploreWithTabs": "Tabs (Home)",
     "favorites": "Favorites",
     "history": "History",
     "home": "Home",

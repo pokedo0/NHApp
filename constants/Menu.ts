@@ -5,6 +5,7 @@ export type MenuItem = {
   route: MenuRoute;
 };
 export const LIBRARY_MENU: MenuItem[] = [
+  { labelKey: "menu.exploreWithTabs", icon: "layout", route: "/explore-with-tabs" },
   { labelKey: "menu.downloaded", icon: "download", route: "/downloaded" },
   { labelKey: "menu.favorites", icon: "heart", route: "/favorites" },
   {

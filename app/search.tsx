@@ -153,7 +153,7 @@ export default function SearchScreen() {
           <View
             style={[
               styles.inputWrap,
-              styles.rounded,
+              styles.searchInputRounded,
               { backgroundColor: colors.page, borderColor: colors.page },
             ]}
           >
@@ -391,6 +391,7 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", alignItems: "center" },
   rounded: { borderRadius: 12, overflow: "hidden" },
+  searchInputRounded: { borderRadius: 20, overflow: "hidden" },
   iconBtnRound: {
     width: BTN_SIDE,
     height: BTN_SIDE,
