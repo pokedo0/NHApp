@@ -1,3 +1,4 @@
+import { requestStoragePush } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InteractionManager } from "react-native";
@@ -70,6 +71,7 @@ export function useFavHistory() {
       if (shouldAdd) s.add(id);
       else s.delete(id);
       await AsyncStorage.setItem(FAV_KEY, JSON.stringify(Array.from(s)));
+      requestStoragePush();
     } catch (e) {
       console.error('[useFavHistory] Failed to save favorite:', e);
     }

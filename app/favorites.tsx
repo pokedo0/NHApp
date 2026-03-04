@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
+import { requestStoragePush } from "@/api/cloudStorage";
 import { Book, getFavorites } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import { scrollToTop } from "@/utils/scrollToTop";
@@ -108,12 +109,14 @@ export default function FavoritesScreen() {
         const newList = [...copy];
         setIds(newList);
         AsyncStorage.setItem("bookFavorites", JSON.stringify(newList));
+        requestStoragePush();
       } else {
         copy.delete(id);
         setBooks((prevBooks) => prevBooks.filter((b) => b.id !== id));
         const newList = [...copy];
         setIds(newList);
         AsyncStorage.setItem("bookFavorites", JSON.stringify(newList));
+        requestStoragePush();
       }
       return copy;
     });

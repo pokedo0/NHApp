@@ -19,8 +19,17 @@ import { FilterDropdown } from "@/components/uikit/FilterDropdown";
 import type { SelectItem } from "@/components/uikit/FilterDropdown";
 import { useDateRange } from "@/context/DateRangeContext";
 import { SortKey, useSort } from "@/context/SortContext";
+import { useOnlineMe } from "@/hooks/useOnlineMe";
+import { getDeviceId } from "@/utils/deviceId";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
+import {
+  subscribeToLobbyPeersCount,
+  subscribeToLobbyPeersDevices,
+  subscribeToLobbyRole,
+  getLobbyRole,
+  type LobbyPeerDevice,
+} from "@/api/lobbyStorage";
 
 const BAR_HEIGHT = 52;
 const BTN_SIDE = 40;
@@ -71,10 +80,32 @@ export function SearchBar() {
     lastCustomFrom,
     lastCustomTo,
     setUploaded,
-    setLastCustomRange,
+    setCustomRangeApplied,
     clearUploaded,
   } = useDateRange();
   const { t } = useI18n();
+  const me = useOnlineMe();
+  const [lobbyPeersCount, setLobbyPeersCount] = useState(0);
+  const [lobbyPeersDevices, setLobbyPeersDevices] = useState<LobbyPeerDevice[]>([]);
+  const [lobbyRole, setLobbyRole] = useState<"sender" | "receiver" | null>(() => getLobbyRole());
+  const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToLobbyPeersCount(setLobbyPeersCount);
+    return unsub;
+  }, []);
+  useEffect(() => {
+    const unsub = subscribeToLobbyPeersDevices(setLobbyPeersDevices);
+    return unsub;
+  }, []);
+  useEffect(() => {
+    getDeviceId().then(setCurrentDeviceId).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const unsub = subscribeToLobbyRole(() => setLobbyRole(getLobbyRole()));
+    return unsub;
+  }, []);
 
   const PRESETS: {
     key: SortKey;
@@ -202,8 +233,9 @@ export function SearchBar() {
     const rangeQuery = `uploaded:>${toDaysAgo - 1}d uploaded:<${fromDaysAgo + 1}d`;
     const fromStr = fromDate.getDate().toString().padStart(2, "0") + "." + (fromDate.getMonth() + 1).toString().padStart(2, "0") + "." + fromDate.getFullYear();
     const toStr = toDate.getDate().toString().padStart(2, "0") + "." + (toDate.getMonth() + 1).toString().padStart(2, "0") + "." + toDate.getFullYear();
-    setUploaded(rangeQuery, `${fromStr} – ${toStr}`);
-    setLastCustomRange(
+    setCustomRangeApplied(
+      rangeQuery,
+      `${fromStr} – ${toStr}`,
       fromDate.toISOString().slice(0, 10),
       toDate.toISOString().slice(0, 10)
     );
@@ -246,6 +278,30 @@ export function SearchBar() {
     (uploaded && uploaded.startsWith("uploaded:")
       ? (customRangeLabel || (t("explore.dateRangeCustom") || "Диапазон дат"))
       : null);
+
+  const lobbyDevicesDropdownItems: SelectItem[] = useMemo(
+    () => [
+      { type: "group" as const, label: t("lobby.peersTitle") || "Устройства в лобби" },
+      ...(lobbyPeersDevices.length === 0
+        ? [{ value: "_empty", label: t("lobby.noPeers") || "Нет подключённых устройств" }]
+        : lobbyPeersDevices.map((d) => {
+            const isThisDevice = d.device_id === currentDeviceId;
+            const roleIcon =
+              isThisDevice && lobbyRole
+                ? lobbyRole === "sender"
+                  ? (c: string) => <Feather name="arrow-up" size={18} color={c} />
+                  : (c: string) => <Feather name="arrow-down" size={18} color={c} />
+                : () => <View style={{ width: 18, height: 18 }} />;
+            return {
+              value: d.device_id,
+              label: d.device_name || d.device_id || "—",
+              icon: (c: string) => <Feather name="smartphone" size={18} color={c} />,
+              trailingIcon: roleIcon,
+            };
+          })),
+    ],
+    [lobbyPeersDevices, currentDeviceId, lobbyRole, t]
+  );
 
   const sortSelectItems: SelectItem[] = [
     ...PRESETS.map(({ key, label, icon }) => ({
@@ -357,6 +413,44 @@ export function SearchBar() {
 
         {!hideRight && (
           <View style={styles.rightGroup}>
+            {me && (
+              <FilterDropdown
+                value={undefined}
+                options={lobbyDevicesDropdownItems}
+                keepOpen
+                trigger={({ onPress }) => (
+                  <Pressable
+                    onPress={onPress}
+                    style={({ pressed }) => [styles.lobbyBadgeWrap, pressed && { opacity: 0.8 }]}
+                  >
+                    <Feather name="users" size={18} color={colors.searchTxt} />
+                    {lobbyPeersCount > 0 && (
+                      <View style={[styles.lobbyBadge, { backgroundColor: colors.accent }]}>
+                        <Text style={styles.lobbyBadgeText} numberOfLines={1}>
+                          {lobbyPeersCount > 99 ? "99+" : lobbyPeersCount}
+                        </Text>
+                      </View>
+                    )}
+                    {lobbyRole === "sender" && (
+                      <Feather
+                        name="arrow-up"
+                        size={12}
+                        color={colors.accent}
+                        style={styles.lobbyRoleIcon}
+                      />
+                    )}
+                    {lobbyRole === "receiver" && (
+                      <Feather
+                        name="arrow-down"
+                        size={12}
+                        color={colors.accent}
+                        style={styles.lobbyRoleIcon}
+                      />
+                    )}
+                  </Pressable>
+                )}
+              />
+            )}
             {Platform.OS === "web" && (
               <IconBtn
                 onPress={() => {
@@ -487,6 +581,33 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+  },
+  lobbyBadgeWrap: {
+    width: BTN_SIDE,
+    height: BTN_SIDE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lobbyBadge: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  lobbyBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  lobbyRoleIcon: {
+    position: "absolute",
+    bottom: 0,
+    alignSelf: "center",
   },
 
   sheetScroll: {},

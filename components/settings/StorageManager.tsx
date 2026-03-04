@@ -296,6 +296,7 @@ export default function StorageManager() {
     if (!ok) return;
     await AsyncStorage.removeItem(k);
     setItems((prev) => prev.filter((i) => i.key !== k));
+    (await import("@/api/cloudStorage")).requestStoragePush();
     broadcastChange({ op: "remove", key: k });
   };
 
@@ -315,6 +316,7 @@ export default function StorageManager() {
   const saveEdit = async () => {
     if (editKey == null) return;
     await AsyncStorage.setItem(editKey, editVal);
+    (await import("@/api/cloudStorage")).requestStoragePush();
     setItems((prev) =>
       prev.map((i) => (i.key === editKey ? { ...i, value: editVal } : i))
     );

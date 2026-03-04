@@ -1,28 +1,29 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import { FlatList, Platform, StyleSheet, View } from "react-native";
 
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
 import {
-    Book,
-    searchBooks,
+  Book,
+  searchBooks,
 } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
 import PaginationBar from "@/components/PaginationBar";
+import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
 import { useDateRange } from "@/context/DateRangeContext";
 import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
-import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
 import { scrollToTop } from "@/utils/scrollToTop";
 
 const EXPLORE_CACHE = new Map<string, { books: Book[]; totalPages: number }>();
@@ -86,6 +87,8 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     loadInfiniteScrollSetting();
+    const unsub = subscribeToStorageApplied(loadInfiniteScrollSetting);
+    return unsub;
   }, [loadInfiniteScrollSetting]);
 
   useFocusEffect(
@@ -93,7 +96,7 @@ export default function ExploreScreen() {
       loadInfiniteScrollSetting();
     }, [loadInfiniteScrollSetting])
   );
-
+ 
   useEffect(() => {
     AsyncStorage.getItem("bookFavorites").then(
       (j) => j && setFav(new Set(JSON.parse(j)))
@@ -259,6 +262,7 @@ export default function ExploreScreen() {
         const cp = new Set(prev);
         next ? cp.add(id) : cp.delete(id);
         AsyncStorage.setItem("bookFavorites", JSON.stringify([...cp]));
+        requestStoragePush();
         return cp;
       });
 

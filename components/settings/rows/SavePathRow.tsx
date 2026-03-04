@@ -1,3 +1,4 @@
+import { requestStoragePush } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
@@ -50,6 +51,7 @@ export function SavePathRow() {
       if (result.success && !result.canceled && result.filePaths && result.filePaths.length > 0) {
         const selectedPath = result.filePaths[0];
         await AsyncStorage.setItem("electron:savePath", selectedPath);
+        requestStoragePush();
         setSavePath(selectedPath);
       }
     } catch (err) {

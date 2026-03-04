@@ -408,8 +408,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    minWidth: 800,
-    minHeight: 600,
+    minWidth: 200,
+    minHeight: 200,
     frame: false, 
     titleBarStyle: 'hidden',
     webPreferences: {
@@ -634,6 +634,19 @@ ipcMain.handle('electron:getVersion', () => {
   return app.getVersion();
 });
 ipcMain.handle('electron:getPlatform', () => process.platform);
+ipcMain.handle('electron:getOsName', () => {
+  const platform = process.platform;
+  const release = os.release();
+  if (platform === 'win32') {
+    const ver = release.split('.');
+    const major = parseInt(ver[0], 10);
+    if (major >= 10) return `Windows ${major >= 11 ? 11 : 10}`;
+    return 'Windows';
+  }
+  if (platform === 'darwin') return `macOS ${release.split('.')[0] || ''}`.trim();
+  if (platform === 'linux') return 'Linux';
+  return platform;
+});
 
 ipcMain.handle('electron:getBannerAssetDataUrls', async () => {
   try {

@@ -1,3 +1,4 @@
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
@@ -18,6 +19,13 @@ type Ctx = {
   isHydrated: boolean;
   setUploaded: (val: string | null, displayLabel?: string | null) => void;
   setLastCustomRange: (from: string, to: string) => void;
+  /** Одновременно установить фильтр по датам и сохранённый диапазон (один persist — даты не сбрасываются). */
+  setCustomRangeApplied: (
+    rangeQuery: string,
+    displayLabel: string,
+    fromISO: string,
+    toISO: string
+  ) => void;
   clearLastCustomRange: () => void;
   clearUploaded: () => void;
 };
@@ -30,6 +38,7 @@ const DateRangeContext = createContext<Ctx>({
   isHydrated: false,
   setUploaded: () => {},
   setLastCustomRange: () => {},
+  setCustomRangeApplied: () => {},
   clearLastCustomRange: () => {},
   clearUploaded: () => {},
 });
@@ -43,27 +52,31 @@ export function DateRangeProvider({ children }: PropsWithChildren) {
   const [lastCustomTo, setLastCustomToState] = useState<string | null>(null);
   const [isHydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as {
-            uploaded?: string | null;
-            customRangeLabel?: string | null;
-            lastCustomFrom?: string | null;
-            lastCustomTo?: string | null;
-          };
-          setUploadedState(parsed?.uploaded ?? null);
-          setCustomRangeLabel(parsed?.customRangeLabel ?? null);
-          setLastCustomFromState(parsed?.lastCustomFrom ?? null);
-          setLastCustomToState(parsed?.lastCustomTo ?? null);
-        }
-      } finally {
-        setHydrated(true);
+  const load = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          uploaded?: string | null;
+          customRangeLabel?: string | null;
+          lastCustomFrom?: string | null;
+          lastCustomTo?: string | null;
+        };
+        setUploadedState(parsed?.uploaded ?? null);
+        setCustomRangeLabel(parsed?.customRangeLabel ?? null);
+        setLastCustomFromState(parsed?.lastCustomFrom ?? null);
+        setLastCustomToState(parsed?.lastCustomTo ?? null);
       }
-    })();
+    } finally {
+      setHydrated(true);
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+    const unsub = subscribeToStorageApplied(load);
+    return unsub;
+  }, [load]);
 
   const persist = useCallback(
     async (
@@ -82,6 +95,7 @@ export function DateRangeProvider({ children }: PropsWithChildren) {
             lastCustomTo: lastTo,
           })
         );
+        requestStoragePush();
       } catch {}
     },
     []
@@ -111,6 +125,17 @@ export function DateRangeProvider({ children }: PropsWithChildren) {
     [persist, uploaded, customRangeLabel]
   );
 
+  const setCustomRangeApplied = useCallback(
+    (rangeQuery: string, displayLabel: string, fromISO: string, toISO: string) => {
+      setUploadedState(rangeQuery);
+      setCustomRangeLabel(displayLabel);
+      setLastCustomFromState(fromISO);
+      setLastCustomToState(toISO);
+      void persist(rangeQuery, displayLabel, fromISO, toISO);
+    },
+    [persist]
+  );
+
   const clearLastCustomRange = useCallback(() => {
     setLastCustomFromState(null);
     setLastCustomToState(null);
@@ -128,6 +153,7 @@ export function DateRangeProvider({ children }: PropsWithChildren) {
       isHydrated,
       setUploaded,
       setLastCustomRange,
+      setCustomRangeApplied,
       clearLastCustomRange,
       clearUploaded,
     }),
@@ -139,6 +165,7 @@ export function DateRangeProvider({ children }: PropsWithChildren) {
       isHydrated,
       setUploaded,
       setLastCustomRange,
+      setCustomRangeApplied,
       clearLastCustomRange,
       clearUploaded,
     ]

@@ -135,6 +135,10 @@
     }
   },
   "historyNotFound": "History is empty ¯\\_(ツ)_/¯",
+  "lobby": {
+    "peersTitle": "Devices in lobby",
+    "noPeers": "No connected devices"
+  },
   "profile": {
     "edit": {
       "title": "Profile settings",

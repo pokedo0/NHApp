@@ -1,11 +1,11 @@
+import {
+  registerAutoImportTask,
+  unregisterAutoImportTask,
+} from "@/background/autoImport.task";
+import { autoImportSyncOnce, startForegroundPolling } from "@/lib/autoImport";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
 import { AppState, AppStateStatus } from "react-native";
-import {
-    registerAutoImportTask,
-    unregisterAutoImportTask,
-} from "@/background/autoImport.task";
-import { autoImportSyncOnce, startForegroundPolling } from "@/lib/autoImport";
 type Ctx = {
   enabled: boolean;
   setEnabled: (v: boolean) => void;
@@ -45,6 +45,7 @@ export default function AutoImportProvider({
   const setEnabled = React.useCallback(async (next: boolean) => {
     setEnabledState(next);
     await AsyncStorage.setItem(K_AUTO_IMPORT_ENABLED, next ? "1" : "0");
+      (await import("@/api/cloudStorage")).requestStoragePush();
     if (next) {
       registerAutoImportTask(15).catch(() => {});
       if (appState.current === "active" && !stopPollingRef.current) {

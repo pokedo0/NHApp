@@ -135,6 +135,10 @@
     }
   },
   "historyNotFound": "履歴は空です ¯\\_(ツ)_/¯",
+  "lobby": {
+    "peersTitle": "ロビーのデバイス",
+    "noPeers": "接続されたデバイスはありません"
+  },
   "profile": {
     "edit": {
       "title": "プロフィール設定",

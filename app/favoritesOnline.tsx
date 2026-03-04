@@ -19,6 +19,7 @@ import {
 } from "@/api/nhentaiOnline";
 import BookListOnline from "@/components/BookListOnline";
 import PaginationBar from "@/components/PaginationBar";
+import { subscribeToStorageApplied } from "@/api/cloudStorage";
 import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
 import { scrollToTop } from "@/utils/scrollToTop";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -47,11 +48,17 @@ export default function FavoritesOnlineScreen() {
 
   const LOAD_SAFETY_MS = 25_000;
 
-  useEffect(() => {
+  const loadInfiniteScrollSetting = useCallback(() => {
     AsyncStorage.getItem(INFINITE_SCROLL_KEY).then((value) => {
       setInfiniteScroll(value === "true");
     });
   }, []);
+
+  useEffect(() => {
+    loadInfiniteScrollSetting();
+    const unsub = subscribeToStorageApplied(loadInfiniteScrollSetting);
+    return unsub;
+  }, [loadInfiniteScrollSetting]);
 
   const checkAuth = useCallback(async () => {
     try {

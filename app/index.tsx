@@ -5,6 +5,7 @@ import {
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
 import PaginationBar from "@/components/PaginationBar";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
 import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
 import { useDateRange } from "@/context/DateRangeContext";
 import { useSort } from "@/context/SortContext";
@@ -106,6 +107,8 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadInfiniteScrollSetting();
+    const unsub = subscribeToStorageApplied(loadInfiniteScrollSetting);
+    return unsub;
   }, [loadInfiniteScrollSetting]);
 
   useFocusEffect(
@@ -289,6 +292,7 @@ export default function HomeScreen() {
         const cp = new Set(prev);
         next ? cp.add(id) : cp.delete(id);
         AsyncStorage.setItem("bookFavorites", JSON.stringify([...cp]));
+        requestStoragePush();
         return cp;
       });
 

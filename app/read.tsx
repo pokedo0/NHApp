@@ -31,6 +31,7 @@ import {
     withTiming,
 } from "react-native-reanimated";
 
+import { requestStoragePush } from "@/api/cloudStorage";
 import { BookPage, getBook, loadBookFromLocal } from "@/api/nhentai";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -68,9 +69,11 @@ const getBool = (v: string | null | undefined, def = false) =>
   v == null ? def : v === "1" || v.toLowerCase?.() === "true";
 const saveBool = (k: string, v: boolean) => {
   AsyncStorage.setItem(k, v ? "1" : "0").catch(() => {});
+  requestStoragePush();
 };
 const saveStr = (k: string, v: string) => {
   AsyncStorage.setItem(k, v).catch(() => {});
+  requestStoragePush();
 };
 
 export async function getReadHistory(): Promise<ReadHistoryEntry[]> {
@@ -95,6 +98,7 @@ export async function updateReadHistory(
     const timestamp = Math.floor(Date.now() / 1000);
     filtered.unshift([bookId, current, total, timestamp]);
     await AsyncStorage.setItem(READ_HISTORY_KEY, JSON.stringify(filtered));
+    requestStoragePush();
   } catch (e) {
     console.warn("[readHistory] failed:", e);
   }

@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electron', {
   isElectron: true,
   getVersion: () => ipcRenderer.invoke('electron:getVersion'),
   getPlatform: () => ipcRenderer.invoke('electron:getPlatform'),
+  getOsName: () => ipcRenderer.invoke('electron:getOsName'),
   getBannerAssetDataUrls: () => ipcRenderer.invoke('electron:getBannerAssetDataUrls'),
   onWindowMaximizeChanged: (callback) => {
     const wrappedCallback = (event, maximized) => {

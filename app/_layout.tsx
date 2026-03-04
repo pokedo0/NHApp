@@ -1,3 +1,4 @@
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UIKIT_AS_HOME_KEY } from "@/components/settings/keys";
 import * as NavigationBar from "expo-navigation-bar";
@@ -30,6 +31,7 @@ import { DateRangeProvider } from "@/context/DateRangeContext";
 import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
 import { TagLibraryProvider } from "@/context/TagLibraryContext";
+import { useCloudStorageSync } from "@/hooks/useCloudStorageSync";
 import { isElectron } from "@/electron/bridge";
 import { ThemeProvider, useTheme } from "@/lib/ThemeContext";
 import { I18nProvider } from "@/lib/i18n/I18nContext";
@@ -45,6 +47,11 @@ const TopChrome = React.memo(function TopChrome({ bg }: { bg: string }) {
   const insets = useSafeAreaInsets();
   return <View style={{ height: insets.top, backgroundColor: bg }} />;
 });
+
+function CloudStorageSync() {
+  useCloudStorageSync();
+  return null;
+}
 
 const StatusBarController = React.memo(function StatusBarController({
   fullscreen,
@@ -111,16 +118,20 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(FS_KEY);
+    const load = () =>
+      AsyncStorage.getItem(FS_KEY).then((raw) => {
         setFullscreen(raw === "true");
-      } catch {}
-    })();
+      });
+    load();
+    const unsub = subscribeToStorageApplied(load);
+    return unsub;
   }, []);
 
+  const fullscreenPushSkipRef = React.useRef(true);
   useEffect(() => {
     AsyncStorage.setItem(FS_KEY, fullscreen ? "true" : "false").catch(() => {});
+    if (!fullscreenPushSkipRef.current) requestStoragePush();
+    fullscreenPushSkipRef.current = false;
   }, [fullscreen]);
 
   useEffect(() => {
@@ -267,7 +278,7 @@ function AppContent() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: colors.bg },
+          contentStyle: { flex: 1, backgroundColor: colors.bg },
           animation: "simple_push",
           freezeOnBlur: true,
         }}
@@ -386,6 +397,7 @@ export default function RootLayout() {
               <SortProvider>
                 <TagProvider>
                   <TagLibraryProvider>
+                    <CloudStorageSync />
                     <AppShell />
                   </TagLibraryProvider>
                 </TagProvider>

@@ -1,3 +1,4 @@
+import { requestStoragePush } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useState } from "react";
 import { FAV_KEY, FAV_KEY_LEGACY, favKeyOf, normalizeFavMap } from "./helpers";
@@ -14,12 +15,14 @@ export function useFavs() {
         if (legacy) map = { ...map, ...normalizeFavMap(JSON.parse(legacy)) };
         setFavs(map);
         await AsyncStorage.setItem(FAV_KEY, JSON.stringify(map));
+        requestStoragePush();
       } catch {}
     })();
   }, []);
   const writeFavs = useCallback((next: Record<string, true>) => {
     setFavs(next);
     AsyncStorage.setItem(FAV_KEY, JSON.stringify(next)).catch(() => {});
+    requestStoragePush();
   }, []);
   const isFav = useCallback(
     (t: { type: string; name: string }) => !!favs[favKeyOf(t)],

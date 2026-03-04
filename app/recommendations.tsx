@@ -1,3 +1,4 @@
+import { requestStoragePush } from "@/api/cloudStorage";
 import { CandidateBook, getRecommendations } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
@@ -130,6 +131,7 @@ export default function RecommendationsScreen() {
       const cp = new Set(prev);
       next ? cp.add(id) : cp.delete(id);
       AsyncStorage.setItem("bookFavorites", JSON.stringify([...cp]));
+      requestStoragePush();
       return cp;
     });
   }, []);

@@ -14,6 +14,7 @@ declare global {
     electron?: {
       getVersion: () => Promise<string>;
       getPlatform: () => Promise<string>;
+      getOsName: () => Promise<string>;
       getBannerAssetDataUrls: () => Promise<{ bg: string | null; icon: string | null }>;
       showMessageBox: (options: ElectronMessageBoxOptions) => Promise<ElectronMessageBoxReturnValue>;
       showOpenDialog: (options: ElectronOpenDialogOptions) => Promise<ElectronOpenDialogReturnValue>;
@@ -58,6 +59,16 @@ export async function getElectronPlatform(): Promise<string | null> {
     return await window.electron!.getPlatform();
   } catch (error) {
     console.error('[Electron Bridge] Error getting platform:', error);
+    return null;
+  }
+}
+
+export async function getElectronOsName(): Promise<string | null> {
+  if (!isElectron()) return null;
+  try {
+    return await window.electron!.getOsName();
+  } catch (error) {
+    console.error('[Electron Bridge] Error getting OS name:', error);
     return null;
   }
 }

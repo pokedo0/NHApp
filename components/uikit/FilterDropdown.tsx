@@ -21,6 +21,8 @@ export type SelectOption = {
   value: string;
   label: string;
   icon?: React.ReactNode | ((color: string) => React.ReactNode);
+  /** Справа вместо кружка (например стрелка отправитель/получатель). */
+  trailingIcon?: React.ReactNode | ((color: string) => React.ReactNode);
 };
 
 export type SelectAction = {
@@ -488,6 +490,12 @@ export function FilterDropdown({
       typeof opt.icon === "function"
         ? opt.icon(isSel ? colors.accent : colors.txt)
         : opt.icon;
+    const trailingIcon =
+      opt.trailingIcon != null
+        ? typeof opt.trailingIcon === "function"
+          ? opt.trailingIcon(colors.accent)
+          : opt.trailingIcon
+        : null;
 
     return (
       <Pressable
@@ -510,18 +518,22 @@ export function FilterDropdown({
         >
           {opt.label}
         </Text>
-        <View
-          style={[
-            s.radio,
-            { borderColor: isSel ? colors.accent : colors.sub + "60" },
-          ]}
-        >
-          {isSel && (
-            <View
-              style={[s.radioDot, { backgroundColor: colors.accent }]}
-            />
-          )}
-        </View>
+        {trailingIcon ? (
+          <View style={s.optionIcon}>{trailingIcon}</View>
+        ) : (
+          <View
+            style={[
+              s.radio,
+              { borderColor: isSel ? colors.accent : colors.sub + "60" },
+            ]}
+          >
+            {isSel && (
+              <View
+                style={[s.radioDot, { backgroundColor: colors.accent }]}
+              />
+            )}
+          </View>
+        )}
       </Pressable>
     );
   };

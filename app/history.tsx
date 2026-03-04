@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { Platform, SectionList, StyleSheet, Text, View } from "react-native";
 
+import { requestStoragePush } from "@/api/cloudStorage";
 import { Book, getFavorites } from "@/api/nhentai";
 import BookListHistory, { READ_HISTORY_KEY, ReadHistoryEntry } from "@/components/BookListHistory";
 import { scrollToTop } from "@/utils/scrollToTop";
@@ -124,9 +125,11 @@ export default function HistoryScreen() {
       if (next) {
         copy.add(id);
         AsyncStorage.setItem("bookFavorites", JSON.stringify([...copy]));
+        requestStoragePush();
       } else {
         copy.delete(id);
         AsyncStorage.setItem("bookFavorites", JSON.stringify([...copy]));
+        requestStoragePush();
       }
       return copy;
     });

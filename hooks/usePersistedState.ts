@@ -1,25 +1,40 @@
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
-export function usePersistedState<T>(key: string, initial: T) {
+import { useCallback, useEffect, useState } from "react";
+
+export type UsePersistedStateOptions = { syncToCloud?: boolean };
+
+export function usePersistedState<T>(
+  key: string,
+  initial: T,
+  options?: UsePersistedStateOptions
+) {
   const [value, setValue] = useState<T>(initial);
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(key);
-        if (!mounted) return;
-        if (raw != null) setValue(JSON.parse(raw));
-      } catch {}
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [key]);
-  const update = async (next: T) => {
-    setValue(next);
+  const syncToCloud = options?.syncToCloud ?? false;
+
+  const load = useCallback(async () => {
     try {
-      await AsyncStorage.setItem(key, JSON.stringify(next));
+      const raw = await AsyncStorage.getItem(key);
+      if (raw != null) setValue(JSON.parse(raw) as T);
     } catch {}
-  };
+  }, [key]);
+
+  useEffect(() => {
+    load();
+    const unsub = subscribeToStorageApplied(load);
+    return unsub;
+  }, [load]);
+
+  const update = useCallback(
+    async (next: T) => {
+      setValue(next);
+      try {
+        await AsyncStorage.setItem(key, JSON.stringify(next));
+        if (syncToCloud) requestStoragePush();
+      } catch {}
+    },
+    [key, syncToCloud]
+  );
+
   return [value, update] as const;
 }

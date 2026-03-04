@@ -1,3 +1,4 @@
+import { requestStoragePush } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 export type GridProfile = "phonePortrait" | "phoneLandscape" | "tabletPortrait" | "tabletLandscape";
 export type GridConfig = {
@@ -32,12 +33,12 @@ export async function getGridConfigMap(): Promise<GridConfigMap> {
 }
 export async function setGridConfigMap(partial: Partial<GridConfigMap>): Promise<void> {
   currentMap = { ...currentMap, ...partial };
-  try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(currentMap)); } catch {}
+  try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(currentMap)); requestStoragePush(); } catch {}
   notify();
 }
 export async function resetGridConfigMap(): Promise<void> {
   currentMap = { ...defaultGridConfigMap };
-  try { await AsyncStorage.removeItem(STORAGE_KEY); } catch {}
+  try { await AsyncStorage.removeItem(STORAGE_KEY); requestStoragePush(); } catch {}
   notify();
 }
 export function subscribeGridConfig(cb: Listener): () => void {

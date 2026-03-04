@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { requestStoragePush } from "@/api/cloudStorage";
 import { Book, searchBooks } from "@/api/nhentai";
 import SmartImage from "@/components/SmartImage";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
@@ -94,6 +95,7 @@ export default function SearchScreen() {
     const next = [clean, ...history.filter((h) => h !== clean)].slice(0, 10);
     setHist(next);
     await AsyncStorage.setItem(KEY_HISTORY, JSON.stringify(next));
+    requestStoragePush();
   };
   const submit = async (text = q) => {
     const query = text.trim();
@@ -258,6 +260,7 @@ export default function SearchScreen() {
                       KEY_HISTORY,
                       JSON.stringify(next)
                     );
+                    requestStoragePush();
                   }}
                 >
                   <Feather name="x" size={16} color={colors.sub} />

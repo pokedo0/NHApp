@@ -20,6 +20,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { requestStoragePush } from "@/api/cloudStorage";
 import type { Book } from "@/api/nhentai";
 import { getBook } from "@/api/nhentai";
 import {
@@ -314,6 +315,7 @@ export default function UserProfileScreen() {
       AsyncStorage.setItem("bookFavorites", JSON.stringify([...copy])).catch(
         () => {}
       );
+      requestStoragePush();
       return copy;
     });
   }, []);

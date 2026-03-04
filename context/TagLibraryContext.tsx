@@ -1,3 +1,4 @@
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
@@ -86,6 +87,7 @@ export function TagLibraryProvider({
       AsyncStorage.setItem(K_COLLECTIONS, JSON.stringify(collections)).catch(
         () => {}
       );
+      requestStoragePush();
     }, 150);
     return () => {
       if (colTimer.current) clearTimeout(colTimer.current);

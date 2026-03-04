@@ -103,6 +103,17 @@ export default function BookListHistory<T extends Book = Book>({
   const internalListRef = useRef<SectionList<SectionRow<T>>>(null);
   const listRef = externalScrollRef || internalListRef;
   const { width, height } = useWindowDimensions();
+  /** На веб используем измеренные размеры контейнера — при узком окне useWindowDimensions() может давать 0 или не обновляться, из‑за чего не грузится контент. */
+  const [containerLayout, setContainerLayout] = useState({ width: 0, height: 0 });
+  const onContainerLayout = useCallback(
+    (e: { nativeEvent: { layout: { width: number; height: number } } }) => {
+      const { width: w, height: h } = e.nativeEvent.layout;
+      if (Platform.OS === "web" && (w > 0 || h > 0)) {
+        setContainerLayout((prev) => ({ width: w || prev.width, height: h || prev.height }));
+      }
+    },
+    []
+  );
 
   const { favoritesSet, toggleFavorite } = useFavHistory();
 
@@ -132,9 +143,19 @@ export default function BookListHistory<T extends Book = Book>({
     return { dateLocale: loc, timePattern: timeFmt };
   }, [resolved]);
 
+  /** На веб при узком окне useWindowDimensions() может быть 0 — используем измеренный размер контейнера с минимальным fallback. */
+  const effectiveWidth =
+    Platform.OS === "web" && containerLayout.width > 0
+      ? containerLayout.width
+      : Math.max(280, width);
+  const effectiveHeight =
+    Platform.OS === "web" && containerLayout.height > 0
+      ? containerLayout.height
+      : height;
+
   const base = useMemo<GridConfig>(() => {
-    const isPortrait = height > width;
-    const isTablet = width > 600;
+    const isPortrait = effectiveHeight > effectiveWidth;
+    const isTablet = effectiveWidth > 600;
     return isTablet
       ? gridConfig?.tabletLandscape ??
           gridConfig?.tabletPortrait ??
@@ -142,7 +163,7 @@ export default function BookListHistory<T extends Book = Book>({
       : !isPortrait
       ? gridConfig?.phoneLandscape ?? gridConfig?.default ?? { numColumns: 3 }
       : gridConfig?.phonePortrait ?? gridConfig?.default ?? { numColumns: 2 };
-  }, [width, height, gridConfig]);
+  }, [effectiveWidth, effectiveHeight, gridConfig]);
 
   const layout = useMemo(() => {
     const padH = base.paddingHorizontal ?? 0;
@@ -150,12 +171,12 @@ export default function BookListHistory<T extends Book = Book>({
     const chosenDesign: "classic" | "stable" | "image" =
       cardDesign ?? base.cardDesign ?? "classic";
     const minW = base.minColumnWidth ?? (chosenDesign === "image" ? 40 : 80);
-    const avail = width - padH * 2;
+    const avail = Math.max(0, effectiveWidth - padH * 2);
     const maxCols = Math.max(
       1,
       Math.min(base.numColumns, Math.floor((avail + gap) / (minW + gap)))
     );
-    const cardW = (avail - gap * (maxCols - 1)) / maxCols;
+    const cardW = Math.max(minW, (avail - gap * (maxCols - 1)) / maxCols);
     const estH =
       chosenDesign === "image"
         ? Math.round(cardW * 1.05)
@@ -167,7 +188,7 @@ export default function BookListHistory<T extends Book = Book>({
       paddingHorizontal: padH,
       estCardH: estH,
     };
-  }, [width, base, cardDesign]);
+  }, [effectiveWidth, base, cardDesign]);
 
   const { cols, cardWidth, columnGap, paddingHorizontal, estCardH } = layout;
   const isSingleCol = cols === 1;
@@ -381,14 +402,36 @@ export default function BookListHistory<T extends Book = Book>({
     []
   );
 
+  const containerStyle = useMemo(
+    () => [
+      styles.container,
+      { backgroundColor: colors.page },
+      Platform.OS === "web" && { minHeight: 0 },
+    ],
+    [colors.page]
+  );
+
+  /** Высота списка на веб: измеренная из onLayout или fallback по окну, чтобы при любом размере окна был скролл. */
+  const listHeightWeb =
+    Platform.OS === "web"
+      ? (containerLayout.height > 0
+          ? containerLayout.height
+          : Math.max(200, height - 100))
+      : undefined;
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.page }]}>
+    <View style={containerStyle} onLayout={onContainerLayout}>
       {sections.length === 0 && !loading ? (
         (ListEmptyComponent as ReactElement) ?? <Empty />
       ) : (
         <SectionList
           key={`sections-${cols}-${cardDesign}`}
           ref={listRef}
+          style={
+            Platform.OS === "web"
+              ? [styles.listWeb, listHeightWeb != null && { height: listHeightWeb }]
+              : undefined
+          }
           stickySectionHeadersEnabled={false}
           sections={sections}
           keyExtractor={(row, index) =>
@@ -430,6 +473,7 @@ export default function BookListHistory<T extends Book = Book>({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  listWeb: { flex: 1, minHeight: 0, overflow: "hidden" as const },
   empty: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyText: { color: "#888", fontSize: 16 },
   loader: { marginVertical: 16 },

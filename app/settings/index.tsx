@@ -48,10 +48,13 @@ export default function SettingsScreen() {
     STORAGE_KEY_HUE,
     hue
   );
-  const [fullscreen, setFullscreen] = usePersistedState<boolean>(FS_KEY, false);
+  const [fullscreen, setFullscreen] = usePersistedState<boolean>(FS_KEY, false, {
+    syncToCloud: true,
+  });
   const [infiniteScroll, setInfiniteScroll] = usePersistedState<boolean>(
     INFINITE_SCROLL_KEY,
-    false
+    false,
+    { syncToCloud: true }
   );
 
   const toggleFullscreen = async (value: boolean) => {

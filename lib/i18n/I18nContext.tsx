@@ -1,3 +1,4 @@
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Locale } from "date-fns";
 import { enUS, ja, ru, zhCN } from "date-fns/locale";
@@ -50,7 +51,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({
     zh: zhCN,
   };
   useEffect(() => {
-    (async () => {
+    const load = async () => {
       try {
         const saved = await AsyncStorage.getItem(LANG_KEY);
         if (
@@ -63,7 +64,10 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({
           setLocale(saved);
         }
       } catch {}
-    })();
+    };
+    load();
+    const unsub = subscribeToStorageApplied(load);
+    return unsub;
   }, []);
   const dict = dictionaries[resolved] || dictionaries.en;
   const fallback = dictionaries.en;
@@ -92,6 +96,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({
       setLocale: (l) => {
         setLocale(l);
         AsyncStorage.setItem(LANG_KEY, l).catch(() => {});
+        requestStoragePush();
       },
       t,
       available: [

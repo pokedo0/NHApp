@@ -1,4 +1,5 @@
 import { Tag } from "@/api/nhentai";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
@@ -61,7 +62,7 @@ export function TagProvider({ children }: { children: React.ReactNode }) {
     () => filters.filter((f) => f.mode === "exclude"),
     [filters]
   );
-  useEffect(() => {
+  const load = useCallback(() => {
     AsyncStorage.getItem(KEY)
       .then((j) => {
         if (!j) return;
@@ -73,12 +74,18 @@ export function TagProvider({ children }: { children: React.ReactNode }) {
       })
       .finally(() => setFiltersReady(true));
   }, []);
+  useEffect(() => {
+    load();
+    const unsub = subscribeToStorageApplied(load);
+    return unsub;
+  }, [load]);
   const saveTimer = useRef<ReturnType<typeof global.setTimeout> | null>(null);
   useEffect(() => {
     if (!filtersReady) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = global.setTimeout(() => {
       AsyncStorage.setItem(KEY, JSON.stringify(filters)).catch(() => {});
+      requestStoragePush();
     }, 150);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);

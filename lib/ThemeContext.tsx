@@ -1,4 +1,5 @@
 import { getBaseHue, hsbToHex, setBaseHue } from "@/constants/Colors";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
@@ -42,18 +43,23 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [hue, _setHue] = useState(getBaseHue());
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((v) => {
-      const deg = Number(v);
-      if (!Number.isNaN(deg)) {
-        setBaseHue(deg);
-        _setHue(deg);
-      }
-    });
+    const load = () =>
+      AsyncStorage.getItem(STORAGE_KEY).then((v) => {
+        const deg = Number(v);
+        if (!Number.isNaN(deg)) {
+          setBaseHue(deg);
+          _setHue(deg);
+        }
+      });
+    load();
+    const unsub = subscribeToStorageApplied(load);
+    return unsub;
   }, []);
   const setHue = (deg: number) => {
     setBaseHue(deg);
     _setHue(deg);
     AsyncStorage.setItem(STORAGE_KEY, String(deg)).catch(console.warn);
+    requestStoragePush();
   };
   const colors = useMemo<ThemeColors>(
     () => ({

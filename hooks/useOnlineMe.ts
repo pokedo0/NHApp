@@ -1,5 +1,6 @@
 import { getMe } from "@/api/online/me";
 import type { Me } from "@/api/online/types";
+import { getDeviceId, getDeviceName } from "@/utils/deviceId";
 import { useEffect, useState } from "react";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -30,17 +31,25 @@ export function useOnlineMe(): Me | null {
 
     const controller = new AbortController();
 
-    fetch(`${API_BASE_URL}/api/users/sync`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id: me.id,
-        username: me.username,
-      }),
-      signal: controller.signal,
-    }).catch(() => {});
+    Promise.all([getDeviceId(), getDeviceName()])
+      .then(([deviceId, deviceName]) => {
+        if (controller.signal.aborted) return;
+        return fetch(`${API_BASE_URL}/api/users/sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: me.id,
+            username: me.username,
+            deviceId,
+            deviceName,
+          }),
+          signal: controller.signal,
+        });
+      })
+      .then((r) => r?.ok)
+      .catch(() => {});
 
     return () => controller.abort();
   }, [me?.id, me?.username]);

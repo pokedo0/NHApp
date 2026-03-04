@@ -27,6 +27,109 @@ import {
   View,
 } from "react-native";
 import { usePersistedState } from "@/hooks/usePersistedState";
+import { useOnlineMe } from "@/hooks/useOnlineMe";
+import { getDeviceId, getDeviceName } from "@/utils/deviceId";
+import { API_BASE_URL, API_BASE_URL_RAW } from "@/config/api";
+import {
+  fetchCloudStorage,
+  pushCloudStorage,
+  collectLocalStorageForSync,
+} from "@/api/cloudStorage";
+
+function DebugInfoBlock() {
+  const { colors } = useTheme();
+  const me = useOnlineMe();
+  const [deviceId, setDeviceId] = useState<string>("…");
+  const [deviceName, setDeviceName] = useState<string>("…");
+  const [lastResult, setLastResult] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    getDeviceId().then(setDeviceId);
+    getDeviceName().then(setDeviceName);
+  }, []);
+
+  const onTestPull = useCallback(async () => {
+    if (!me?.id) {
+      setLastResult("Ошибка: не авторизован");
+      return;
+    }
+    setLoading(true);
+    setLastResult(null);
+    try {
+      const { storage_updated_at } = await fetchCloudStorage(me.id);
+      setLastResult(`GET storage OK. storage_updated_at: ${storage_updated_at ?? "null"}`);
+    } catch (e: any) {
+      setLastResult(`GET ошибка: ${e?.message ?? String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [me?.id]);
+
+  const onTestPush = useCallback(async () => {
+    if (!me?.id) {
+      setLastResult("Ошибка: не авторизован");
+      return;
+    }
+    setLoading(true);
+    setLastResult(null);
+    try {
+      const storage = await collectLocalStorageForSync();
+      await pushCloudStorage(me.id, storage);
+      const keys = Object.keys(storage).length;
+      setLastResult(`PUT storage OK. Отправлено ключей: ${keys}`);
+    } catch (e: any) {
+      setLastResult(`PUT ошибка: ${e?.message ?? String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [me?.id]);
+
+  return (
+    <View style={[styles.debugBlock, { borderColor: colors.sub + "40", backgroundColor: colors.bg }]}>
+      <Text selectable style={[styles.debugLine, { color: colors.sub }]}>
+        API (.env): {API_BASE_URL_RAW || "(не задан)"}
+      </Text>
+      {API_BASE_URL !== API_BASE_URL_RAW && API_BASE_URL ? (
+        <Text selectable style={[styles.debugLine, { color: colors.sub }]}>
+          API (запросы): {API_BASE_URL}
+        </Text>
+      ) : null}
+      <Text selectable style={[styles.debugLine, { color: colors.sub }]}>
+        User: {me ? `${me.id} / ${me.username}` : "не авторизован"}
+      </Text>
+      <Text selectable style={[styles.debugLine, { color: colors.sub }]}>
+        Device id: {deviceId}
+      </Text>
+      <Text selectable style={[styles.debugLine, { color: colors.sub }]}>
+        Device name: {deviceName}
+      </Text>
+      {me ? (
+        <View style={styles.debugButtons}>
+          <Button
+            variant="secondary"
+            compact
+            onPress={onTestPull}
+            disabled={loading}
+            title={loading ? "…" : "Проверить загрузку (GET)"}
+          />
+          <Button
+            variant="secondary"
+            compact
+            onPress={onTestPush}
+            disabled={loading}
+            title={loading ? "…" : "Отправить хранилище (PUT)"}
+          />
+        </View>
+      ) : null}
+      {lastResult != null ? (
+        <Text selectable style={[styles.debugResult, { color: colors.txt }]}>
+          {lastResult}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
 
 function GraphStorageBlock() {
   const { colors } = useTheme();
@@ -462,6 +565,13 @@ export default function UIKitScreen() {
             <GraphStorageBlock />
           </View>
 
+          <Text style={[styles.sectionTitle, { color: colors.txt, marginTop: 24 }]}>
+            Debug Info
+          </Text>
+          <View style={[styles.sliderBlock, { marginBottom: 16 }]}>
+            <DebugInfoBlock />
+          </View>
+
           <Text style={[styles.placeholder, { color: colors.sub, marginTop: 24 }]}>
             {t("uikit.placeholder")}
           </Text>
@@ -530,6 +640,36 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: "uppercase",
     marginBottom: 4,
+  },
+  debugBlock: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    maxWidth: 520,
+  },
+  debugLine: {
+    fontSize: 13,
+    marginBottom: 6,
+    fontFamily: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
+  },
+  debugHint: {
+    fontSize: 11,
+    marginBottom: 8,
+    opacity: 0.85,
+    fontStyle: "italic",
+  },
+  debugButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 12,
+  },
+  debugResult: {
+    fontSize: 13,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    fontFamily: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }),
   },
   typographyBlock: { marginTop: 4 },
   placeholder: {

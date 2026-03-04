@@ -1,3 +1,4 @@
+import { requestStoragePush } from "@/api/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useState } from "react";
 const FAVORITES = "bookFavorites";
@@ -29,6 +30,7 @@ export const useFavorites = (currentId: number) => {
     setLiked(!arr.includes(currentId));
     setFav(new Set(nextArr));
     await AsyncStorage.setItem(FAVORITES, JSON.stringify(nextArr));
+    requestStoragePush();
   }, [currentId]);
   return { favorites, toggleFav, liked, toggleLike };
 };
