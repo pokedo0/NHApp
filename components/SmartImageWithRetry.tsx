@@ -1,3 +1,4 @@
+import { NHENTAI_CDN_HEADERS, isNhentaiHostedUrl } from "@/lib/nhentaiCdnHeaders";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Image, ImageProps, ActivityIndicator, View, StyleSheet } from "react-native";
 interface Props extends Omit<ImageProps, "source"> {
@@ -91,7 +92,11 @@ export default function SmartImageWithRetry({
       <Image
         {...rest}
         key={`${currentSource}-${retryCount}`}
-        source={{ uri: currentSource }}
+        source={
+          isNhentaiHostedUrl(currentSource)
+            ? { uri: currentSource, headers: NHENTAI_CDN_HEADERS }
+            : { uri: currentSource }
+        }
         style={[style, { opacity: loading || error ? 0 : 1 }]}
         onError={handleError}
         onLoad={handleLoad}

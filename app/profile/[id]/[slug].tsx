@@ -22,13 +22,9 @@ import {
 } from "react-native";
 import { requestStoragePush } from "@/api/cloudStorage";
 import type { Book } from "@/api/nhentai";
-import { getBook } from "@/api/nhentai";
-import {
-  getMe,
-  getUserOverview,
-  type Me,
-  type UserOverview,
-} from "@/api/nhentaiOnline";
+import { getMe, getUserProfile } from "@/api/v2";
+import type { Me, UserProfile } from "@/api/v2";
+import { galleryRelatedToBook } from "@/api/v2/compat";
 import BookList from "@/components/BookList";
 import CommentCard from "@/components/CommentCard";
 import { useWindowLayout } from "@/hooks/book/useWindowLayout";
@@ -207,7 +203,7 @@ export default function UserProfileScreen() {
   const isWide = isTabletOrDesktop;
   const panelWidth = isDesktop ? 360 : isTablet ? 300 : undefined;
   const [busy, setBusy] = useState(true);
-  const [ov, setOv] = useState<UserOverview | null>(null);
+  const [ov, setOv] = useState<UserProfile | null>(null);
   const [viewer, setViewer] = useState<Me | null>(null);
   const [recent, setRecent] = useState<Book[]>([]);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
@@ -219,9 +215,9 @@ export default function UserProfileScreen() {
   const [favContentW, setFavContentW] = useState(0);
   const [favViewportW, setFavViewportW] = useState(0);
   const joinedAgoLabel = useMemo(() => {
-    if (!ov?.joinedAt) return "";
+    if (!ov?.date_joined) return "";
     const now = new Date();
-    const joined = new Date(ov.joinedAt);
+    const joined = new Date(ov.date_joined * 1000);
     const totalMonths = differenceInMonths(now, joined);
     const years = Math.floor(totalMonths / 12);
     const months = totalMonths % 12;
@@ -300,8 +296,8 @@ export default function UserProfileScreen() {
     })();
   }, []);
   useEffect(() => {
-    pickBannerFrom(ov?.me?.avatar_url);
-  }, [ov?.me?.avatar_url, pickBannerFrom]);
+    pickBannerFrom(ov?.avatar_url);
+  }, [ov?.avatar_url, pickBannerFrom]);
   useEffect(() => {
     AsyncStorage.getItem("bookFavorites").then((j) => {
       const list = j ? (JSON.parse(j) as number[]) : [];
@@ -320,13 +316,12 @@ export default function UserProfileScreen() {
     });
   }, []);
   const loadOverview = useCallback(async () => {
-    const overview = await getUserOverview(Number(id), slug).catch(() => null);
-    setOv(overview);
-    const ids = (overview?.recentFavoriteIds || []).slice(0, 12);
-    const books = (
-      await Promise.all(ids.map((g) => getBook(g).catch(() => null)))
-    ).filter(Boolean) as Book[];
-    setRecent(books.map(toLightBook));
+    const profile = await getUserProfile(Number(id), slug).catch(() => null);
+    setOv(profile);
+    const recent = (profile?.recent_favorites || [])
+      .slice(0, 12)
+      .map((f) => galleryRelatedToBook(f));
+    setRecent(recent);
   }, [id, slug]);
 
   useEffect(() => {
@@ -356,22 +351,18 @@ export default function UserProfileScreen() {
     }),
     [baseGrid, winW, PAD]
   );
-  const favoriteTagsTextRaw = ov?.favoriteTagsText
-    ? decodeHtml(ov.favoriteTagsText)
-    : "";
+  const favoriteTagsTextRaw = ov?.favorite_tags ? decodeHtml(ov.favorite_tags) : "";
   const favoriteTags: string[] =
-    (ov?.favoriteTags && ov.favoriteTags.length
-      ? ov.favoriteTags
-      : favoriteTagsTextRaw
-          .split(",")
-          .map((s) => decodeHtml(s).trim())
-          .filter(Boolean)) || [];
+    favoriteTagsTextRaw
+      .split(",")
+      .map((s) => decodeHtml(s).trim())
+      .filter(Boolean) || [];
   const aboutText = ov?.about ? decodeHtml(ov.about).trim() : "";
   const showTags = favoriteTags.length > 0;
   const showAbout = aboutText.length > 0;
-  const profileUrl = trimTrailingSlash(ov?.me?.profile_url);
+  const profileUrl: string | null = null; // not available in v2 public profile
   const canEdit = Boolean(
-    viewer?.id && ov?.me?.id && Number(viewer.id) === Number(ov.me.id)
+    viewer?.id && ov?.id && Number(viewer.id) === Number(ov.id)
   );
   const Title = ({ children }: { children: React.ReactNode }) => (
     <Text style={[styles.sectionTitle, { color: ui.title }]}>{children}</Text>
@@ -407,7 +398,7 @@ export default function UserProfileScreen() {
       <View style={{ marginTop: -AVATAR_SIZE / 2, paddingHorizontal: PAD }}>
         <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
           <Pressable
-            onPress={() => ov?.me?.avatar_url && setAvatarPreviewUri(ov.me.avatar_url)}
+            onPress={() => ov?.avatar_url && setAvatarPreviewUri(ov.avatar_url)}
             style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
           >
             <View>
@@ -667,23 +658,23 @@ export default function UserProfileScreen() {
           </>
         ) : (
           <>
-            {(ov?.recentComments || []).slice(0, 20).map((c) => (
+            {(ov?.recent_comments || []).slice(0, 20).map((c) => (
               <CommentCard
                 key={c.id}
                 id={c.id}
                 body={c.body}
                 post_date={c.post_date}
                 poster={
-                  ov?.me
+                  ov
                     ? {
-                        id: ov.me.id,
-                        username: ov.me.username,
-                        slug: ov.me.slug,
-                        avatar_url: ov.me.avatar_url,
+                        id: ov.id,
+                        username: ov.username,
+                        slug: ov.slug,
+                        avatar_url: ov.avatar_url,
                       }
                     : undefined
                 }
-                avatar={c.avatar_url || ov?.me?.avatar_url}
+                avatar={ov?.avatar_url}
                 highlight={false}
                 onPress={() =>
                   router.push({
@@ -698,12 +689,11 @@ export default function UserProfileScreen() {
                   })
                 }
                 onPressAvatar={() => {
-                  const uri = c.avatar_url || ov?.me?.avatar_url;
-                  if (uri) setAvatarPreviewUri(uri);
+                  if (ov?.avatar_url) setAvatarPreviewUri(ov.avatar_url);
                 }}
               />
             ))}
-            {(ov?.recentComments?.length || 0) === 0 && !busy && (
+            {(ov?.recent_comments?.length || 0) === 0 && !busy && (
               <Text style={{ color: ui.sub, paddingVertical: 4 }}>
                 {t("historyNotFound")}
               </Text>

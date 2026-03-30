@@ -22,17 +22,41 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LoadingSpinner from "./LoadingSpinner";
 
-import { Book, getFavorites } from "@/api/nhentai";
-import {
-    onlineBulkFavorite,
-    onlineBulkUnfavorite,
-    onlineFavorite,
-    onlineUnfavorite,
-} from "@/api/nhentaiOnline";
+import { getFavorites, type Book } from "@/api/nhentai";
+import { addFavorite, removeFavorite } from "@/api/v2";
+
+// Bulk helpers — sequential with small delay to avoid rate limiting
+async function onlineBulkFavorite(
+  ids: number[],
+  onProgress?: (done: number, total: number) => void
+): Promise<{ failed: number[] }> {
+  const failed: number[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    try { await addFavorite(ids[i]); } catch { failed.push(ids[i]); }
+    onProgress?.(i + 1, ids.length);
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return { failed };
+}
+
+async function onlineBulkUnfavorite(
+  ids: number[],
+  onProgress?: (done: number, total: number) => void
+): Promise<{ failed: number[] }> {
+  const failed: number[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    try { await removeFavorite(ids[i]); } catch { failed.push(ids[i]); }
+    onProgress?.(i + 1, ids.length);
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return { failed };
+}
+
+const onlineFavorite = (id: number) => addFavorite(id);
+const onlineUnfavorite = (id: number) => removeFavorite(id);
 import BookCard from "@/components/BookCard";
 import { CardPressable } from "@/components/ui/CardPressable";
 import { useAutoImport } from "@/context/AutoImportProvider";
-import { useFavHistory } from "@/hooks/useFavHistory";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 
@@ -41,7 +65,6 @@ export interface GridConfig {
   minColumnWidth?: number;
   paddingHorizontal?: number;
   columnGap?: number;
-  cardDesign?: "classic" | "stable" | "image";
 }
 type BreakpointConfig = {
   phonePortrait?: GridConfig;
@@ -64,7 +87,6 @@ type Props = {
   ListFooterComponent?: React.ReactElement | null;
 
   background?: string;
-  cardDesign?: "classic" | "stable" | "image";
 
   onAfterUnfavorite?: (removedIds: number[]) => void;
   onRestoreFavorites?: (books: Book[]) => void;
@@ -82,7 +104,6 @@ export default function BookListOnline({
   ListEmptyComponent,
   ListFooterComponent,
   background,
-  cardDesign,
   onAfterUnfavorite,
   onRestoreFavorites,
   scrollRef,
@@ -90,7 +111,6 @@ export default function BookListOnline({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const { favoritesSet, historyMap } = useFavHistory();
   const { t } = useI18n();
 
   const {
@@ -159,14 +179,12 @@ export default function BookListOnline({
       minColumnWidth: 128,
       paddingHorizontal: 12,
       columnGap: 10,
-      cardDesign: "classic",
     };
     const defaultsTablet: GridConfig = {
       numColumns: isPortrait ? 4 : 5,
       minColumnWidth: 150,
       paddingHorizontal: 14,
       columnGap: 12,
-      cardDesign: "classic",
     };
     const def = isTablet ? defaultsTablet : defaultsPhone;
 
@@ -175,21 +193,10 @@ export default function BookListOnline({
       minColumnWidth: pick?.minColumnWidth ?? def.minColumnWidth,
       paddingHorizontal: pick?.paddingHorizontal ?? def.paddingHorizontal,
       columnGap: pick?.columnGap ?? def.columnGap,
-      cardDesign: (cardDesign ?? pick?.cardDesign ?? def.cardDesign) as
-        | "classic"
-        | "stable"
-        | "image",
     };
-  }, [width, height, gridConfig, cardDesign]);
+  }, [width, height, gridConfig]);
 
-  const {
-    cols,
-    cardWidth,
-    columnGap,
-    paddingHorizontal,
-    estCardH,
-    chosenDesign,
-  } = React.useMemo(() => {
+  const { cols, cardWidth, columnGap, paddingHorizontal } = React.useMemo(() => {
     const padH = baseConfig.paddingHorizontal ?? 0;
     const gap = baseConfig.columnGap ?? 0;
     const minW = baseConfig.minColumnWidth ?? 120;
@@ -197,17 +204,12 @@ export default function BookListOnline({
     const maxByWidth = Math.max(1, Math.floor((avail + gap) / (minW + gap)));
     const cols = Math.min(maxByWidth, baseConfig.numColumns);
     const cw = cols > 0 ? (avail - gap * (cols - 1)) / cols : avail;
-    const design = baseConfig.cardDesign ?? "classic";
-    const estH =
-      design === "image" ? Math.round(cw * 1.05) : Math.round(cw * 1.35);
 
     return {
       cols,
       cardWidth: cw,
       columnGap: gap,
       paddingHorizontal: padH,
-      estCardH: estH,
-      chosenDesign: design as "classic" | "stable" | "image",
     };
   }, [baseConfig, width]);
 
@@ -216,23 +218,6 @@ export default function BookListOnline({
 
   const removeIdsLocally = (ids: number[]) =>
     setItems((prev) => prev.filter((b) => !ids.includes(b.id)));
-
-  const handleSingleUnfavorite = async (id: number) => {
-    const b = items.find((x) => x.id === id);
-    if (!b) return;
-    removeIdsLocally([id]);
-    onAfterUnfavorite?.([id]);
-    pushUndo([b]);
-    try {
-      await onlineUnfavorite(id);
-    } catch {}
-  };
-
-  const emptyHistory = React.useMemo(
-    () =>
-      ({} as Record<number, { current: number; total: number; ts: number }>),
-    []
-  );
 
   const runMassDelete = async (ids: number[]) => {
     if (!ids.length) return;
@@ -267,22 +252,13 @@ export default function BookListOnline({
         >
           <View style={{ position: "relative" }}>
             <BookCard
-              design={chosenDesign}
               book={item}
               cardWidth={cardWidth}
-              isSingleCol={isSingleCol}
               contentScale={contentScale}
-              isFavorite
-              onToggleFavorite={(_, next) => {
-                if (!next) handleSingleUnfavorite(id);
-              }}
               onPress={() => {
                 if (selectMode) toggleSelect(id);
                 else onPress?.(id);
               }}
-              favoritesSet={favoritesSet}
-              historyMap={historyMap}
-              hydrateFromStorage={false}
             />
 
             {selectMode && (
@@ -322,27 +298,16 @@ export default function BookListOnline({
       cardWidth,
       columnGap,
       isSingleCol,
-      chosenDesign,
       contentScale,
       selectMode,
       selected,
-      favoritesSet,
-      historyMap,
       onPress,
       t,
     ]
   );
 
   const keyExtractor = React.useCallback((b: Book) => String(b.id), []);
-  const getItemLayout =
-    chosenDesign === "image"
-      ? (_: any, index: number) => {
-          const row = Math.floor(index / cols);
-          const rowHeight = estCardH + columnGap;
-          const offset = (paddingHorizontal ?? 0) / 2 + row * rowHeight;
-          return { length: rowHeight, offset, index };
-        }
-      : undefined;
+  const getItemLayout = undefined;
 
   const [importOpen, setImportOpen] = React.useState(false);
   const [importBusy, setImportBusy] = React.useState(false);
@@ -594,22 +559,13 @@ export default function BookListOnline({
         >
           <View style={{ position: "relative" }}>
             <BookCard
-              design={chosenDesign}
               book={item}
               cardWidth={cardWidth}
-              isSingleCol={isSingleCol}
               contentScale={contentScale}
-              isFavorite
-              onToggleFavorite={(_, next) => {
-                if (!next) handleSingleUnfavorite(id);
-              }}
               onPress={() => {
                 if (selectMode) toggleSelect(id);
                 else onPress?.(id);
               }}
-              favoritesSet={favoritesSet}
-              historyMap={historyMap}
-              hydrateFromStorage={false}
             />
 
             {selectMode && (
@@ -646,13 +602,10 @@ export default function BookListOnline({
     },
     [
       cardWidth,
-      chosenDesign,
       isSingleCol,
       contentScale,
       selectMode,
       selected,
-      favoritesSet,
-      historyMap,
       onPress,
       t,
     ]
@@ -729,7 +682,7 @@ export default function BookListOnline({
           maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 12}
           initialNumToRender={Platform.OS === 'android' ? Math.min(8, items.length) : Math.min(18, items.length)}
           updateCellsBatchingPeriod={Platform.OS === 'android' ? 50 : 40}
-          removeClippedSubviews={Platform.OS === 'android' || chosenDesign === "image"}
+          removeClippedSubviews={Platform.OS === "android"}
         />
       )}
 
@@ -996,17 +949,10 @@ export default function BookListOnline({
                 <View style={{ width: tileW, margin: 5 }}>
                   <View style={{ position: "relative" }}>
                     <BookCard
-                      design="image"
                       book={item}
                       cardWidth={tileW}
-                      isSingleCol={false}
                       contentScale={0.65}
-                      isFavorite={picked}
-                      onToggleFavorite={() => toggleLocalPick(item.id)}
                       onPress={() => toggleLocalPick(item.id)}
-                      favoritesSet={new Set()}
-                      historyMap={emptyHistory}
-                      hydrateFromStorage={false}
                     />
                     <Pressable
                       onPress={() => toggleLocalPick(item.id)}

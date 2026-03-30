@@ -1,10 +1,11 @@
-﻿export const buildImageFallbacks = (url: string): string[] => {
-  const m = url.match(/^(.*)\.(jpg|png|webp|gif)(\.webp)?$/i);
-  if (!m) return [url];
+export const buildImageFallbacks = (url: string): string[] => {
+  const cleaned = (url || "").trim().replace(/\.webp\.webp$/i, ".webp");
+  if (!cleaned) return [];
+  const m = cleaned.match(/^(.*)\.(jpg|jpeg|png|webp|gif)$/i);
+  if (!m) return [cleaned];
   const base = m[1];
+  const ext = (m[2].toLowerCase() === "jpeg" ? "jpg" : m[2].toLowerCase()) as string;
   const exts = ["jpg", "png", "webp", "gif"];
-  const orig = m.slice(2).filter(Boolean).join(".");
-  return [orig, ...exts]
-    .filter((e, i, self) => self.indexOf(e) === i)
-    .map((ext) => `${base}.${ext}`);
+  const ordered = [ext, ...exts].filter((e, i, self) => self.indexOf(e) === i);
+  return ordered.map((e) => `${base}.${e}`);
 };

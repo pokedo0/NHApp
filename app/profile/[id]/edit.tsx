@@ -15,12 +15,18 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  fetchProfileEditForm,
-  submitProfileEdit,
-  type ProfileEditFormData,
-} from "@/api/online/profileEdit";
+import { getMe, updateProfile, uploadAvatar } from "@/api/v2";
 import { isElectron, showOpenDialog } from "@/electron/bridge";
+
+interface ProfileEditFormData {
+  username: string;
+  email: string;
+  about: string;
+  favorite_tags: string;
+  old_password?: string;
+  new_password1?: string;
+  new_password2?: string;
+}
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { Feather } from "@expo/vector-icons";
@@ -81,27 +87,33 @@ export default function ProfileEditScreen() {
   };
 
   const loadForm = useCallback(async () => {
-    if (!userId || !slugStr) {
-      setError("Missing user id or slug");
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(null);
-    const result = await fetchProfileEditForm(userId, slugStr);
-    setLoading(false);
-    if (result.success && result.data) {
-      setForm(result.data);
+    try {
+      const me = await getMe();
+      setForm({
+        username: me.username ?? "",
+        email: me.email ?? "",
+        about: (me as any).about ?? "",
+        favorite_tags: Array.isArray((me as any).favorite_tags)
+          ? (me as any).favorite_tags.join(", ")
+          : (me as any).favorite_tags ?? "",
+        old_password: "",
+        new_password1: "",
+        new_password2: "",
+      });
       setCurrentAvatarUri(null);
       setRemoveAvatar(false);
-    } else {
+    } catch (e: any) {
       setError(
-        result.notLoggedIn
+        e?.status === 401
           ? t("profile.edit.notLoggedIn") || "You are not logged in. Please log in first."
-          : result.error || "Failed to load form"
+          : e?.message || "Failed to load profile"
       );
+    } finally {
+      setLoading(false);
     }
-  }, [userId, slugStr, t]);
+  }, [t]);
 
   useEffect(() => {
     loadForm();
@@ -173,27 +185,53 @@ export default function ProfileEditScreen() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!form || !userId || !slugStr) return;
+    if (!form) return;
     setSaving(true);
     setError(null);
-    const res = await submitProfileEdit(userId, slugStr, form, {
-      removeAvatar,
-      avatarFilePath: removeAvatar ? undefined : avatarPath || undefined,
-    });
-    setSaving(false);
-    if (res.success) {
+    try {
+      await updateProfile({
+        username: form.username || undefined,
+        email: form.email || undefined,
+        about: form.about || undefined,
+        favorite_tags: form.favorite_tags || undefined,
+        current_password: form.old_password || undefined,
+        new_password: form.new_password1 || undefined,
+        remove_avatar: removeAvatar || undefined,
+      });
+
+      if (!removeAvatar && avatarPath) {
+        const fd = new FormData();
+        const filename = avatarPath.split("/").pop() || avatarPath.split("\\").pop() || "avatar.jpg";
+        const ext = filename.split(".").pop()?.toLowerCase() ?? "jpg";
+        const mime =
+          ext === "png" ? "image/png" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : "image/jpeg";
+        if (isElectron()) {
+          const dataUrlResult = await (window as any).electron?.getFileAsDataUrl?.(avatarPath);
+          if (dataUrlResult?.success && dataUrlResult?.dataUrl) {
+            const res = await fetch(dataUrlResult.dataUrl);
+            const blob = await res.blob();
+            fd.append("avatar", blob, filename);
+          }
+        } else {
+          fd.append("avatar", { uri: avatarPath, name: filename, type: mime } as any);
+        }
+        await uploadAvatar(fd);
+      }
+
       setError(null);
       setSavedMessage(true);
       setTimeout(() => setSavedMessage(false), 2500);
-    } else {
-      const raw = res.error || "Save failed";
+    } catch (e: any) {
+      const raw = e?.message || "Save failed";
       const friendly =
         raw.includes("ERR_INVALID_ARGUMENT") || raw.includes("ERR_")
           ? t("profile.edit.errorNetwork")
           : raw;
       setError(friendly);
+    } finally {
+      setSaving(false);
     }
-  }, [form, userId, slugStr, removeAvatar, avatarPath, t]);
+  }, [form, removeAvatar, avatarPath, t]);
 
   const avatarUri = currentAvatarUri || (!removeAvatar ? initialAvatarUrl : null);
   const hasAvatar = Boolean(avatarUri);

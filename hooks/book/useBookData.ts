@@ -1,11 +1,16 @@
-import { Book, getBook, loadBookFromLocal } from "@/api/nhentai";
+import { loadBookFromLocal } from "@/api/nhentai";
+import type { Book } from "@/api/nhentai";
+import { getGallery, initCdn } from "@/api/v2";
+import { galleryToBook } from "@/api/v2/compat";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Platform, ToastAndroid } from "react-native";
+
 export const useBookData = (idNum: number) => {
   const router = useRouter();
   const [book, setBook] = useState<Book | null>(null);
   const [local, setLocal] = useState(false);
+
   useEffect(() => {
     (async () => {
       const bLocal = await loadBookFromLocal(idNum);
@@ -15,7 +20,9 @@ export const useBookData = (idNum: number) => {
         return;
       }
       try {
-        setBook(await getBook(idNum));
+        await initCdn();
+        const gallery = await getGallery(idNum, { include: ["comments", "related"] });
+        setBook(galleryToBook(gallery));
       } catch {
         if (Platform.OS === "android")
           ToastAndroid.show("Unable to load", ToastAndroid.LONG);
@@ -23,5 +30,6 @@ export const useBookData = (idNum: number) => {
       }
     })();
   }, [idNum, router]);
+
   return { book, setBook, local, setLocal };
 };

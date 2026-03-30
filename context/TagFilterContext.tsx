@@ -16,11 +16,13 @@ export interface FilterItem {
   type: Tag["type"];
   name: string;
   mode: TagMode;
+  /** nhentai tag id — when set, browse can use /galleries/tagged (full page count). */
+  id?: string | number;
 }
 type ModeMap = Record<string, TagMode>;
 interface Ctx {
   filters: FilterItem[];
-  cycle: (t: { type: string; name: string }) => void;
+  cycle: (t: { type: string; name: string; id?: string | number }) => void;
   clear: () => void;
   includes: FilterItem[];
   excludes: FilterItem[];
@@ -95,7 +97,7 @@ export function TagProvider({ children }: { children: React.ReactNode }) {
     (type: string, name: string) => modeMapRef.current[`${type}:${name}`],
     []
   );
-  const cycle = useCallback((t: { type: string; name: string }) => {
+  const cycle = useCallback((t: { type: string; name: string; id?: string | number }) => {
     const k = keyOf(t);
     setEpoch((e) => e + 1);
     setLastChangedKey(`${k}:${Date.now()}`);

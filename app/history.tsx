@@ -4,8 +4,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { Platform, SectionList, StyleSheet, Text, View } from "react-native";
 
-import { requestStoragePush } from "@/api/cloudStorage";
-import { Book, getFavorites } from "@/api/nhentai";
+import type { Book } from "@/api/nhentai";
+import { getGallery, initCdn } from "@/api/v2";
+import { galleryToBook } from "@/api/v2/compat";
 import BookListHistory, { READ_HISTORY_KEY, ReadHistoryEntry } from "@/components/BookListHistory";
 import { scrollToTop } from "@/utils/scrollToTop";
 import { useGridConfig } from "@/hooks/useGridConfig";
@@ -21,7 +22,6 @@ export default function HistoryScreen() {
   const [books, setBooks] = useState<Book[]>([]);
   const [ids, setIds] = useState<number[]>([]);
   const [histIndex, setHistIndex] = useState<Record<number, ReadHistoryEntry>>({});
-  const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -59,23 +59,14 @@ export default function HistoryScreen() {
     setHistIndex(indexObj);
   }, []);
 
-  const loadFavorites = useCallback(() => {
-    AsyncStorage.getItem("bookFavorites").then((j) => {
-      const list = j ? (JSON.parse(j) as number[]) : [];
-      setFavorites(new Set(list));
-    });
-  }, []);
-
   useEffect(() => {
     loadHistoryIndex();
-    loadFavorites();
-  }, [loadHistoryIndex, loadFavorites]);
+  }, [loadHistoryIndex]);
 
   useFocusEffect(
     useCallback(() => {
       loadHistoryIndex();
-      loadFavorites();
-    }, [loadHistoryIndex, loadFavorites])
+    }, [loadHistoryIndex])
   );
 
   const reqIdRef = useRef(0);
@@ -96,12 +87,23 @@ export default function HistoryScreen() {
       if (pageNum > 1) setIsLoadingMore(true);
 
       try {
-        const { books: fetched } = await getFavorites({ ids: pageIds, perPage: PER_PAGE });
+        await initCdn();
+        const settled = await Promise.all(
+          pageIds.map((id) =>
+            getGallery(id)
+              .then((g) => ({ id, book: galleryToBook(g) as Book }))
+              .catch(() => ({ id, book: null as Book | null }))
+          )
+        );
         if (reqIdRef.current !== myReq) return;
-        const ordered = pageIds.map((id) => fetched.find((b) => b.id === id)).filter((b): b is Book => !!b);
+        const byId = new Map(settled.map((x) => [x.id, x.book]));
+        const ordered = pageIds
+          .map((id) => byId.get(id) ?? null)
+          .filter((b): b is Book => b != null);
         setBooks((prev) => (pageNum === 1 ? ordered : [...prev, ...ordered]));
         setPage(pageNum);
       } catch {
+        if (reqIdRef.current === myReq && pageNum === 1) setBooks([]);
       } finally {
         if (pageNum > 1) setIsLoadingMore(false);
       }
@@ -119,30 +121,13 @@ export default function HistoryScreen() {
     loadBooks(page + 1);
   }, [isLoadingMore, page, totalPages, loadBooks]);
 
-  const toggleFavorite = useCallback((id: number, next: boolean) => {
-    setFavorites((prev) => {
-      const copy = new Set(prev);
-      if (next) {
-        copy.add(id);
-        AsyncStorage.setItem("bookFavorites", JSON.stringify([...copy]));
-        requestStoragePush();
-      } else {
-        copy.delete(id);
-        AsyncStorage.setItem("bookFavorites", JSON.stringify([...copy]));
-        requestStoragePush();
-      }
-      return copy;
-    });
-  }, []);
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadHistoryIndex();
-    loadFavorites();
     await loadBooks(1);
     setRefreshing(false);
     scrollToTop(scrollRef);
-  }, [loadHistoryIndex, loadBooks, loadFavorites]);
+  }, [loadHistoryIndex, loadBooks]);
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
@@ -177,8 +162,6 @@ export default function HistoryScreen() {
         refreshing={refreshing}
         onRefresh={onRefresh}
         onEndReached={handleLoadMore}
-        isFavorite={(id) => favorites.has(id)}
-        onToggleFavorite={toggleFavorite}
         onPress={(id) =>
           router.push({
             pathname: "/book/[id]",

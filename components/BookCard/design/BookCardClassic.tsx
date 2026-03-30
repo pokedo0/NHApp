@@ -16,6 +16,27 @@ const FLAG_MAP: Record<string, any> = {
   japanese: JP_FLAG,
 };
 
+/** nhentai language tag ids (type `language` on the site) */
+const LANG_TAG_JP = 6346;
+const LANG_TAG_CN = 29963;
+const LANG_TAG_EN = 12227;
+
+function languageKeyFromTagIdList(ids: number[] | undefined): string | undefined {
+  if (!ids?.length) return undefined;
+  for (const id of ids) {
+    if (id === LANG_TAG_JP) return "japanese";
+    if (id === LANG_TAG_CN) return "chinese";
+    if (id === LANG_TAG_EN) return "english";
+  }
+  return undefined;
+}
+
+function inferLanguageKeyFromBook(book: Book): string | undefined {
+  const fromList = languageKeyFromTagIdList(book.tagIds);
+  if (fromList) return fromList;
+  return languageKeyFromTagIdList(book.tags?.map((t) => t.id));
+}
+
 export interface BookCardClassicProps {
   book: Book;
   cardWidth?: number;
@@ -77,10 +98,12 @@ export default function BookCardClassic({
 
   const langName = (() => {
     const arr = book.languages || [];
-    if (!arr?.length) return undefined;
-    const p = arr[0]?.name?.toLowerCase();
-    const s = arr[1]?.name?.toLowerCase();
-    return p === "translated" && s ? s : p;
+    if (arr?.length) {
+      const p = arr[0]?.name?.toLowerCase();
+      const s = arr[1]?.name?.toLowerCase();
+      return p === "translated" && s ? s : p;
+    }
+    return inferLanguageKeyFromBook(book);
   })();
   const flagSrc = langName ? FLAG_MAP[langName] : undefined;
 

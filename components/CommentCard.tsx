@@ -1,5 +1,5 @@
 import type { ApiUser } from "@/api/nhentai";
-import { deleteCommentById } from "@/api/online/comments";
+import { deleteComment } from "@/api/v2";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -363,7 +363,7 @@ export default function CommentCard({
       if (onDelete) {
         await onDelete(id);
       } else {
-        await deleteCommentById(id);
+        await deleteComment(id);
       }
       setDeleteOpen(false);
     } catch {

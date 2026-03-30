@@ -1,5 +1,6 @@
 import type { Book, GalleryComment } from "@/api/nhentai";
-import { deleteCommentById, type ApiComment } from "@/api/online/comments";
+import { deleteComment } from "@/api/v2";
+import type { Comment as ApiComment } from "@/api/v2";
 import BookList from "@/components/BookList";
 import CommentCard from "@/components/CommentCard";
 import CommentComposer from "@/components/CommentComposer";
@@ -180,7 +181,7 @@ export default function Footer({
 
   const handleDelete = async (id?: number) => {
     if (!id) return;
-    await deleteCommentById(id);
+    await deleteComment(id);
     setHiddenIds((prev) => {
       const next = new Set(prev);
       next.add(id);

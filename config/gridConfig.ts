@@ -6,15 +6,14 @@ export type GridConfig = {
   paddingHorizontal: number;
   columnGap: number;
   minColumnWidth?: number;
-  cardDesign?: "classic" | "stable" | "image";
 };
 export type GridConfigMap = Record<GridProfile, GridConfig>;
 const STORAGE_KEY = "grid_config_map_v2";
 export const defaultGridConfigMap: GridConfigMap = {
-  phonePortrait:   { numColumns: 2, paddingHorizontal: 10, columnGap: 5,  minColumnWidth: 80, cardDesign: "classic" },
-  phoneLandscape:  { numColumns: 4, paddingHorizontal: 10, columnGap: 5,  minColumnWidth: 80, cardDesign: "classic" },
-  tabletPortrait:  { numColumns: 3, paddingHorizontal: 10, columnGap: 5,  minColumnWidth: 80, cardDesign: "classic" },
-  tabletLandscape: { numColumns: 5, paddingHorizontal: 10, columnGap: 5,  minColumnWidth: 80, cardDesign: "classic" },
+  phonePortrait:   { numColumns: 2, paddingHorizontal: 10, columnGap: 5,  minColumnWidth: 80 },
+  phoneLandscape:  { numColumns: 4, paddingHorizontal: 10, columnGap: 5,  minColumnWidth: 80 },
+  tabletPortrait:  { numColumns: 3, paddingHorizontal: 10, columnGap: 5,  minColumnWidth: 80 },
+  tabletLandscape: { numColumns: 5, paddingHorizontal: 10, columnGap: 5,  minColumnWidth: 80 },
 };
 let currentMap: GridConfigMap = { ...defaultGridConfigMap };
 type Listener = (map: GridConfigMap) => void;

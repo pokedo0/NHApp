@@ -9,14 +9,10 @@ import {
   View,
 } from "react-native";
 
-import { Book } from "@/api/nhentai";
-import {
-  BATCH_SIZE,
-  getBooksBatch,
-  getFavoritesPageIds,
-  getMe,
-  yieldToUi,
-} from "@/api/nhentaiOnline";
+import type { Book } from "@/api/nhentai";
+import { getFavorites, hasSession } from "@/api/v2";
+import { BROWSE_CARDS_PER_PAGE } from "@/utils/browseGridPageSize";
+import { galleryCardToBook } from "@/api/v2/compat";
 import BookListOnline from "@/components/BookListOnline";
 import PaginationBar from "@/components/PaginationBar";
 import { subscribeToStorageApplied } from "@/api/cloudStorage";
@@ -62,8 +58,7 @@ export default function FavoritesOnlineScreen() {
 
   const checkAuth = useCallback(async () => {
     try {
-      const me = await getMe();
-      setHasAuth(!!me);
+      setHasAuth(await hasSession());
     } catch {
       setHasAuth(false);
     } finally {
@@ -102,43 +97,28 @@ export default function FavoritesOnlineScreen() {
       }, LOAD_SAFETY_MS);
 
       try {
-        const { ids, totalPages: tp } = await getFavoritesPageIds({
+        const res = await getFavorites({
           page: pageNum,
+          per_page: BROWSE_CARDS_PER_PAGE,
         });
+        const tp = res.num_pages;
+        const newBooks = res.result.map(galleryCardToBook);
+
         setTotalPages(tp);
         setPage(pageNum);
+
         if (pageNum === 1 || !infiniteScroll) setBooks([]);
         if (pageNum > 1 && !infiniteScroll) scrollToTop(scrollRef);
 
-        if (ids.length === 0) {
+        if (newBooks.length === 0) {
           setEverLoaded(true);
           return;
         }
 
-        const isAppend = pageNum > 1 && infiniteScroll;
-        let accumulated: Book[] = [];
-
-        for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-          if (!loadingRef.current) return;
-          const batch = ids.slice(i, i + BATCH_SIZE);
-          const batchResults = await getBooksBatch(batch);
-          const batchBooks = batchResults.filter(Boolean) as Book[];
-
-          if (isAppend) {
-            const orderMap = new Map(ids.map((id, idx) => [id, idx]));
-            const sorted = [...batchBooks].sort(
-              (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0)
-            );
-            setBooks((prev) => [...prev, ...sorted]);
-          } else {
-            accumulated = [...accumulated, ...batchBooks];
-            const orderMap = new Map(ids.map((id, idx) => [id, idx]));
-            accumulated.sort(
-              (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0)
-            );
-            setBooks([...accumulated]);
-          }
-          await yieldToUi();
+        if (pageNum > 1 && infiniteScroll) {
+          setBooks((prev) => [...prev, ...newBooks]);
+        } else {
+          setBooks(newBooks);
         }
       } finally {
         if (loadTimeoutRef.current) {

@@ -10,10 +10,9 @@ import React, {
 import { FlatList, Platform, StyleSheet, View } from "react-native";
 
 import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
-import {
-  Book,
-  searchBooks,
-} from "@/api/nhentai";
+import type { Book } from "@/api/nhentai";
+import { fetchGalleryBrowseSlice } from "@/api/v2";
+import { galleryCardToBook } from "@/api/v2/compat";
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
 import PaginationBar from "@/components/PaginationBar";
@@ -24,9 +23,13 @@ import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
+import { BROWSE_CARDS_PER_PAGE } from "@/utils/browseGridPageSize";
 import { scrollToTop } from "@/utils/scrollToTop";
 
-const EXPLORE_CACHE = new Map<string, { books: Book[]; totalPages: number }>();
+const EXPLORE_CACHE = new Map<
+  string,
+  { books: Book[]; totalPages: number; totalItems: number }
+>();
 
 type ResultState = "idle" | "loading" | "no-results" | "timeout" | "error";
 
@@ -103,9 +106,12 @@ export default function ExploreScreen() {
     );
   }, []);
 
+  /** v: bump when browse API strategy changes (invalidates stale totalPages cache). */
   const cacheKey = useMemo(
     () =>
       JSON.stringify({
+        v: 3,
+        ipp: BROWSE_CARDS_PER_PAGE,
         q: query.trim(),
         sort,
         inc: activeIncludes,
@@ -148,16 +154,21 @@ export default function ExploreScreen() {
       }, 15000);
 
       try {
-        const res = await searchBooks({
-          query: q || "",
-          sort,
-          page,
-          perPage: 45,
-          includeTags: activeIncludes,
-          excludeTags: activeExcludes,
-          uploaded: uploaded ?? undefined,
-          sessionKey: `explore::${q || "ALL"}::${incStr}::${excStr}`,
-        });
+        const ipp = BROWSE_CARDS_PER_PAGE;
+        const offset = (page - 1) * ipp;
+        const { slice, total: totalItems } = await fetchGalleryBrowseSlice(
+          {
+            query: q || "",
+            includes: activeIncludes,
+            excludes: activeExcludes,
+            uploaded: uploaded ?? null,
+            sort,
+          },
+          offset,
+          ipp
+        );
+        const books = slice.map(galleryCardToBook);
+        const uiTotalPages = Math.max(1, Math.ceil(totalItems / ipp));
 
         clearTimeout(timer);
         if (myReqId !== reqIdRef.current) return;
@@ -165,20 +176,21 @@ export default function ExploreScreen() {
         if (append && page > 1) {
           setBooks((prev) => {
             const existingIds = new Set(prev.map((b: Book) => b.id));
-            const newBooks = res.books.filter((b: Book) => !existingIds.has(b.id));
+            const newBooks = books.filter((b: Book) => !existingIds.has(b.id));
             return [...prev, ...newBooks];
           });
         } else {
-          setBooks(res.books);
+          setBooks(books);
           if (page === 1 || !append) {
             EXPLORE_CACHE.set(keyForCache, {
-              books: res.books,
-              totalPages: res.totalPages,
+              books,
+              totalPages: uiTotalPages,
+              totalItems,
             });
           }
         }
-        setTotal(res.totalPages);
-        setResultState(res.books.length ? "idle" : "no-results");
+        setTotal(uiTotalPages);
+        setResultState(books.length ? "idle" : "no-results");
       } catch (e: any) {
         clearTimeout(timer);
         if (myReqId !== reqIdRef.current) return;
@@ -217,6 +229,11 @@ export default function ExploreScreen() {
     setPage(1);
     scrollToTop(scrollRef);
   }, [query, sort, incStr, excStr, uploaded]);
+
+  useEffect(() => {
+    if (totalPages < 1) return;
+    if (currentPage > totalPages) setPage(totalPages);
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     if (prevPageRef.current === currentPage) return;
@@ -284,6 +301,7 @@ export default function ExploreScreen() {
           EXPLORE_CACHE.set(cacheKey, {
             books: patched,
             totalPages: cached.totalPages,
+            totalItems: cached.totalItems,
           });
         return patched;
       });
@@ -412,6 +430,8 @@ export default function ExploreScreen() {
                     setPaginating(true);
                     const nextPage = currentPage + 1;
                     const nextCacheKey = JSON.stringify({
+                      v: 3,
+                      ipp: BROWSE_CARDS_PER_PAGE,
                       q: query.trim(),
                       sort,
                       inc: activeIncludes,
@@ -434,6 +454,8 @@ export default function ExploreScreen() {
                 setPaginating(true);
                 skipPageChangeRef.current = true;
                 const paginationCacheKey = JSON.stringify({
+                  v: 3,
+                  ipp: BROWSE_CARDS_PER_PAGE,
                   q: query.trim(),
                   sort,
                   inc: activeIncludes,

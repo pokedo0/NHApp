@@ -1,5 +1,4 @@
 import { Book } from "@/api/nhentai";
-import { useFavHistory } from "@/hooks/useFavHistory";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
@@ -32,7 +31,6 @@ export interface GridConfig {
   minColumnWidth?: number;
   paddingHorizontal?: number;
   columnGap?: number;
-  cardDesign?: "classic" | "stable" | "image";
 }
 
 export interface BookListProps<T extends Book = Book> {
@@ -60,7 +58,6 @@ export interface BookListProps<T extends Book = Book> {
   getScore?: (book: T) => number | undefined;
   columnWrapperStyle?: any;
   children?: ReactNode;
-  cardDesign?: "classic" | "stable" | "image";
   scrollRef?: React.RefObject<FlatList<T> | null>;
   onScrollHorizontal?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
@@ -76,17 +73,16 @@ export default function BookList<T extends Book = Book>({
   ListEmptyComponent,
   ListFooterComponent,
   ListHeaderComponent,
-  isFavorite,
-  onToggleFavorite,
+  isFavorite: _isFavorite,
+  onToggleFavorite: _onToggleFavorite,
   onPress,
   renderItem,
   gridConfig,
   horizontal = false,
   background,
-  getScore,
+  getScore: _getScore,
   columnWrapperStyle,
   children,
-  cardDesign,
   scrollRef: externalScrollRef,
   onScrollHorizontal,
 }: BookListProps<T>) {
@@ -94,8 +90,6 @@ export default function BookList<T extends Book = Book>({
   const internalListRef = useRef<FlatList<T> | null>(null);
   const listRef = (externalScrollRef || internalListRef) as React.RefObject<FlatList<T>>;
   const { width, height } = useWindowDimensions();
-
-  const { favoritesSet, historyMap, toggleFavorite } = useFavHistory();
 
   const themeBg =
     background ??
@@ -116,9 +110,6 @@ export default function BookList<T extends Book = Book>({
       : gridConfig?.phonePortrait ?? gridConfig?.default ?? { numColumns: 2 };
   }, [width, height, gridConfig]);
 
-  const chosenDesign: "classic" | "stable" | "image" =
-    cardDesign ?? base.cardDesign ?? "classic";
-
   const {
     cols,
     cardWidth,
@@ -129,7 +120,7 @@ export default function BookList<T extends Book = Book>({
   } = useMemo(() => {
     const padH = base.paddingHorizontal ?? 0;
     const gap = base.columnGap ?? 0;
-    const minW = base.minColumnWidth ?? (chosenDesign === "image" ? 40 : 80);
+    const minW = base.minColumnWidth ?? 80;
     const avail = Math.max(0, width - padH * 2);
 
     const uniq = (() => {
@@ -144,10 +135,7 @@ export default function BookList<T extends Book = Book>({
       const visible = Math.max(1, base.numColumns || 3);
       const w = (avail - gap * (visible - 1)) / visible;
       const cw = Math.min(Math.max(minW, w), cap);
-      const estH =
-        chosenDesign === "image"
-          ? Math.round(cw * 1.05)
-          : Math.round(cw * 1.35);
+      const estH = Math.round(cw * 1.35);
       return {
         cols: 1,
         cardWidth: cw,
@@ -163,8 +151,7 @@ export default function BookList<T extends Book = Book>({
       Math.min(base.numColumns, Math.floor((avail + gap) / (minW + gap)))
     );
     const cw = (avail - gap * (maxCols - 1)) / maxCols;
-    const estH =
-      chosenDesign === "image" ? Math.round(cw * 1.05) : Math.round(cw * 1.35);
+    const estH = Math.round(cw * 1.35);
 
     return {
       cols: maxCols,
@@ -174,7 +161,7 @@ export default function BookList<T extends Book = Book>({
       uniqueData: uniq,
       estCardH: estH,
     };
-  }, [data, width, base, horizontal, chosenDesign]);
+  }, [data, width, base, horizontal]);
 
   const isSingleCol = !horizontal && cols === 1;
   const contentScale = isSingleCol ? 0.45 : 0.65;
@@ -216,9 +203,6 @@ export default function BookList<T extends Book = Book>({
     ({ item, index }) => {
       const isLastInRow = !horizontal && (index + 1) % cols === 0;
       const isLastHoriz = horizontal && index === uniqueData.length - 1;
-      const favChecked = isFavorite
-        ? isFavorite(item.id)
-        : favoritesSet.has(item.id) || false;
 
       return (
         <View
@@ -236,21 +220,10 @@ export default function BookList<T extends Book = Book>({
           }}
         >
           <BookCard
-            design={chosenDesign}
             book={item}
             cardWidth={cardWidth}
-            isSingleCol={isSingleCol}
             contentScale={contentScale}
-            isFavorite={favChecked}
-            onToggleFavorite={async (id, next) => {
-              await toggleFavorite(id, next);
-              onToggleFavorite?.(id, next);
-            }}
             onPress={() => onPress?.(item.id)}
-            score={getScore?.(item)}
-            favoritesSet={isFavorite ? undefined : favoritesSet}
-            historyMap={historyMap}
-            hydrateFromStorage={false}
           />
         </View>
       );
@@ -259,18 +232,11 @@ export default function BookList<T extends Book = Book>({
       horizontal,
       cols,
       uniqueData.length,
-      favoritesSet,
-      isFavorite,
       cardWidth,
       columnGap,
       isSingleCol,
-      chosenDesign,
       contentScale,
-      toggleFavorite,
-      onToggleFavorite,
       onPress,
-      getScore,
-      historyMap,
     ]
   );
 
@@ -332,31 +298,17 @@ export default function BookList<T extends Book = Book>({
           >
             {ListHeaderComponent}
             <View style={[webGridStyles.wrap, { gap: columnGap }]}>
-              {uniqueData.map((item, index) => {
-                const favChecked = isFavorite
-                  ? isFavorite(item.id)
-                  : favoritesSet.has(item.id) || false;
+              {uniqueData.map((item) => {
                 return (
                   <View
                     key={String(item.id)}
                     style={{ width: cardWidth }}
                   >
                     <BookCard
-                      design={chosenDesign}
                       book={item}
                       cardWidth={cardWidth}
-                      isSingleCol={isSingleCol}
                       contentScale={contentScale}
-                      isFavorite={favChecked}
-                      onToggleFavorite={async (id, next) => {
-                        await toggleFavorite(id, next);
-                        onToggleFavorite?.(id, next);
-                      }}
                       onPress={() => onPress?.(item.id)}
-                      score={getScore?.(item)}
-                      favoritesSet={isFavorite ? undefined : favoritesSet}
-                      historyMap={historyMap}
-                      hydrateFromStorage={false}
                     />
                   </View>
                 );
@@ -372,10 +324,10 @@ export default function BookList<T extends Book = Book>({
 
   // ─── Native / horizontal: FlatList path ───
   const listKey = horizontal
-    ? `row-${Math.round(cardWidth)}-${chosenDesign}`
-    : `cols-${cols}-${chosenDesign}`;
+    ? `row-${Math.round(cardWidth)}`
+    : `cols-${cols}`;
 
-  const canUseFixedLayout = horizontal || chosenDesign === "image";
+  const canUseFixedLayout = horizontal;
   const rowHeight = estCardH + (horizontal ? 0 : columnGap);
   const getItemLayout = canUseFixedLayout && !horizontal
     ? (_: any, index: number) => {

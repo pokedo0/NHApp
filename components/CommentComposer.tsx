@@ -1,4 +1,4 @@
-import type { ApiComment } from "@/api/online/comments";
+import type { Comment as ApiComment } from "@/api/v2";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { MaterialIcons } from "@expo/vector-icons";

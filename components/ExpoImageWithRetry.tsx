@@ -1,3 +1,4 @@
+import { NHENTAI_CDN_HEADERS, isNhentaiHostedUrl } from "@/lib/nhentaiCdnHeaders";
 import { Image as ExpoImage, ImageProps } from "expo-image";
 import { Platform } from "react-native";
 import React, { useState, useEffect, useCallback } from "react";
@@ -60,7 +61,11 @@ export default function ExpoImageWithRetry({
     <ExpoImage
       {...props}
       key={`${currentUri}-${key}-${retryCount}`} 
-      source={{ uri: currentUri }}
+      source={
+        isNhentaiHostedUrl(currentUri)
+          ? { uri: currentUri, headers: NHENTAI_CDN_HEADERS }
+          : { uri: currentUri }
+      }
       responsivePolicy={finalResponsivePolicy}
       onError={handleError}
     />

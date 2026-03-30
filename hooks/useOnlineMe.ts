@@ -1,5 +1,5 @@
-import { getMe } from "@/api/online/me";
-import type { Me } from "@/api/online/types";
+import { getMe, hasSession } from "@/api/v2";
+import type { Me } from "@/api/v2";
 import { getDeviceId, getDeviceName } from "@/utils/deviceId";
 import { useEffect, useState } from "react";
 
@@ -11,15 +11,16 @@ export function useOnlineMe(): Me | null {
   useEffect(() => {
     let cancelled = false;
 
-    getMe()
-      .then((res) => {
-        if (!cancelled) {
-          setMe(res);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load me:", err);
-      });
+    hasSession().then((ok) => {
+      if (!ok || cancelled) return;
+      return getMe()
+        .then((res) => {
+          if (!cancelled) setMe(res);
+        })
+        .catch((err) => {
+          console.error("Failed to load me:", err);
+        });
+    });
 
     return () => {
       cancelled = true;
@@ -36,9 +37,7 @@ export function useOnlineMe(): Me | null {
         if (controller.signal.aborted) return;
         return fetch(`${API_BASE_URL}/api/users/sync`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: me.id,
             username: me.username,

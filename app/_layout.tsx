@@ -1,4 +1,5 @@
 import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
+import { initCdn } from "@/api/v2";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UIKIT_AS_HOME_KEY } from "@/components/settings/keys";
 import * as NavigationBar from "expo-navigation-bar";
@@ -53,6 +54,9 @@ function CloudStorageSync() {
   useCloudStorageSync();
   return null;
 }
+
+// Pre-fetch CDN servers so media URLs resolve correctly before first render
+initCdn();
 
 const StatusBarController = React.memo(function StatusBarController({
   fullscreen,
@@ -289,7 +293,6 @@ function AppContent() {
         <Stack.Screen name="favorites" />
         <Stack.Screen name="favoritesOnline" />
         <Stack.Screen name="explore" />
-        <Stack.Screen name="explore-with-tabs" />
         <Stack.Screen name="book/[id]" />
         <Stack.Screen name="profile/[id]/[slug]" />
         <Stack.Screen name="profile/[id]/edit" />

@@ -3,6 +3,7 @@
  * Загружает данные по tabKey и рендерит BookList или переход на полный экран.
  */
 import { Book, getFavorites, getRecommendations, searchBooks } from "@/api/nhentai";
+import { BROWSE_CARDS_PER_PAGE } from "@/utils/browseGridPageSize";
 import BookList from "@/components/BookList";
 import type { GridConfig } from "@/components/BookList";
 import { useDateRange } from "@/context/DateRangeContext";
@@ -96,7 +97,7 @@ export function TabGridContent({ tabKey, gridConfig }: TabGridContentProps) {
         includeTags: activeIncludes,
         excludeTags: activeExcludes,
         page: 1,
-        perPage: 50,
+        perPage: BROWSE_CARDS_PER_PAGE,
       });
       if (myId !== reqIdRef.current) return;
       setBooks(recs as Book[]);
@@ -119,8 +120,11 @@ export function TabGridContent({ tabKey, gridConfig }: TabGridContentProps) {
     const myId = ++reqIdRef.current;
     setLoading(true);
     try {
-      const pageIds = ids.slice(0, 100);
-      const { books: fetched } = await getFavorites({ ids: pageIds, perPage: 100 });
+      const pageIds = ids.slice(0, BROWSE_CARDS_PER_PAGE);
+      const { books: fetched } = await getFavorites({
+        ids: pageIds,
+        perPage: BROWSE_CARDS_PER_PAGE,
+      });
       const ordered = pageIds
         .map((id) => fetched.find((b: Book) => b.id === id))
         .filter((b): b is Book => !!b);

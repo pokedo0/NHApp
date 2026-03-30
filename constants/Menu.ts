@@ -3,9 +3,10 @@ export type MenuItem = {
   labelKey: string;
   icon: string;
   route: MenuRoute;
+  /** Не вести по маршруту — только заглушка (замок / «Скоро»). */
+  locked?: boolean;
 };
 export const LIBRARY_MENU: MenuItem[] = [
-  { labelKey: "menu.exploreWithTabs", icon: "layout", route: "/explore-with-tabs" },
   { labelKey: "menu.downloaded", icon: "download", route: "/downloaded" },
   { labelKey: "menu.favorites", icon: "heart", route: "/favorites" },
   {
@@ -15,6 +16,11 @@ export const LIBRARY_MENU: MenuItem[] = [
   },
   { labelKey: "menu.history", icon: "clock", route: "/history" },
   { labelKey: "menu.characters", icon: "package", route: "/characters" },
-  { labelKey: "menu.recommendations", icon: "star", route: "/recommendations" },
+  {
+    labelKey: "menu.recommendations",
+    icon: "star",
+    route: "/recommendations",
+    locked: true,
+  },
   { labelKey: "menu.settings", icon: "settings", route: "/settings" },
 ];

@@ -4,7 +4,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
 import { requestStoragePush } from "@/api/cloudStorage";
-import { Book, getFavorites } from "@/api/nhentai";
+import type { Book } from "@/api/nhentai";
+import { getGallery, initCdn } from "@/api/v2";
+import { galleryToBook } from "@/api/v2/compat";
 import BookList from "@/components/BookList";
 import { scrollToTop } from "@/utils/scrollToTop";
 import { useGridConfig } from "@/hooks/useGridConfig";
@@ -21,6 +23,7 @@ export default function FavoritesScreen() {
   const router = useRouter();
   const gridConfig = useGridConfig();
   const scrollRef = useRef<FlatList<Book> | null>(null);
+  const reqIdRef = useRef(0);
 
   const loadFavoriteIds = useCallback(() => {
     AsyncStorage.getItem("bookFavorites").then((j) => {
@@ -44,21 +47,31 @@ export default function FavoritesScreen() {
       const pageIds = ids.slice(start, start + perPage);
       if (pageIds.length === 0) return;
 
+      const myReq = ++reqIdRef.current;
+      const totalPg = Math.max(1, Math.ceil(ids.length / perPage));
+
       try {
-        const { books: fetched, totalPages: tp } = await getFavorites({
-          ids: pageIds,
-          perPage,
-        });
+        await initCdn();
+        const settled = await Promise.all(
+          pageIds.map((id) =>
+            getGallery(id)
+              .then((g) => ({ id, book: galleryToBook(g) as Book }))
+              .catch(() => ({ id, book: null as Book | null }))
+          )
+        );
+        if (reqIdRef.current !== myReq) return;
+        const byId = new Map(settled.map((x) => [x.id, x.book]));
         const ordered = pageIds
           .slice()
           .reverse()
-          .map((id) => fetched.find((b: { id: number; }) => b.id === id))
-          .filter((b): b is Book => !!b);
+          .map((id) => byId.get(id) ?? null)
+          .filter((b): b is Book => b != null);
         setBooks((prev) => (pageNum === 1 ? ordered : [...prev, ...ordered]));
-        setTotalPages(tp);
+        setTotalPages(totalPg);
         setPage(pageNum);
       } catch (e) {
         console.error("Failed loading favorites:", e);
+        if (reqIdRef.current === myReq && pageNum === 1) setBooks([]);
       }
     },
     [ids]

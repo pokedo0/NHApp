@@ -186,12 +186,12 @@
   "menu": {
     "downloaded": "Downloaded",
     "explore": "Explore",
-    "exploreWithTabs": "Tabs (Home)",
     "favorites": "Favorites",
     "history": "History",
     "home": "Home",
     "random": "I’m feeling lucky",
     "recommendations": "Recommendations",
+    "comingSoon": "Coming soon",
     "search": "Search",
     "settings": "Settings",
     "tags": "Tags",

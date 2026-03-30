@@ -186,12 +186,12 @@
   "menu": {
     "downloaded": "已下载",
     "explore": "探索",
-    "exploreWithTabs": "标签（首页）",
     "favorites": "收藏",
     "history": "历史",
     "home": "首页",
     "random": "手气不错",
     "recommendations": "推荐",
+    "comingSoon": "即将推出",
     "search": "搜索",
     "settings": "设置",
     "tags": "标签",

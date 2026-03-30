@@ -14,8 +14,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getRandomBook } from "@/api/nhentai";
-import { LIBRARY_MENU } from "@/constants/Menu";
+import { getRandomGalleryId, getGallery, initCdn } from "@/api/v2";
+import { galleryToBook } from "@/api/v2/compat";
+import { LIBRARY_MENU, type MenuItem as LibraryMenuItem } from "@/constants/Menu";
 import { useAuthBridge } from "@/hooks/useAuthBridge";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -152,7 +153,10 @@ export default function SideMenu({
     if (randomLoading) return;
     try {
       setRandomLoading(true);
-      const b = await getRandomBook();
+      await initCdn();
+      const randomId = await getRandomGalleryId();
+      const g = await getGallery(randomId);
+      const b = galleryToBook(g);
       closeDrawer();
       router.push({
         pathname: "/book/[id]",
@@ -227,16 +231,17 @@ export default function SideMenu({
     active,
     disabled,
   }: {
-    item: { route: MenuRoute; icon: string; labelKey: string };
+    item: LibraryMenuItem;
     active: boolean;
     disabled: boolean;
   }) => {
+    const locked = item.locked === true;
     const tint = disabled
       ? colors.sub
       : active
       ? colors.accent
       : colors.menuTxt;
-    const tileBg = active ? colors.accent + "1A" : "transparent";
+    const tileBg = active && !locked ? colors.accent + "1A" : "transparent";
     const fontWeight = active ? "600" : "500";
     return (
       <CardPressable
@@ -269,23 +274,42 @@ export default function SideMenu({
               justifyContent: "center",
             }}
           >
-            <Feather name={item.icon as any} size={TOKENS.icon} color={tint} />
+            <Feather
+              name={(locked ? "lock" : item.icon) as any}
+              size={TOKENS.icon}
+              color={tint}
+            />
           </View>
           {!isRail && (
             <>
-              <Text
-                style={{
-                  color: tint,
-                  fontSize: TOKENS.itemTextSize,
-                  fontWeight: fontWeight as any,
-                  letterSpacing: 0.1,
-                  flex: 1,
-                }}
-                numberOfLines={1}
-              >
-                {t(item.labelKey)}
-              </Text>
-              {disabled ? (
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    color: tint,
+                    fontSize: TOKENS.itemTextSize,
+                    fontWeight: fontWeight as any,
+                    letterSpacing: 0.1,
+                  }}
+                  numberOfLines={1}
+                >
+                  {t(item.labelKey)}
+                </Text>
+                {locked ? (
+                  <Text
+                    style={{
+                      color: colors.sub,
+                      fontSize: 11,
+                      fontWeight: "600",
+                      marginTop: 2,
+                      letterSpacing: 0.2,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {t("menu.comingSoon")}
+                  </Text>
+                ) : null}
+              </View>
+              {locked ? null : disabled ? (
                 <Feather name="lock" size={14} color={colors.sub} />
               ) : (
                 <Feather name="chevron-right" size={18} color={tint} />
@@ -379,11 +403,13 @@ export default function SideMenu({
         <View style={{ gap: TOKENS.gap }}>
           {LIBRARY_MENU.map((item) => {
             const active = pathname?.startsWith(item.route);
-            const disabled = !loggedIn && item.route === "/favoritesOnline";
+            const disabled =
+              (!loggedIn && item.route === "/favoritesOnline") ||
+              item.locked === true;
             return (
               <MenuItem
                 key={item.route}
-                item={item as any}
+                item={item}
                 active={active}
                 disabled={disabled}
               />

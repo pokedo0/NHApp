@@ -13,7 +13,9 @@ import {
   View,
 } from "react-native";
 import { requestStoragePush } from "@/api/cloudStorage";
-import { Book, searchBooks } from "@/api/nhentai";
+import type { Book } from "@/api/nhentai";
+import { searchGalleries } from "@/api/v2";
+import { galleryCardToBook, buildV2Query } from "@/api/v2/compat";
 import SmartImage from "@/components/SmartImage";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { useDateRange } from "@/context/DateRangeContext";
@@ -21,6 +23,7 @@ import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
+import { BROWSE_CARDS_PER_PAGE } from "@/utils/browseGridPageSize";
 const KEY_HISTORY = "searchHistory";
 const BAR_H = 52;
 const BTN_SIDE = 40;
@@ -116,14 +119,13 @@ export default function SearchScreen() {
     setLoad(true);
     const tmo = setTimeout(async () => {
       try {
-        const { books } = await searchBooks({
-          query,
-          perPage: 8,
+        const v2Query = buildV2Query(query, includes, excludes);
+        const res = await searchGalleries({
+          query: v2Query,
           sort,
-          includeTags: includes,
-          excludeTags: excludes,
+          per_page: BROWSE_CARDS_PER_PAGE,
         });
-        setSug(books);
+        setSug(res.result.map(galleryCardToBook));
       } finally {
         setLoad(false);
       }

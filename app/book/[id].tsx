@@ -1,4 +1,6 @@
-import { Book, getRandomBook } from "@/api/nhentai";
+import type { Book } from "@/api/nhentai";
+import { getRandomGalleryId, getGallery, getMe, initCdn } from "@/api/v2";
+import { galleryToBook } from "@/api/v2/compat";
 import { updateReadHistory } from "@/app/read";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useFilterTags } from "@/context/TagFilterContext";
@@ -18,7 +20,6 @@ import {
     ViewToken,
 } from "react-native";
 
-import { getMe } from "@/api/nhentaiOnline";
 import { isElectron, openReaderWindow } from "@/electron/bridge";
 import { useBookData } from "@/hooks/book/useBookData";
 import { useColumns } from "@/hooks/book/useColumns";
@@ -425,7 +426,10 @@ export default function BookScreen() {
     if (rndLoading) return;
     try {
       setRndLoading(true);
-      const b = await getRandomBook();
+      await initCdn();
+      const randomId = await getRandomGalleryId();
+      const g = await getGallery(randomId);
+      const b = galleryToBook(g);
       router.replace({
         pathname: "/book/[id]",
         params: { id: String(b.id), title: b.title.pretty, random: "1" },

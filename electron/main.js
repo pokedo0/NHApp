@@ -62,6 +62,8 @@ const isTest = process.env.ELECTRON_TEST === 'true';
 
 let mainWindow = null;
 let devServerProcess = null;
+let nhentaiCdnRefererHookInstalled = false;
+let nhentaiCdnCorsHookInstalled = false;
 
 
 const distPath = path.join(__dirname, '..', 'dist');
@@ -388,6 +390,50 @@ function registerProtocols() {
     }
     callback({});
   });
+
+  // expo-image / <img> on web cannot set Referer from JS; nhentai CDN often returns 403 without it.
+  if (!nhentaiCdnRefererHookInstalled) {
+    nhentaiCdnRefererHookInstalled = true;
+    const NHENTAI_REFERER = 'https://nhentai.net/';
+    session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+      try {
+        const { hostname } = new URL(details.url);
+        if (/^i\d*\.nhentai\.net$/i.test(hostname) || /^t\d*\.nhentai\.net$/i.test(hostname)) {
+          callback({
+            requestHeaders: {
+              ...details.requestHeaders,
+              Referer: NHENTAI_REFERER,
+              Origin: details.requestHeaders.Origin || 'https://nhentai.net',
+            },
+          });
+          return;
+        }
+      } catch (_) {
+        /* ignore */
+      }
+      callback({ requestHeaders: details.requestHeaders });
+    });
+  }
+
+  // expo-image (web) loads pixels via fetch(); i/t CDN omits ACAO → CORS blocks from localhost dev server.
+  if (!nhentaiCdnCorsHookInstalled) {
+    nhentaiCdnCorsHookInstalled = true;
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      try {
+        const { hostname } = new URL(details.url);
+        if (!/^i\d*\.nhentai\.net$/i.test(hostname) && !/^t\d*\.nhentai\.net$/i.test(hostname)) {
+          return callback({ responseHeaders: details.responseHeaders });
+        }
+        const rh = { ...details.responseHeaders };
+        rh['access-control-allow-origin'] = ['*'];
+        rh['access-control-allow-methods'] = ['GET', 'HEAD', 'OPTIONS'];
+        rh['access-control-allow-headers'] = ['*'];
+        callback({ responseHeaders: rh });
+      } catch (_) {
+        callback({ responseHeaders: details.responseHeaders });
+      }
+    });
+  }
 
   if (isDev) {
     console.log(`[Electron] Registered ${APP_SCHEME}:// protocol`);

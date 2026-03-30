@@ -272,6 +272,8 @@ export interface Book {
   groups?: Tag[];
   categories?: Tag[];
   languages?: Tag[];
+  /** nhentai language tag ids from list API (v2); used when `languages` is empty */
+  tagIds?: number[];
   raw?: any;
 }
 

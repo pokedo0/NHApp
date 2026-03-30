@@ -1,7 +1,6 @@
-import {
-  Book,
-  searchBooks,
-} from "@/api/nhentai";
+import type { Book } from "@/api/nhentai";
+import { fetchGalleryBrowseSlice } from "@/api/v2";
+import { galleryCardToBook } from "@/api/v2/compat";
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
 import PaginationBar from "@/components/PaginationBar";
@@ -15,6 +14,7 @@ import { useUpdateCheck } from "@/hooks/useUpdateCheck";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { getBannerAssetDataUrls, isElectron } from "@/electron/bridge";
 import { useTheme, type ThemeColors } from "@/lib/ThemeContext";
+import { BROWSE_CARDS_PER_PAGE } from "@/utils/browseGridPageSize";
 import { scrollToTop } from "@/utils/scrollToTop";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { setPendingWhatsNew } from "@/store/pendingWhatsNew";
@@ -40,7 +40,12 @@ import {
 } from "react-native";
 
 
-type CacheEntry = { books: Book[]; totalPages: number; ts: number };
+type CacheEntry = {
+  books: Book[];
+  totalPages: number;
+  totalItems: number;
+  ts: number;
+};
 const EXPLORE_CACHE = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 30_000;
 
@@ -126,6 +131,8 @@ export default function HomeScreen() {
   const cacheKey = useMemo(
     () =>
       JSON.stringify({
+        v: 3,
+        ipp: BROWSE_CARDS_PER_PAGE,
         q: query.trim(),
         sort,
         inc: activeIncludes,
@@ -177,17 +184,21 @@ export default function HomeScreen() {
       }, 15000);
 
       try {
-        const res = await searchBooks({
-          query: q || "",
-          sort,
-          page,
-          perPage: 45,
-          includeTags: activeIncludes,
-          excludeTags: activeExcludes,
-          uploaded: uploaded ?? undefined,
-          sessionKey: `explore::${q || "ALL"}::${incStr}::${excStr}`,
-          force: force || (page === 1 && sort === "date"),
-        });
+        const ipp = BROWSE_CARDS_PER_PAGE;
+        const offset = (page - 1) * ipp;
+        const { slice, total: totalItems } = await fetchGalleryBrowseSlice(
+          {
+            query: q || "",
+            includes: activeIncludes,
+            excludes: activeExcludes,
+            uploaded: uploaded ?? null,
+            sort,
+          },
+          offset,
+          ipp
+        );
+        const books = slice.map(galleryCardToBook);
+        const uiTotalPages = Math.max(1, Math.ceil(totalItems / ipp));
 
         clearTimeout(timer);
         if (myReqId !== reqIdRef.current) return;
@@ -195,21 +206,22 @@ export default function HomeScreen() {
         if (append && page > 1) {
           setBooks((prev) => {
             const existingIds = new Set(prev.map((b: Book) => b.id));
-            const newBooks = res.books.filter((b: Book) => !existingIds.has(b.id));
+            const newBooks = books.filter((b: Book) => !existingIds.has(b.id));
             return [...prev, ...newBooks];
           });
         } else {
-          setBooks(res.books);
+          setBooks(books);
           if (page === 1 || !append) {
             EXPLORE_CACHE.set(keyForCache, {
-              books: res.books,
-              totalPages: res.totalPages,
+              books,
+              totalPages: uiTotalPages,
+              totalItems,
               ts: Date.now(),
             });
           }
         }
-        setTotal(res.totalPages);
-        setResultState(res.books.length ? "idle" : "no-results");
+        setTotal(uiTotalPages);
+        setResultState(books.length ? "idle" : "no-results");
       } catch (e: any) {
         clearTimeout(timer);
         if (myReqId !== reqIdRef.current) return;
@@ -246,6 +258,11 @@ export default function HomeScreen() {
     setPage(1);
     scrollToTop(scrollRef);
   }, [query, sort, incStr, excStr, uploaded]);
+
+  useEffect(() => {
+    if (totalPages < 1) return;
+    if (currentPage > totalPages) setPage(totalPages);
+  }, [currentPage, totalPages]);
 
   useEffect(() => {
     if (prevPageRef.current === currentPage) return;
@@ -314,6 +331,7 @@ export default function HomeScreen() {
           EXPLORE_CACHE.set(cacheKey, {
             books: patched,
             totalPages: cached.totalPages,
+            totalItems: cached.totalItems,
             ts: cached.ts,
           });
         return patched;
@@ -444,6 +462,8 @@ export default function HomeScreen() {
                     setPaginating(true);
                     const nextPage = currentPage + 1;
                     const nextCacheKey = JSON.stringify({
+                      v: 3,
+                      ipp: BROWSE_CARDS_PER_PAGE,
                       q: query.trim(),
                       sort,
                       inc: activeIncludes,
@@ -466,6 +486,8 @@ export default function HomeScreen() {
                 setPaginating(true);
                 skipPageChangeRef.current = true;
                 const paginationCacheKey = JSON.stringify({
+                  v: 3,
+                  ipp: BROWSE_CARDS_PER_PAGE,
                   q: query.trim(),
                   sort,
                   inc: activeIncludes,

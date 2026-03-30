@@ -23,7 +23,6 @@ import {
     View,
 } from "react-native";
 
-import { useFavHistory } from "@/hooks/useFavHistory";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import BookCard from "./BookCard";
@@ -36,7 +35,6 @@ export interface GridConfig {
   minColumnWidth?: number;
   paddingHorizontal?: number;
   columnGap?: number;
-  cardDesign?: "classic" | "stable" | "image";
 }
 
 export interface BookListHistoryProps<T extends Book = Book> {
@@ -49,8 +47,6 @@ export interface BookListHistoryProps<T extends Book = Book> {
   ListEmptyComponent?: ReactNode;
   ListFooterComponent?: ReactElement | null;
   ListHeaderComponent?: ReactElement | null;
-  isFavorite?: (id: number) => boolean;
-  onToggleFavorite?: (id: number, next: boolean) => void;
   onPress?: (id: number) => void;
   gridConfig?: {
     phonePortrait?: GridConfig;
@@ -59,9 +55,7 @@ export interface BookListHistoryProps<T extends Book = Book> {
     tabletLandscape?: GridConfig;
     default?: GridConfig;
   };
-  getScore?: (book: T) => number | undefined;
   children?: ReactNode;
-  cardDesign?: "classic" | "stable" | "image";
   scrollRef?: React.RefObject<SectionList<SectionRow<T>>>;
 }
 
@@ -89,13 +83,9 @@ export default function BookListHistory<T extends Book = Book>({
   ListEmptyComponent,
   ListFooterComponent,
   ListHeaderComponent,
-  isFavorite,
-  onToggleFavorite,
   onPress,
   gridConfig,
-  getScore,
   children,
-  cardDesign,
   scrollRef: externalScrollRef,
 }: BookListHistoryProps<T>) {
   const { colors } = useTheme();
@@ -115,20 +105,6 @@ export default function BookListHistory<T extends Book = Book>({
     []
   );
 
-  const { favoritesSet, toggleFavorite } = useFavHistory();
-
-  const historyMap = useMemo(() => {
-    const m: Record<number, { current: number; total: number; ts: number }> =
-      {};
-    for (const [idStr, entry] of Object.entries(historyIndex || {})) {
-      const id = Number(idStr);
-      const cur = Math.max(0, Math.floor(Number(entry?.[1]) || 0));
-      const total = Math.max(1, Math.floor(Number(entry?.[2]) || 1));
-      const ts = Math.floor(Number(entry?.[3]) || 0);
-      m[id] = { current: Math.min(cur, total - 1), total, ts };
-    }
-    return m;
-  }, [historyIndex]);
 
   const { dateLocale, timePattern } = useMemo(() => {
     const loc: Locale =
@@ -168,19 +144,14 @@ export default function BookListHistory<T extends Book = Book>({
   const layout = useMemo(() => {
     const padH = base.paddingHorizontal ?? 0;
     const gap = base.columnGap ?? 0;
-    const chosenDesign: "classic" | "stable" | "image" =
-      cardDesign ?? base.cardDesign ?? "classic";
-    const minW = base.minColumnWidth ?? (chosenDesign === "image" ? 40 : 80);
+    const minW = base.minColumnWidth ?? 80;
     const avail = Math.max(0, effectiveWidth - padH * 2);
     const maxCols = Math.max(
       1,
       Math.min(base.numColumns, Math.floor((avail + gap) / (minW + gap)))
     );
     const cardW = Math.max(minW, (avail - gap * (maxCols - 1)) / maxCols);
-    const estH =
-      chosenDesign === "image"
-        ? Math.round(cardW * 1.05)
-        : Math.round(cardW * 1.35);
+    const estH = Math.round(cardW * 1.35);
     return {
       cols: maxCols,
       cardWidth: cardW,
@@ -188,13 +159,11 @@ export default function BookListHistory<T extends Book = Book>({
       paddingHorizontal: padH,
       estCardH: estH,
     };
-  }, [effectiveWidth, base, cardDesign]);
+  }, [effectiveWidth, base]);
 
   const { cols, cardWidth, columnGap, paddingHorizontal, estCardH } = layout;
   const isSingleCol = cols === 1;
   const contentScale = isSingleCol ? 0.45 : 0.65;
-  const chosenDesign: "classic" | "stable" | "image" =
-    cardDesign ?? base.cardDesign ?? "classic";
 
   const sections = useMemo<SectionShape<T>[]>(() => {
     const enriched = data
@@ -263,9 +232,6 @@ export default function BookListHistory<T extends Book = Book>({
         }}
       >
         {row.map((cell) => {
-          const fav = isFavorite
-            ? isFavorite(cell.book.id)
-            : favoritesSet.has(cell.book.id) || false;
           const entry = historyIndex[cell.book.id];
           const cur = entry ? Number(entry[1]) || 0 : 0;
           const total = entry ? Math.max(1, Number(entry[2]) || 1) : 1;
@@ -305,22 +271,10 @@ export default function BookListHistory<T extends Book = Book>({
               </View>
 
               <BookCard
-                design={chosenDesign}
                 book={cell.book}
                 cardWidth={cardWidth}
-                isSingleCol={isSingleCol}
                 contentScale={contentScale}
-                isFavorite={fav}
-                onToggleFavorite={(id, next) => {
-                  toggleFavorite(id, next);
-                  onToggleFavorite?.(id, next);
-                }}
                 onPress={() => onPress?.(cell.book.id)}
-                score={getScore?.(cell.book)}
-                showProgressOnCard={false}
-                favoritesSet={isFavorite ? undefined : favoritesSet}
-                historyMap={historyMap}
-                hydrateFromStorage={false}
               />
             </View>
           );
@@ -425,7 +379,7 @@ export default function BookListHistory<T extends Book = Book>({
         (ListEmptyComponent as ReactElement) ?? <Empty />
       ) : (
         <SectionList
-          key={`sections-${cols}-${cardDesign}`}
+          key={`sections-${cols}`}
           ref={listRef}
           style={
             Platform.OS === "web"
@@ -456,7 +410,7 @@ export default function BookListHistory<T extends Book = Book>({
             paddingTop: paddingHorizontal / 2,
             paddingBottom: 16,
           }}
-          removeClippedSubviews={Platform.OS === 'android' || cardDesign === "image"}
+          removeClippedSubviews={Platform.OS === "android"}
           windowSize={Platform.OS === 'android' ? 5 : 7}
           maxToRenderPerBatch={Platform.OS === 'android' ? 6 : 10}
           initialNumToRender={Platform.OS === 'android' ? 6 : 8}

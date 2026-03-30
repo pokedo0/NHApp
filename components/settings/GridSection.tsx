@@ -16,58 +16,9 @@ import {
     subscribeGridConfig,
 } from "@/config/gridConfig";
 import { useI18n } from "@/lib/i18n/I18nContext";
+import { BROWSE_CARDS_PER_PAGE } from "@/utils/browseGridPageSize";
 
 const PROFILES: GridProfile[] = ["phonePortrait", "phoneLandscape", "tabletPortrait", "tabletLandscape"];
-
-function CardDesignSegment({
-  value,
-  onChange,
-}: {
-  value: "classic" | "stable" | "image";
-  onChange: (d: "classic" | "stable" | "image") => void;
-}) {
-  const { colors } = useTheme();
-  const { t } = useI18n();
-  const options: Array<"classic" | "stable" | "image"> = ["classic", "stable", "image"];
-
-  return (
-    <View style={styles.designSegmentContainer}>
-      {options.map((d, i) => {
-        const active = value === d;
-        return (
-          <Pressable
-            key={d}
-            onPress={() => onChange(d)}
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              backgroundColor: active ? colors.incBg : colors.tagBg,
-              borderTopLeftRadius: i === 0 ? 10 : 0,
-              borderBottomLeftRadius: i === 0 ? 10 : 0,
-              borderTopRightRadius: i === options.length - 1 ? 10 : 0,
-              borderBottomRightRadius: i === options.length - 1 ? 10 : 0,
-              borderWidth: 1,
-              borderColor: active ? colors.incTxt : colors.page,
-            }}
-            android_ripple={{ color: colors.accent + "22", borderless: false }}
-          >
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: "800",
-                color: active ? colors.incTxt : colors.tagText,
-              }}
-            >
-              {d === "classic" && t("settings.grid.cardDesign.classic")}
-              {d === "stable" && t("settings.grid.cardDesign.stable")}
-              {d === "image" && t("settings.grid.cardDesign.image")}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
 
 export default function GridSection({
   activeProfile,
@@ -82,7 +33,6 @@ export default function GridSection({
   const profCfg = gridMap[activeProfile] as any;
   const [previewBooks, setPreviewBooks] = useState<Book[]>([]);
   const [colsMaxByWidth, setColsMaxByWidth] = useState<number>(12);
-  const cardDesign: "classic" | "stable" | "image" = profCfg.cardDesign ?? "classic";
 
   useEffect(() => {
     (async () => setGridMapState(await getGridConfigMap()))();
@@ -92,7 +42,7 @@ export default function GridSection({
 
   useEffect(() => {
     let mounted = true;
-    const perPage = Math.min(120, Math.max(12, colsMaxByWidth));
+    const perPage = BROWSE_CARDS_PER_PAGE;
     (async () => {
       try {
         const res = await searchBooks({ sort: "popular", page: 1, perPage });
@@ -102,29 +52,21 @@ export default function GridSection({
     return () => {
       mounted = false;
     };
-  }, [cardDesign, colsMaxByWidth]);
+  }, []);
 
   const onPreviewLayout = useCallback(
     (w: number) => {
       const pad = profCfg.paddingHorizontal ?? 0;
       const gap = profCfg.columnGap ?? 0;
-      const minW = (profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)) as number;
+      const minW = (profCfg.minColumnWidth ?? 80) as number;
       const inner = Math.max(0, w - pad * 2);
       const maxByWidth = Math.max(1, Math.floor((inner + gap) / (minW + gap)));
       setColsMaxByWidth(Math.min(12, maxByWidth));
-
-      const cols = Math.max(1, Math.min(profCfg.numColumns ?? 1, maxByWidth));
-      const cardW = (inner - gap * (cols - 1)) / cols;
-      if (cardDesign !== "image" && cardW < 78) {
-        setGridConfigMap({ [activeProfile]: { ...profCfg, cardDesign: "image" } } as any);
-      }
     },
     [
       profCfg.paddingHorizontal,
       profCfg.columnGap,
       profCfg.minColumnWidth,
-      profCfg.numColumns,
-      cardDesign,
       activeProfile,
     ]
   );
@@ -142,12 +84,8 @@ export default function GridSection({
     await setGridConfigMap({ [activeProfile]: { ...profCfg, columnGap: next } } as any);
   };
   const setMinW = async (v: number) => {
-    const floor = cardDesign === "image" ? 40 : 80;
-    const next = Math.max(floor, Math.min(200, Math.round(v)));
+    const next = Math.max(80, Math.min(200, Math.round(v)));
     await setGridConfigMap({ [activeProfile]: { ...profCfg, minColumnWidth: next } } as any);
-  };
-  const setDesign = async (d: "classic" | "stable" | "image") => {
-    await setGridConfigMap({ [activeProfile]: { ...profCfg, cardDesign: d } } as any);
   };
   const resetProfile = async () => {
     const def = defaultGridConfigMap[activeProfile];
@@ -217,11 +155,6 @@ export default function GridSection({
       </View>
 
       {}
-      <View style={{ marginTop: 12 }}>
-        <CardDesignSegment value={cardDesign} onChange={setDesign} />
-      </View>
-
-      {}
       <View
         onLayout={onLayoutPreview}
         style={{ marginTop: 12, borderRadius: 12, overflow: "hidden" }}
@@ -242,14 +175,11 @@ export default function GridSection({
           gridConfig={{
             default: {
               numColumns: profCfg.numColumns,
-              minColumnWidth:
-                profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80),
+              minColumnWidth: profCfg.minColumnWidth ?? 80,
               paddingHorizontal: profCfg.paddingHorizontal,
               columnGap: profCfg.columnGap,
-              cardDesign,
             },
           }}
-          cardDesign={cardDesign}
         />
       </View>
 
@@ -286,17 +216,17 @@ export default function GridSection({
             <Text style={[styles.settingLabel, { color: colors.txt }]}>{t("settings.grid.minWidth")}</Text>
             <View style={[styles.valueBadge, { backgroundColor: colors.accent + "20" }]}>
               <Text style={[styles.valueText, { color: colors.accent }]}>
-                {profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)}px
+                {profCfg.minColumnWidth ?? 80}px
               </Text>
             </View>
           </View>
           <View style={[styles.sliderContainer, { backgroundColor: colors.page + "50" }]}>
             <Slider
               style={{ height: 40 }}
-              minimumValue={cardDesign === "image" ? 40 : 80}
+              minimumValue={80}
               maximumValue={200}
               step={1}
-              value={profCfg.minColumnWidth ?? (cardDesign === "image" ? 40 : 80)}
+              value={profCfg.minColumnWidth ?? 80}
               minimumTrackTintColor={colors.accent}
               maximumTrackTintColor={colors.page + "30"}
               thumbTintColor={colors.accent}
@@ -385,12 +315,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-  },
-  designSegmentContainer: {
-    flexDirection: "row",
-    borderRadius: 10,
-    overflow: "hidden",
-    alignSelf: "flex-start",
   },
   settingHeader: {
     flexDirection: "row",

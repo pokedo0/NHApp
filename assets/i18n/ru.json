@@ -186,12 +186,12 @@
   "menu": {
     "downloaded": "Загруженное",
     "explore": "Обзор",
-    "exploreWithTabs": "Вкладки (Главная)",
     "favorites": "Избранное",
     "history": "История",
     "home": "Главная",
     "random": "Мне повезёт",
     "recommendations": "Рекомендации",
+    "comingSoon": "Скоро",
     "search": "Поиск",
     "settings": "Настройки",
     "tags": "Теги",
