@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getRandomGalleryId, getGallery, initCdn } from "@/api/v2";
+import { resolveImageUrl } from "@/api/v2/config";
 import { galleryToBook } from "@/api/v2/compat";
 import { LIBRARY_MENU, type MenuItem as LibraryMenuItem } from "@/constants/Menu";
 import { useAuthBridge } from "@/hooks/useAuthBridge";
@@ -92,23 +93,7 @@ export default function SideMenu({
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const {
-    me,
-    doLogout,
-    canUseNativeJar,
-    isExpoGo,
-    wvBusy,
-    setWvBusy,
-    csrfInput,
-    setCsrfInput,
-    sessInput,
-    setSessInput,
-    applyManual,
-    refreshTokensFromJar,
-    fetchMeAndMaybeClose,
-    handleNavChange,
-    onWvMessage,
-  } = useAuthBridge(t);
+  const { me, doLogout, fetchMeAndMaybeClose } = useAuthBridge(t);
   const [randomLoading, setRandomLoading] = React.useState(false);
   const [loginVisible, setLoginVisible] = React.useState(false);
   React.useEffect(() => {
@@ -614,7 +599,7 @@ export default function SideMenu({
               >
                 {me?.avatar_url ? (
                   <Image
-                    source={{ uri: me.avatar_url }}
+                    source={{ uri: resolveImageUrl(me.avatar_url) }}
                     style={{
                       width: 36,
                       height: 36,
@@ -650,7 +635,7 @@ export default function SideMenu({
               >
                 {me?.avatar_url ? (
                   <Image
-                    source={{ uri: me.avatar_url }}
+                    source={{ uri: resolveImageUrl(me.avatar_url) }}
                     style={{
                       width: 40,
                       height: 40,
@@ -683,18 +668,16 @@ export default function SideMenu({
                   >
                     {me?.username}
                   </Text>
-                  {!!me?.profile_url && (
-                    <Text
-                      style={{
-                        color: colors.sub,
-                        fontSize: 10,
-                        fontWeight: "400",
-                      }}
-                      numberOfLines={1}
-                    >
-                      {t("menu.profile")}
-                    </Text>
-                  )}
+                  <Text
+                    style={{
+                      color: colors.sub,
+                      fontSize: 10,
+                      fontWeight: "400",
+                    }}
+                    numberOfLines={1}
+                  >
+                    {t("menu.profile")}
+                  </Text>
                 </View>
                 <IconBtn
                   ripple={rippleItem}
@@ -751,19 +734,7 @@ export default function SideMenu({
         onRequestClose={() => setLoginVisible(false)}
         colors={colors}
         t={t}
-        canUseNativeJar={canUseNativeJar}
-        isExpoGo={isExpoGo}
-        wvBusy={wvBusy}
-        setWvBusy={setWvBusy}
-        csrfInput={csrfInput}
-        setCsrfInput={setCsrfInput}
-        sessInput={sessInput}
-        setSessInput={setSessInput}
-        applyManual={applyManual}
-        refreshTokensFromJar={refreshTokensFromJar}
         fetchMeAndMaybeClose={fetchMeAndMaybeClose}
-        handleNavChange={handleNavChange}
-        onWvMessage={onWvMessage}
       />
     </View>
   );

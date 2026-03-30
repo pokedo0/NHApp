@@ -28,6 +28,8 @@ declare global {
       maximize: () => Promise<void>;
       close: () => Promise<void>;
       isMaximized: () => Promise<boolean>;
+      setCaptchaHtml?: (html: string) => Promise<boolean>;
+      getCaptchaToken?: (options?: { timeout?: number; autoShow?: number }) => Promise<string | null>;
       openReaderWindow: (options: { bookId: number; page?: number }) => Promise<{ success: boolean; windowId?: number }>;
       onWindowMaximizeChanged: (callback: (maximized: boolean) => void) => (() => void) | undefined;
       on: (channel: string, callback: (...args: any[]) => void) => void;

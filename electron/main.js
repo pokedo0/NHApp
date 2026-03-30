@@ -1,4 +1,10 @@
 const { app, BrowserWindow, ipcMain, shell, dialog, session, protocol, nativeImage } = require('electron');
+
+// Убирает флаг AutomationControlled из Chromium/Blink — без этого Cloudflare Turnstile
+// видит браузер как бота даже при всех JS-патчах. Должно быть до app.whenReady().
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+app.commandLine.appendSwitch('disable-features', 'AutomationControlled');
+
 const path = require('path');
 const { spawn, execSync } = require('child_process');
 const fs = require('fs');
@@ -464,6 +470,7 @@ function createWindow() {
       contextIsolation: true,
       enableRemoteModule: false,
       webSecurity: true,
+      webviewTag: true,
     },
     icon: path.join(__dirname, '..', 'assets', 'images', 'icon.png'),
     show: false,
@@ -590,6 +597,7 @@ async function createLoginWindow() {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        webviewTag: true,
       },
     });
 
@@ -799,7 +807,8 @@ async function createCloudflareChallengeWindow(options) {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        partition: 'persist:cloudflare', 
+        partition: 'persist:cloudflare',
+        webviewTag: true,
       },
     });
 
@@ -1937,6 +1946,7 @@ ipcMain.handle('electron:openReaderWindow', async (event, options) => {
       contextIsolation: true,
       enableRemoteModule: false,
       webSecurity: true,
+      webviewTag: true,
     },
     show: false, // Показываем после загрузки
   });
@@ -2113,7 +2123,7 @@ ipcMain.handle('electron:fetchJson', async (event, url, options) => {
     });
     // Формируем финальные заголовки: сначала дефолтные, потом пользовательские (чтобы пользовательские перезаписывали дефолтные)
     const finalHeaders = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
       'Referer': 'https://nhentai.net/',
       'Accept': 'application/json, text/plain, */*',
       'Accept-Language': 'en-US,en;q=0.9',
@@ -2246,75 +2256,159 @@ ipcMain.handle('electron:openExternal', async (event, url) => {
 });
 
 
+// Native reader: GET /api/v2/config + /api/v2/galleries/:id → same shape as legacy parseBookData
+function normalizeV2MediaPathReader(path) {
+  if (!path) return path;
+  let p = String(path).trim();
+  if (/^https?:\/\//i.test(p)) {
+    try {
+      const u = new URL(p);
+      u.pathname = u.pathname.replace(/\.webp\.webp$/i, '.webp');
+      return u.toString();
+    } catch {
+      return p.replace(/\.webp\.webp$/i, '.webp');
+    }
+  }
+  return p.replace(/\.webp\.webp$/i, '.webp');
+}
+
+function joinCdnBaseReader(base) {
+  return String(base || '').replace(/\/$/, '');
+}
+
+function resolveReaderImagePath(pathStr, imageServer) {
+  const p = normalizeV2MediaPathReader(pathStr);
+  if (!p) return '';
+  if (/^https?:\/\//i.test(p)) {
+    return p.replace(/^https?:\/\/i\.nhentai\.net(?=\/|$)/i, joinCdnBaseReader(imageServer));
+  }
+  return joinCdnBaseReader(imageServer) + (p.startsWith('/') ? p : '/' + p);
+}
+
+function resolveReaderThumbPath(pathStr, thumbServer) {
+  const p = normalizeV2MediaPathReader(pathStr);
+  if (!p) return '';
+  if (/^https?:\/\//i.test(p)) {
+    return p.replace(/^https?:\/\/t\.nhentai\.net(?=\/|$)/i, joinCdnBaseReader(thumbServer));
+  }
+  return joinCdnBaseReader(thumbServer) + (p.startsWith('/') ? p : '/' + p);
+}
+
+function parseGalleryV2ToBook(g, imageServer, thumbServer) {
+  const rawPages = Array.isArray(g.pages) ? [...g.pages] : [];
+  rawPages.sort((a, b) => (a.number || 0) - (b.number || 0));
+  const pages = rawPages.map((pg) => ({
+    page: pg.number,
+    url: resolveReaderImagePath(pg.path, imageServer),
+    urlThumb: resolveReaderThumbPath(pg.thumbnail, thumbServer),
+    width: pg.width ?? 0,
+    height: pg.height ?? 0,
+  }));
+  return {
+    id: Number(g.id),
+    title: {
+      english: g.title?.english || '',
+      japanese: g.title?.japanese || '',
+      pretty: g.title?.pretty || '',
+    },
+    uploaded: g.upload_date
+      ? new Date(g.upload_date * 1000).toISOString()
+      : '',
+    media: parseInt(String(g.media_id), 10) || 0,
+    favorites: g.num_favorites || 0,
+    pagesCount: g.num_pages || pages.length,
+    scanlator: g.scanlator || '',
+    tags: g.tags || [],
+    cover: resolveReaderThumbPath(g.cover?.path, thumbServer),
+    coverW: g.cover?.width ?? 0,
+    coverH: g.cover?.height ?? 0,
+    thumbnail: resolveReaderThumbPath(g.thumbnail?.path, thumbServer),
+    pages,
+  };
+}
+
+function nhNetGetJson(url, cookieHeader) {
+  const { net } = require('electron');
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+    'Referer': 'https://nhentai.net/',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Origin': 'https://nhentai.net',
+    ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+  };
+  return new Promise((resolve, reject) => {
+    const request = net.request({ method: 'GET', url, headers });
+    let body = '';
+    request.on('response', (response) => {
+      const status = response.statusCode || 0;
+      if (status !== 200) {
+        response.on('data', () => {});
+        response.on('end', () => {
+          reject(new Error(`HTTP ${status}`));
+        });
+        return;
+      }
+      response.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      response.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    request.on('error', reject);
+    request.end();
+  });
+}
+
 ipcMain.handle('electron:getBook', async (event, id) => {
   try {
-    console.log('[getBook] Starting fetch for book:', id);
-    const url = `https://nhentai.net/api/gallery/${id}`;
-    const cookieList = await session.defaultSession.cookies.get({ url });
-    const cookieHeader = cookieList.map(c => `${c.name}=${c.value}`).join('; ');
-    const { net } = require('electron');
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': 'https://nhentai.net/',
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Origin': 'https://nhentai.net',
-      ...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
-    };
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        console.error('[getBook] Request timeout for book:', id);
-        reject(new Error('Request timeout'));
-      }, 30000); 
-      const request = net.request({ method: 'GET', url, headers });
-      let body = '';
-      request.on('response', (response) => {
-        console.log('[getBook] Response status:', response.statusCode);
-        if (response.statusCode !== 200) {
-          clearTimeout(timeout);
-          reject(new Error(`HTTP ${response.statusCode}`));
-          return;
+    console.log('[getBook] Starting v2 fetch for book:', id);
+    const cookieList = await session.defaultSession.cookies.get({ url: 'https://nhentai.net' });
+    const cookieHeader = cookieList.map((c) => `${c.name}=${c.value}`).join('; ');
+
+    const run = async () => {
+      let imageServer = 'https://i1.nhentai.net';
+      let thumbServer = 'https://t1.nhentai.net';
+      try {
+        const cfg = await nhNetGetJson('https://nhentai.net/api/v2/config', cookieHeader);
+        if (Array.isArray(cfg.image_servers) && cfg.image_servers[0]) {
+          imageServer = String(cfg.image_servers[0]).replace(/\/$/, '');
         }
-        response.on('data', (chunk) => { 
-          body += chunk.toString();
-        });
-        response.on('end', () => {
-          clearTimeout(timeout);
-          try {
-            console.log('[getBook] Parsing JSON, body length:', body.length);
-            const data = JSON.parse(body);
-            console.log('[getBook] JSON parsed, num_pages:', data.num_pages);
-            if (data.num_pages > 200) {
-              console.log('[getBook] Large book detected, parsing asynchronously...');
-              setImmediate(() => {
-                try {
-                  const book = parseBookData(data);
-                  console.log('[getBook] Book parsed asynchronously, pages count:', book.pages.length);
-                  resolve(book);
-                } catch (error) {
-                  console.error('[getBook] Async parse error:', error);
-                  reject(error);
-                }
-              });
-            } else {
-              console.log('[getBook] Starting parseBookData...');
-              const book = parseBookData(data);
-              console.log('[getBook] Book parsed, pages count:', book.pages.length);
-              resolve(book);
-            }
-          } catch (error) {
-            console.error('[getBook] Parse error:', error);
-            reject(error);
-          }
-        });
-      });
-      request.on('error', (error) => {
-        clearTimeout(timeout);
-        console.error('[getBook] Request error:', error);
-        reject(error);
-      });
-      request.end();
-    });
+        if (Array.isArray(cfg.thumb_servers) && cfg.thumb_servers[0]) {
+          thumbServer = String(cfg.thumb_servers[0]).replace(/\/$/, '');
+        }
+      } catch (e) {
+        console.warn('[getBook] v2/config failed, using default CDN:', e?.message || e);
+      }
+      const gid = encodeURIComponent(String(id));
+      let g = await nhNetGetJson(`https://nhentai.net/api/v2/galleries/${gid}`, cookieHeader);
+      if (!Array.isArray(g.pages) || g.pages.length === 0) {
+        try {
+          const pr = await nhNetGetJson(
+            `https://nhentai.net/api/v2/galleries/${gid}/pages`,
+            cookieHeader
+          );
+          g = { ...g, pages: pr.pages || [], num_pages: pr.num_pages || (pr.pages || []).length };
+        } catch (e2) {
+          console.warn('[getBook] v2 galleries/:id/pages fallback failed:', e2?.message || e2);
+        }
+      }
+      const book = parseGalleryV2ToBook(g, imageServer, thumbServer);
+      console.log('[getBook] v2 book parsed, pages:', book.pages.length);
+      return book;
+    };
+
+    return await Promise.race([
+      run(),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 30000);
+      }),
+    ]);
   } catch (error) {
     console.error('[getBook] Error:', error);
     throw error;
@@ -2631,8 +2725,168 @@ ipcMain.handle('electron:isMaximized', (event) => {
 
 
 
+// ─── Captcha: скрытое окно nhentai.net → auto-pass Turnstile ──────────────────
+//
+// 1. Пользователь нажимает кнопку-виджет (ElectronCaptchaButton)
+// 2. Открывается СКРЫТЫЙ BrowserWindow с nhentai.net/login/ + persist:cloudflare
+//    (там уже есть cf_clearance — Turnstile в managed-mode проходит без кликов)
+// 3. Тело страницы скрыто через CSS; Turnstile-iframe всё равно запускается
+// 4. Полим cf-turnstile-response каждые 400ms
+// 5а. Нашли за <autoShowMs>: закрыли окно → вернули токен → успех без UI
+// 5б. Не нашли за <autoShowMs>: показываем окно для ручного клика пользователя
+
+let nhCaptchaHtml = null; // сохраняем HTML для protocol.handle (legacy)
+
+const NH_CAPTCHA_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
+  'AppleWebKit/537.36 (KHTML, like Gecko) ' +
+  'Chrome/130.0.0.0 Safari/537.36';
+
+// IPC: renderer может по-прежнему пушить HTML (используется mobil-like webview)
+ipcMain.handle('nh:set-captcha-html', (_event, html) => {
+  if (typeof html === 'string') nhCaptchaHtml = html;
+  return true;
+});
+
+// Показываем ТОЛЬКО .captcha-container, всё остальное прячем.
+// Применяется ПОСЛЕ did-finish-load, перед win.show() — пользователь никогда не видит белую страницу.
+const CAPTCHA_WIDGET_CSS = [
+  'html,body{background:#0d0d0d!important;margin:0!important;padding:0!important;overflow:hidden!important}',
+  '*{visibility:hidden!important}',
+  '.captcha-container,.captcha-container *{visibility:visible!important}',
+  '.captcha-container{position:fixed!important;top:50%!important;left:50%!important;',
+  'transform:translate(-50%,-50%)!important;z-index:99999!important}',
+].join('');
+
+const CAPTCHA_READ_JS = `(function(){
+  var a=document.querySelector('textarea[name="cf-turnstile-response"]');
+  if(a&&a.value)return a.value;
+  var b=document.querySelector('input[name="cf-turnstile-response"]');
+  return b&&b.value?b.value:'';
+})()`;
+
+let captchaWin = null;
+
+ipcMain.handle('electron:getCaptchaToken', async (_event, options) => {
+  const totalMs = (options && options.timeout) ? options.timeout : 180_000;
+
+  // Если уже есть живое окно — фокусируем его
+  if (captchaWin && !captchaWin.isDestroyed()) {
+    captchaWin.show();
+    captchaWin.focus();
+  }
+
+  return new Promise((resolve) => {
+    let done = false;
+    let poll = null;
+    let totalTimer = null;
+
+    const finish = (token) => {
+      if (done) return;
+      done = true;
+      if (poll)       { clearInterval(poll);   poll = null; }
+      if (totalTimer) { clearTimeout(totalTimer); totalTimer = null; }
+      if (captchaWin && !captchaWin.isDestroyed()) captchaWin.close();
+      captchaWin = null;
+      resolve(token);
+    };
+
+    captchaWin = new BrowserWindow({
+      width: 320,
+      height: 82,
+      show: false,          // скрыто ДО применения CSS — нет вспышки белого экрана
+      frame: true,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      title: 'Verify — nhentai',
+      backgroundColor: '#0d0d0d', // фон до загрузки страницы
+      parent: mainWindow || undefined,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        partition: 'persist:cloudflare',
+        webviewTag: false,
+      },
+    });
+
+    captchaWin.setMenuBarVisibility(false);
+    captchaWin.loadURL('https://nhentai.net/login/?next=/');
+
+    captchaWin.webContents.on('did-finish-load', () => {
+      if (done || !captchaWin || captchaWin.isDestroyed()) return;
+      const url = captchaWin.webContents.getURL();
+      if (!url.includes('nhentai.net')) return;
+
+      // Применяем CSS синхронно (promise), ждём применения, затем показываем окно
+      captchaWin.webContents.insertCSS(CAPTCHA_WIDGET_CSS)
+        .then(() => new Promise(r => setTimeout(r, 80))) // 80ms — браузер применяет CSS
+        .then(() => {
+          if (done || !captchaWin || captchaWin.isDestroyed()) return;
+          captchaWin.center();
+          captchaWin.show();
+          captchaWin.focus();
+        })
+        .catch(() => {});
+
+      // Полим токен
+      if (poll) clearInterval(poll);
+      poll = setInterval(async () => {
+        if (done || !captchaWin || captchaWin.isDestroyed()) { clearInterval(poll); return; }
+        try {
+          const tok = await captchaWin.webContents.executeJavaScript(CAPTCHA_READ_JS);
+          if (typeof tok === 'string' && tok.length > 20) {
+            clearInterval(poll); poll = null;
+            finish(tok);
+          }
+        } catch {}
+      }, 400);
+    });
+
+    totalTimer = setTimeout(() => finish(null), totalMs);
+
+    captchaWin.on('closed', () => {
+      captchaWin = null;
+      finish(null);
+    });
+  });
+});
+
+// ─── Protocol helper для webview-fallback (не используется на десктопе) ────────
+function registerCaptchaProtocol() {
+  try {
+    const { net } = require('electron');
+    const NH_PARTITION = 'persist:nh-captcha';
+    const NH_URL       = 'https://nhentai.net/__captcha__';
+    const ses = session.fromPartition(NH_PARTITION);
+
+    ses.setUserAgent(NH_CAPTCHA_UA);
+
+    const guestPreload = path.join(__dirname, 'captcha-guest-preload.js');
+    try { ses.setPreloads([guestPreload]); } catch {}
+
+    session.defaultSession.cookies.get({ url: 'https://nhentai.net' }).then((cookies) => {
+      for (const c of cookies) ses.cookies.set({ url: 'https://nhentai.net', ...c }).catch(() => {});
+    }).catch(() => {});
+
+    ses.protocol.handle('https', async (req) => {
+      const u = req.url.split('?')[0].split('#')[0];
+      if (u === NH_URL) {
+        const body = nhCaptchaHtml || '<!DOCTYPE html><html><body></body></html>';
+        return new Response(body, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+      }
+      return net.fetch(req, { bypassCustomProtocolHandlers: true });
+    });
+  } catch (e) {
+    console.error('[nh-captcha] registerCaptchaProtocol:', e?.message || e);
+  }
+}
+
 app.whenReady().then(() => {
   registerProtocols();
+  registerCaptchaProtocol();
   createWindow();
 
   app.on('activate', () => {

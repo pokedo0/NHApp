@@ -212,7 +212,7 @@
         try {
           book = await Promise.race([
             electronReader.getBook(id),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 35000))
           ]);
           console.log('[Reader] ✅ Loaded from server');
         } catch (e) {

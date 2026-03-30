@@ -7,6 +7,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_PREFIX_EXCLUDE = "@auth"; // Не синхронизируем токены и т.п.
 
+// Точные ключи, которые НИКОГДА не попадают в cloud sync — сессионные данные
+const STORAGE_KEYS_EXCLUDE = new Set([
+  "@v2.access_token",
+  "@v2.refresh_token",
+  "@nh.access_token",
+  "@nh.refresh_token",
+]);
+
 export type StorageResponse = {
   storage: Record<string, unknown>;
   storage_updated_at: string | null;
@@ -58,7 +66,9 @@ export async function touchOnline(userId: number, deviceId: string): Promise<voi
 /** Собрать из AsyncStorage все ключи, кроме исключённых по префиксу. */
 export async function collectLocalStorageForSync(): Promise<Record<string, string>> {
   const keys = await AsyncStorage.getAllKeys();
-  const toSync = keys.filter((k) => !k.startsWith(STORAGE_PREFIX_EXCLUDE));
+  const toSync = keys.filter(
+    (k) => !k.startsWith(STORAGE_PREFIX_EXCLUDE) && !STORAGE_KEYS_EXCLUDE.has(k)
+  );
   if (toSync.length === 0) return {};
   const pairs = await AsyncStorage.multiGet(toSync);
   const out: Record<string, string> = {};
@@ -71,7 +81,7 @@ export async function collectLocalStorageForSync(): Promise<Record<string, strin
 /** Применить облачное хранилище к AsyncStorage (не перезаписываем @auth). */
 export async function applyStorageToLocal(storage: Record<string, unknown>): Promise<void> {
   const toSet = Object.entries(storage)
-    .filter(([k]) => !k.startsWith(STORAGE_PREFIX_EXCLUDE))
+    .filter(([k]) => !k.startsWith(STORAGE_PREFIX_EXCLUDE) && !STORAGE_KEYS_EXCLUDE.has(k))
     .map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)] as [string, string]);
   if (toSet.length === 0) return;
   await AsyncStorage.multiSet(toSet);

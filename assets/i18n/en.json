@@ -21,7 +21,19 @@
     "placeholder": "Write a comment…",
     "hint": {
       "needMore": "{n} more characters to send",
-      "captcha": "After pressing the button a captcha window will open, then your comment will be sent automatically."
+      "captcha": "After pressing send, solve the captcha to post your comment."
+    },
+    "status": {
+      "pow": "Solving proof of work…",
+      "captcha": "Solve the captcha…",
+      "posting": "Posting comment…"
+    },
+    "captcha": {
+      "title": "Human verification",
+      "subtitle": "Complete the captcha to post your comment"
+    },
+    "error": {
+      "captchaUnavailable": "Captcha unavailable. Try again later."
     }
   },
   "cloudflare": {
@@ -195,7 +207,7 @@
     "search": "Search",
     "settings": "Settings",
     "tags": "Tags",
-    "profile": "Profile",
+    "profile": "My Profile",
     "login": "Sign in",
     "section": {
       "library": "Library"
@@ -219,7 +231,34 @@
       "signedAs": "Signed in as {user}.",
       "cookiesFailed": "Failed to sync cookies."
     },
-    "sync": "Sync"
+    "sync": "Sync",
+    "form": {
+      "registerTitle": "Create account",
+      "resetTitle": "Reset password",
+      "registerTab": "Register",
+      "resetTab": "Forgot",
+      "username": "Username",
+      "identifier": "Username or email",
+      "identifierPh": "username or email",
+      "usernamePh": "choose a username",
+      "email": "Email",
+      "password": "Password",
+      "passwordAgain": "Confirm password",
+      "captcha": "Verification",
+      "captchaRequired": "Complete the verification first.",
+      "captchaUnavailable": "Could not load captcha settings. Close this window and try again, or check your connection.",
+      "captchaLoadHint": "Loading captcha… If it does not appear, try again in a moment.",
+      "fillAll": "Fill in all required fields.",
+      "passwordMismatch": "Passwords do not match.",
+      "emailRequired": "Enter your email address.",
+      "failed": "Something went wrong. Try again.",
+      "resetSent": "If an account exists for this email, you will receive instructions shortly.",
+      "powWait": "Solving security challenge…",
+      "loginInProgress": "Signing in, please wait…",
+      "submitReset": "Send reset link",
+      "submitRegister": "Create account",
+      "submitLogin": "Sign in"
+    }
   },
   "reader": {
     "banner": {

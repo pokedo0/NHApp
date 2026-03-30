@@ -17,8 +17,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import ExpoImage from "@/components/ExpoImageCompat";
 import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect, useRouter } from "expo-router";
 import { openReaderWindow, isElectron } from "@/electron/bridge";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
@@ -207,6 +207,24 @@ export default function Hero({
       };
     }, [book.id, book.pagesCount, t])
   );
+
+  const handleReadPress = useCallback(async () => {
+    if (!book.id) return;
+    if (isElectron()) {
+      const ok = await openReaderWindow(book.id, readBtn.page);
+      if (!ok) {
+        router.push({
+          pathname: "/read",
+          params: { id: String(book.id), page: String(readBtn.page) },
+        });
+      }
+    } else {
+      router.push({
+        pathname: "/read",
+        params: { id: String(book.id), page: String(readBtn.page) },
+      });
+    }
+  }, [book.id, readBtn.page, router]);
 
   const dedupTags = useMemo(() => {
     const skip = new Set(
@@ -520,7 +538,8 @@ export default function Hero({
           style={{ flexDirection: "row", gap: 16, alignItems: "flex-start" }}
         >
           <View style={{ width: Math.min(360, win.w * 0.35) }}>
-            <View
+            <Pressable
+              onPress={handleReadPress}
               style={{
                 width: "100%",
                 aspectRatio: coverAR,
@@ -531,12 +550,12 @@ export default function Hero({
             >
               <ExpoImage
                 source={buildImageFallbacks(book.cover)}
-                style={{ width: "100%", height: "100%" }}
+                style={{ width: "100%", height: "100%", pointerEvents: "none" as const }}
                 contentFit="cover"
                 cachePolicy="memory-disk"
                 transition={0}
               />
-            </View>
+            </Pressable>
           </View>
 
           <View style={{ flex: 1 }}>
@@ -633,19 +652,7 @@ export default function Hero({
             <View style={[styles.actionRow, { marginTop: 14 }]}>
               <View style={{ borderRadius: 14, overflow: "hidden", flex: 1 }}>
                 <Pressable
-                  onPress={async () => {
-                    if (isElectron() && book.id) {
-                      await openReaderWindow(book.id, readBtn.page);
-                    } else {
-                      router.push({
-                        pathname: "/read",
-                        params: {
-                          id: String(book.id),
-                          page: String(readBtn.page),
-                        },
-                      });
-                    }
-                  }}
+                  onPress={handleReadPress}
                   style={[styles.readBtn, { backgroundColor: colors.accent }]}
                   android_ripple={{ color: "#ffffff22", borderless: false }}
                 >
@@ -853,13 +860,18 @@ export default function Hero({
           shadowOffset: { width: 0, height: 4 },
         }}
       >
-        <ExpoImage
-          source={buildImageFallbacks(book.cover)}
+        <Pressable
+          onPress={handleReadPress}
           style={{ width: "100%", height: "100%" }}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={0}
-        />
+        >
+          <ExpoImage
+            source={buildImageFallbacks(book.cover)}
+            style={{ width: "100%", height: "100%", pointerEvents: "none" as const }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={0}
+          />
+        </Pressable>
       </View>
 
       <View
@@ -956,16 +968,7 @@ export default function Hero({
         <View style={[styles.actionRow, { marginTop: 14 }]}>
           <View style={{ borderRadius: 14, overflow: "hidden", flex: 1 }}>
             <Pressable
-              onPress={async () => {
-                if (isElectron() && book.id) {
-                  await openReaderWindow(book.id, readBtn.page);
-                } else {
-                  router.push({
-                    pathname: "/read",
-                    params: { id: String(book.id), page: String(readBtn.page) },
-                  });
-                }
-              }}
+              onPress={handleReadPress}
               style={[styles.readBtn, { backgroundColor: colors.accent }]}
               android_ripple={{ color: "#ffffff22", borderless: false }}
             >

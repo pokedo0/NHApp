@@ -1,4 +1,5 @@
 import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
+import { getAuthStorageReady } from "@/api/v2/client";
 import { initCdn } from "@/api/v2";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UIKIT_AS_HOME_KEY } from "@/components/settings/keys";
@@ -57,6 +58,9 @@ function CloudStorageSync() {
 
 // Pre-fetch CDN servers so media URLs resolve correctly before first render
 initCdn();
+
+// Однократная миграция токенов из @v2. → @auth.v2. (исключает их из cloud sync)
+void getAuthStorageReady();
 
 const StatusBarController = React.memo(function StatusBarController({
   fullscreen,

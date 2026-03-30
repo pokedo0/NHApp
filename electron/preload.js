@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electron', {
   isElectron: true,
+  setCaptchaHtml: (html) => ipcRenderer.invoke('nh:set-captcha-html', html),
+  getCaptchaToken: (options) => ipcRenderer.invoke('electron:getCaptchaToken', options || {}),
   getVersion: () => ipcRenderer.invoke('electron:getVersion'),
   getPlatform: () => ipcRenderer.invoke('electron:getPlatform'),
   getOsName: () => ipcRenderer.invoke('electron:getOsName'),
@@ -52,45 +54,65 @@ contextBridge.exposeInMainWorld('electron', {
 
 
 
-(function() {
+(function installReanimatedElectronShim() {
   const mockMakeShareable = (value) => value;
   window.__REANIMATED_MAKE_SHAREABLE_MOCK__ = mockMakeShareable;
   try {
-    if (typeof require !== 'undefined') {
-      let Module;
-      let originalRequire;
+    if (typeof require === 'undefined') return;
+
+    let ModuleClass;
+    try {
+      const nm = require('node:module');
+      ModuleClass = nm.Module;
+    } catch (_) {
       try {
-        Module = require('module');
-        originalRequire = Module.prototype.require;
-      } catch (moduleError) {
-        console.warn('[Preload] Module require not available, using alternative approach');
-        return; 
-      }
-      if (Module && originalRequire) {
-        Module.prototype.require = function(id) {
-          const result = originalRequire.apply(this, arguments);
-          if (id === 'react-native-reanimated' || (typeof id === 'string' && id.includes('react-native-reanimated'))) {
-            if (result && typeof result.makeShareable === 'undefined') {
-              Object.defineProperty(result, 'makeShareable', {
-                value: mockMakeShareable,
-                writable: true,
-                configurable: true,
-                enumerable: false,
-              });
-            }
-            if (result?.default && typeof result.default.makeShareable === 'undefined') {
-              Object.defineProperty(result.default, 'makeShareable', {
-                value: mockMakeShareable,
-                writable: true,
-                configurable: true,
-                enumerable: false,
-              });
-            }
-          }
-          return result;
-        };
+        const m = require('module');
+        ModuleClass = m.Module;
+      } catch (e2) {
+        console.warn('[Preload] node:module / module not available, Reanimated shim skipped:', e2?.message);
+        return;
       }
     }
+
+    if (!ModuleClass || !ModuleClass.prototype || typeof ModuleClass.prototype.require !== 'function') {
+      console.warn('[Preload] Module.prototype.require missing, Reanimated shim skipped');
+      return;
+    }
+
+    const originalRequire = ModuleClass.prototype.require;
+    function patchMakeShareable(result) {
+      if (!result) return;
+      if (typeof result.makeShareable !== 'function') {
+        Object.defineProperty(result, 'makeShareable', {
+          value: mockMakeShareable,
+          writable: true,
+          configurable: true,
+          enumerable: false,
+        });
+      }
+      if (result.default && typeof result.default.makeShareable !== 'function') {
+        Object.defineProperty(result.default, 'makeShareable', {
+          value: mockMakeShareable,
+          writable: true,
+          configurable: true,
+          enumerable: false,
+        });
+      }
+    }
+
+    ModuleClass.prototype.require = function patchedRequire(id) {
+      const result = originalRequire.apply(this, arguments);
+      if (typeof id !== 'string') return result;
+      if (
+        id === 'react-native-reanimated' ||
+        id.includes('react-native-reanimated') ||
+        id === 'react-native-worklets' ||
+        id.includes('react-native-worklets')
+      ) {
+        patchMakeShareable(result);
+      }
+      return result;
+    };
   } catch (e) {
     console.warn('[Preload] Reanimated mock setup failed:', e);
   }

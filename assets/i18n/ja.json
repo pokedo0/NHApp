@@ -21,7 +21,19 @@
     "placeholder": "コメントを書く…",
     "hint": {
       "needMore": "送信まであと{n}文字",
-      "captcha": "送信を押すとキャプチャ画面が開き、自動で送信されます。"
+      "captcha": "送信後にキャプチャを解いてコメントを投稿してください。"
+    },
+    "status": {
+      "pow": "セキュリティチェック中…",
+      "captcha": "キャプチャを解いてください…",
+      "posting": "コメントを投稿中…"
+    },
+    "captcha": {
+      "title": "本人確認",
+      "subtitle": "キャプチャを完了してコメントを投稿してください"
+    },
+    "error": {
+      "captchaUnavailable": "キャプチャが利用できません。後でもう一度お試しください。"
     }
   },
   "cloudflare": {
@@ -195,7 +207,7 @@
     "search": "検索",
     "settings": "設定",
     "tags": "タグ",
-    "profile": "プロフィール",
+    "profile": "マイプロフィール",
     "login": "ログイン",
     "section": {
       "library": "ライブラリ"
@@ -219,7 +231,34 @@
       "signedAs": "{user} としてログインしました。",
       "cookiesFailed": "Cookie の同期に失敗しました。"
     },
-    "sync": "同期"
+    "sync": "同期",
+    "form": {
+      "registerTitle": "アカウント作成",
+      "resetTitle": "パスワード再設定",
+      "registerTab": "登録",
+      "resetTab": "忘れた",
+      "username": "ユーザー名",
+      "identifier": "ユーザー名またはメール",
+      "identifierPh": "ユーザー名またはメール",
+      "usernamePh": "ユーザー名",
+      "email": "メール",
+      "password": "パスワード",
+      "passwordAgain": "パスワード（確認）",
+      "captcha": "確認",
+      "captchaRequired": "まず確認を完了してください。",
+      "captchaUnavailable": "CAPTCHA の設定を読み込めませんでした。閉じて再度開くか、接続を確認してください。",
+      "captchaLoadHint": "読み込み中… 表示されない場合はしばらくしてからお試しください。",
+      "fillAll": "必須項目を入力してください。",
+      "passwordMismatch": "パスワードが一致しません。",
+      "emailRequired": "メールアドレスを入力してください。",
+      "failed": "エラーが発生しました。もう一度お試しください。",
+      "resetSent": "アカウントが存在する場合、メールで案内が届きます。",
+      "powWait": "セキュリティ確認を処理しています…",
+      "loginInProgress": "ログイン中、お待ちください…",
+      "submitReset": "再設定リンクを送る",
+      "submitRegister": "アカウント作成",
+      "submitLogin": "ログイン"
+    }
   },
   "reader": {
     "banner": {

@@ -14,5 +14,7 @@ export async function getUserProfile(
   userId: number,
   slug: string
 ): Promise<UserProfile> {
-  return nhApi.get(`/users/${userId}/${slug}`);
+  return nhApi.get(`/users/${userId}/${slug}`, {
+    headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" },
+  });
 }

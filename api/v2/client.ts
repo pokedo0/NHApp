@@ -26,8 +26,44 @@ export const API_V2_BASE = `${NH_HOST}/api/v2`;
 const STATIC_API_KEY: string | undefined =
   process.env.EXPO_PUBLIC_NHENTAI_API_KEY || undefined;
 
-const STORAGE_KEY_ACCESS = "@v2.access_token";
-const STORAGE_KEY_REFRESH = "@v2.refresh_token";
+// Ключи с @auth. префиксом — исключаются из cloud sync автоматически
+const STORAGE_KEY_ACCESS  = "@auth.v2.access_token";
+const STORAGE_KEY_REFRESH = "@auth.v2.refresh_token";
+
+// Старые ключи (до переименования) — нужны только для разовой миграции
+const LEGACY_KEY_ACCESS  = "@v2.access_token";
+const LEGACY_KEY_REFRESH = "@v2.refresh_token";
+
+let authStorageReadyPromise: Promise<void> | null = null;
+
+/** Единая точка ожидания миграции токенов (hasSession / getMe не должны обгонять AsyncStorage). */
+export function getAuthStorageReady(): Promise<void> {
+  if (!authStorageReadyPromise) {
+    authStorageReadyPromise = migrateTokenKeysIfNeeded();
+  }
+  return authStorageReadyPromise;
+}
+
+/** Однократная миграция токенов из старых ключей в новые (запускается при старте). */
+export async function migrateTokenKeysIfNeeded(): Promise<void> {
+  // AsyncStorage недоступен во время SSR (Node.js не имеет window)
+  if (typeof window === "undefined") return;
+  try {
+    const [oldAccess, oldRefresh] = await AsyncStorage.multiGet([LEGACY_KEY_ACCESS, LEGACY_KEY_REFRESH]);
+    const accessVal  = oldAccess[1];
+    const refreshVal = oldRefresh[1];
+    if (accessVal || refreshVal) {
+      const toSet: [string, string][] = [];
+      if (accessVal)  toSet.push([STORAGE_KEY_ACCESS,  accessVal]);
+      if (refreshVal) toSet.push([STORAGE_KEY_REFRESH, refreshVal]);
+      await AsyncStorage.multiSet(toSet);
+      await AsyncStorage.multiRemove([LEGACY_KEY_ACCESS, LEGACY_KEY_REFRESH]);
+      console.log("[auth] Migrated v2 tokens to @auth. prefix keys");
+    }
+  } catch (e) {
+    console.warn("[auth] Token key migration failed:", e);
+  }
+}
 
 const PROXY_BASE =
   Platform.OS === "web"
@@ -116,9 +152,19 @@ async function buildHeaders(opts: RequestOptions): Promise<Record<string, string
     ...opts.headers,
   };
 
-  if (Platform.OS !== "web") {
-    headers["User-Agent"] = "nh-android-client/2.0";
+  // Реалистичный UA по платформе — nhentai показывает его в списке сессий
+  if (Platform.OS === "android") {
+    headers["User-Agent"] =
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AD1A.240905.004) " +
+      "AppleWebKit/537.36 (KHTML, like Gecko) " +
+      "Chrome/130.0.6723.102 Mobile Safari/537.36";
+  } else if (Platform.OS === "ios") {
+    headers["User-Agent"] =
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) " +
+      "AppleWebKit/605.1.15 (KHTML, like Gecko) " +
+      "Version/17.5 Mobile/15E148 Safari/604.1";
   }
+  // web/Electron — UA выставляет main.js в fetchJson IPC
 
   if (!opts.public) {
     if (opts.apiKey) {

@@ -111,17 +111,35 @@ export async function revokeSession(sessionId: string): Promise<SuccessResponse>
 
 // ─── Password reset ───────────────────────────────────────────────────────────
 
-export async function requestPasswordReset(email: string): Promise<SuccessResponse> {
-  return nhApi.post<SuccessResponse>("/auth/reset", { email }, { public: true });
+export interface RequestPasswordResetParams {
+  email: string;
+  pow_challenge: string;
+  pow_nonce: string;
+  captcha_response?: string;
+}
+
+export async function requestPasswordReset(
+  params: RequestPasswordResetParams
+): Promise<SuccessResponse> {
+  return nhApi.post<SuccessResponse>("/auth/reset", params, {
+    public: true,
+    skipRefresh: true,
+  });
 }
 
 export interface ConfirmResetParams {
   token: string;
   new_password: string;
+  pow_challenge: string;
+  pow_nonce: string;
+  captcha_response?: string;
 }
 
 export async function confirmPasswordReset(
   params: ConfirmResetParams
 ): Promise<SuccessResponse> {
-  return nhApi.post<SuccessResponse>("/auth/reset/confirm", params, { public: true });
+  return nhApi.post<SuccessResponse>("/auth/reset/confirm", params, {
+    public: true,
+    skipRefresh: true,
+  });
 }

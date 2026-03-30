@@ -23,6 +23,7 @@ import {
 import { requestStoragePush } from "@/api/cloudStorage";
 import type { Book } from "@/api/nhentai";
 import { getMe, getUserProfile } from "@/api/v2";
+import { resolveImageUrl } from "@/api/v2/config";
 import type { Me, UserProfile } from "@/api/v2";
 import { galleryRelatedToBook } from "@/api/v2/compat";
 import BookList from "@/components/BookList";
@@ -285,6 +286,8 @@ export default function UserProfileScreen() {
     },
     [ui.bannerFallback]
   );
+  const resolvedAvatarUrl = ov?.avatar_url ? resolveImageUrl(ov.avatar_url) : undefined;
+
   useEffect(() => {
     (async () => {
       try {
@@ -296,8 +299,8 @@ export default function UserProfileScreen() {
     })();
   }, []);
   useEffect(() => {
-    pickBannerFrom(ov?.avatar_url);
-  }, [ov?.avatar_url, pickBannerFrom]);
+    if (resolvedAvatarUrl) pickBannerFrom(resolvedAvatarUrl);
+  }, [resolvedAvatarUrl, pickBannerFrom]);
   useEffect(() => {
     AsyncStorage.getItem("bookFavorites").then((j) => {
       const list = j ? (JSON.parse(j) as number[]) : [];
@@ -398,7 +401,7 @@ export default function UserProfileScreen() {
       <View style={{ marginTop: -AVATAR_SIZE / 2, paddingHorizontal: PAD }}>
         <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
           <Pressable
-            onPress={() => ov?.avatar_url && setAvatarPreviewUri(ov.avatar_url)}
+            onPress={() => resolvedAvatarUrl && setAvatarPreviewUri(resolvedAvatarUrl)}
             style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
           >
             <View>
@@ -412,10 +415,10 @@ export default function UserProfileScreen() {
                 />
               )}
               <Image
-                source={{ uri: ov?.me?.avatar_url }}
+                source={{ uri: resolvedAvatarUrl }}
                 onLoadEnd={() => {
                   setAvatarLoaded(true);
-                  pickBannerFrom(ov?.me?.avatar_url);
+                  pickBannerFrom(resolvedAvatarUrl);
                 }}
                 style={{
                   width: AVATAR_SIZE,
@@ -444,14 +447,14 @@ export default function UserProfileScreen() {
               style={[styles.displayName, { color: ui.title }]}
               numberOfLines={1}
             >
-              {ov?.me?.username || "user"}
+              {ov?.username || "user"}
             </Text>
-            {Number.isFinite(ov?.me?.id as number) && (
+            {Number.isFinite(ov?.id as number) && (
               <Text
                 style={[styles.subline, { color: ui.sub }]}
                 numberOfLines={1}
               >
-                ID: {ov?.me?.id}
+                ID: {ov?.id}
               </Text>
             )}
           </>
@@ -471,9 +474,9 @@ export default function UserProfileScreen() {
               router.push({
                 pathname: "/profile/[id]/edit",
                 params: {
-                  id: String(ov?.me?.id ?? id),
-                  slug: ov?.me?.slug ?? slug ?? ov?.me?.username ?? "",
-                  avatarUrl: ov?.me?.avatar_url ?? "",
+                  id: String(ov?.id ?? id),
+                  slug: ov?.slug ?? slug ?? ov?.username ?? "",
+                  avatarUrl: resolvedAvatarUrl ?? "",
                 },
               })
             }
@@ -670,11 +673,11 @@ export default function UserProfileScreen() {
                         id: ov.id,
                         username: ov.username,
                         slug: ov.slug,
-                        avatar_url: ov.avatar_url,
+                        avatar_url: resolvedAvatarUrl,
                       }
                     : undefined
                 }
-                avatar={ov?.avatar_url}
+                avatar={resolvedAvatarUrl}
                 highlight={false}
                 onPress={() =>
                   router.push({
@@ -689,7 +692,7 @@ export default function UserProfileScreen() {
                   })
                 }
                 onPressAvatar={() => {
-                  if (ov?.avatar_url) setAvatarPreviewUri(ov.avatar_url);
+                  if (resolvedAvatarUrl) setAvatarPreviewUri(resolvedAvatarUrl);
                 }}
               />
             ))}

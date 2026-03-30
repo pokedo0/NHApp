@@ -17,8 +17,16 @@ import type { ApiKey, Me, SuccessResponse } from "./types";
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
+let getMeInflight: Promise<Me> | null = null;
+
+/** GET /user — параллельные вызовы (старт + SideMenu + хуки) делят один запрос. */
 export async function getMe(): Promise<Me> {
-  return nhApi.get("/user");
+  if (!getMeInflight) {
+    getMeInflight = nhApi.get<Me>("/user").finally(() => {
+      getMeInflight = null;
+    });
+  }
+  return getMeInflight;
 }
 
 export interface UpdateProfileParams {

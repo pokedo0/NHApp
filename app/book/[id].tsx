@@ -365,19 +365,30 @@ export default function BookScreen() {
     });
   }, [limitedPages, itemW]);
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: Book["pages"][number]; index: number }) => {
-      const onPress = async () => {
-        if (isElectron() && book?.id) {
-          await openReaderWindow(book.id, item.page);
-        } else {
+  const openPage = useCallback(
+    async (pageNum: number) => {
+      const bid = book?.id;
+      if (bid == null) return;
+      if (isElectron()) {
+        const ok = await openReaderWindow(bid, pageNum);
+        if (!ok) {
           router.push({
             pathname: "/read",
-            params: { id: String(book?.id), page: String(item.page) },
+            params: { id: String(bid), page: String(pageNum) },
           });
         }
-      };
+      } else {
+        router.push({
+          pathname: "/read",
+          params: { id: String(bid), page: String(pageNum) },
+        });
+      }
+    },
+    [book?.id, router]
+  );
 
+  const renderItem = useCallback(
+    ({ item, index }: { item: Book["pages"][number]; index: number }) => {
       let showBackground = false;
       if (cols > 1) {
         const rowIndex = Math.floor(index / cols);
@@ -407,12 +418,12 @@ export default function BookScreen() {
           itemW={itemW}
           cols={cols}
           metaColor={colors.metaText}
-          onPress={onPress}
+          onOpenPage={openPage}
           showBackground={showBackground}
         />
       );
     },
-    [book?.id, cols, itemW, colors.metaText, router, imageHeights]
+    [openPage, cols, itemW, colors.metaText, imageHeights]
   );
 
   const handleContentSizeChange = useCallback((contentWidth: number, contentHeight: number) => {

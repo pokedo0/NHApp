@@ -1,6 +1,11 @@
-import { loadAccessToken, loadRefreshToken } from "@/api/v2/client";
+import {
+  getAuthStorageReady,
+  loadAccessToken,
+  loadRefreshToken,
+} from "@/api/v2/client";
 import { logout as v2Logout } from "@/api/v2/auth";
 import { getMe } from "@/api/v2/user";
+import { syncOnlineMeFromAuth } from "@/hooks/useOnlineMe";
 import type { Me } from "@/api/v2/types";
 import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
@@ -19,6 +24,7 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
 
   React.useEffect(() => {
     (async () => {
+      await getAuthStorageReady();
       const [access, refresh] = await Promise.all([
         loadAccessToken(),
         loadRefreshToken(),
@@ -30,7 +36,10 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
       if (access) {
         try {
           const m = await getMe();
-          if (m) setMe(m);
+          if (m) {
+            setMe(m);
+            syncOnlineMeFromAuth(m);
+          }
         } catch {}
       }
     })();
@@ -39,6 +48,7 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
   const fetchMeAndMaybeClose = React.useCallback(
     async (why: string) => {
       try {
+        await getAuthStorageReady();
         const [access, refresh] = await Promise.all([
           loadAccessToken(),
           loadRefreshToken(),
@@ -50,8 +60,10 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
         const m = await getMe();
         if (m) {
           setMe(m);
+          syncOnlineMeFromAuth(m);
           setStatus(t("login.status.signedAs", { user: m.username, why }));
         } else {
+          syncOnlineMeFromAuth(null);
           setStatus(t("login.status.notSigned", { why }));
         }
       } catch {
@@ -65,6 +77,7 @@ export function useAuthBridge(t: (k: string, p?: any) => string) {
     await v2Logout();
     setTokens({});
     setMe(null);
+    syncOnlineMeFromAuth(null);
     setStatus(t("login.status.loggedOut"));
   }, [t]);
 

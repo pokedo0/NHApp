@@ -32,6 +32,8 @@ import {
 } from "react-native-reanimated";
 
 import { requestStoragePush } from "@/api/cloudStorage";
+import { galleryToBook } from "@/api/v2/compat";
+import { getGallery } from "@/api/v2/galleries";
 import { BookPage, getBook, loadBookFromLocal } from "@/api/nhentai";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -184,6 +186,10 @@ export default function ReadScreen() {
   }, [bookId]);
 
   useEffect(() => {
+    if (!Number.isFinite(bookId) || bookId <= 0) {
+      router.back();
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -201,7 +207,12 @@ export default function ReadScreen() {
         const bookPromise = (async () => {
           const local = await loadBookFromLocal(bookId);
           if (local) return local;
-          return await getBook(bookId);
+          try {
+            const g = await getGallery(bookId);
+            return galleryToBook(g);
+          } catch {
+            return await getBook(bookId);
+          }
         })();
 
         const [[gOrient, gDual, gFit, gTap, gHand, gInsp, hh, gCont], book] =

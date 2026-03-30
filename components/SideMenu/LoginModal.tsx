@@ -1,378 +1,518 @@
-import { LOGIN_URL, saveTokens, syncElectronCookies } from "@/api/auth";
+import { CaptchaEmbed } from "@/components/auth/CaptchaEmbed";
 import { IconBtn } from "@/components/ui/IconBtn";
+import {
+  login,
+  register,
+  requestPasswordReset,
+} from "@/api/v2/auth";
+import { ApiError } from "@/api/v2/client";
+import {
+  getCaptchaInfo,
+  getPowChallenge,
+  solvePoW,
+} from "@/api/v2/config";
+import type { ThemeColors } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { ActivityIndicator, Modal, Platform, Pressable, Text, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
-let WebView: any = null;
-if (Platform.OS !== "web") {
-  try {
-    WebView = require("react-native-webview").WebView;
-  } catch (e) {
-    console.warn("WebView not available");
-  }
-}
-
-const isElectron = Platform.OS === "web" && typeof window !== "undefined" && !!(window as any).electron?.isElectron;
-const injected = `
-(function () {
-  function getCookieMap() {
-    var out = {};
-    try {
-      (document.cookie || "").split(";").forEach(function (p) {
-        var kv = p.split("=");
-        if (!kv[0]) return;
-        var k = kv[0].trim();
-        var v = (kv[1] || "").trim();
-        if (k === "csrftoken" || k === "sessionid") out[k] = v;
-      });
-    } catch (e) {}
-    return out;
-  }
-  var last = "";
-  function tick() {
-    try {
-      var raw = document.cookie || "";
-      if (raw !== last) {
-        last = raw;
-        var m = getCookieMap();
-        if (m.csrftoken || m.sessionid) {
-          window.ReactNativeWebView &&
-            window.ReactNativeWebView.postMessage(
-              JSON.stringify({ type: "cookies", cookies: m, href: location.href })
-            );
-        }
-      }
-    } catch (e) {}
-    setTimeout(tick, 700);
-  }
-  tick();
-})();
-true;
-`;
 export type LoginModalProps = {
   visible: boolean;
   onRequestClose: () => void;
-  colors: any;
-  t: (k: string, p?: any) => string;
-  canUseNativeJar: boolean;
-  isExpoGo: boolean;
-  wvBusy: boolean;
-  setWvBusy: (b: boolean) => void;
-  csrfInput: string;
-  setCsrfInput: (s: string) => void;
-  sessInput: string;
-  setSessInput: (s: string) => void;
-  applyManual: (csrf: string, sess: string) => Promise<void>;
-  refreshTokensFromJar: (reason: string) => Promise<void>;
+  colors: ThemeColors;
+  t: (k: string, p?: Record<string, string | number>) => string;
   fetchMeAndMaybeClose: (why: string) => Promise<void>;
-  handleNavChange: any;
-  onWvMessage: any;
 };
-export function LoginModal(props: LoginModalProps) {
-  const {
-    visible,
-    onRequestClose,
-    colors,
-    t,
-    canUseNativeJar,
-    isExpoGo,
-    wvBusy,
-    setWvBusy,
-    csrfInput,
-    setCsrfInput,
-    sessInput,
-    setSessInput,
-    applyManual,
-    refreshTokensFromJar,
-    fetchMeAndMaybeClose,
-    handleNavChange,
-    onWvMessage,
-  } = props;
-  const [electronLoading, setElectronLoading] = React.useState(false);
-  const [electronError, setElectronError] = React.useState<string | null>(null);
-  const showManualInputs = !canUseNativeJar || isExpoGo;
-  const handleElectronLogin = React.useCallback(async () => {
-    if (electronLoading) return;
-    setElectronLoading(true);
-    setElectronError(null);
-    try {
-      const electron = (window as any).electron;
-      console.log("[Electron Login] Starting login...");
-      const result = await electron.login();
-      console.log("[Electron Login] Result:", result);
-      if (result.success && result.tokens) {
-        const { csrftoken, sessionid } = result.tokens;
-        console.log("[Electron Login] Tokens received:", { csrf: !!csrftoken, session: !!sessionid });
-        if (sessionid) {
-          console.log("[Electron Login] Saving tokens...");
-          await saveTokens({ csrftoken, sessionid });
-          console.log("[Electron Login] Syncing cookies from Electron session...");
-          const syncedTokens = await syncElectronCookies();
-          console.log("[Electron Login] Synced tokens:", { 
-            csrf: !!syncedTokens.csrftoken, 
-            session: !!syncedTokens.sessionid 
+
+type AuthMode = "login" | "register" | "reset";
+
+export function LoginModal({
+  visible,
+  onRequestClose,
+  colors,
+  t,
+  fetchMeAndMaybeClose,
+}: LoginModalProps) {
+  const [mode, setMode] = React.useState<AuthMode>("login");
+  const [username, setUsername] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [password2, setPassword2] = React.useState("");
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  const [captchaInfo, setCaptchaInfo] = React.useState<{
+    site_key: string;
+    provider: string;
+  } | null>(null);
+  const [captchaKey, setCaptchaKey] = React.useState(0);
+  const [busy, setBusy] = React.useState(false);
+  const [powBusy, setPowBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [resetSent, setResetSent] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    setError(null);
+    setResetSent(false);
+    setCaptchaToken(null);
+    setCaptchaKey((k) => k + 1);
+    (async () => {
+      try {
+        const c = await getCaptchaInfo();
+        if (!cancelled && c.site_key) {
+          setCaptchaInfo({
+            site_key: c.site_key,
+            provider: c.provider || "turnstile",
           });
-          console.log("[Electron Login] Fetching user profile...");
-          await fetchMeAndMaybeClose("electron-login");
-          console.log("[Electron Login] Closing modal...");
-          onRequestClose();
-        } else {
-          setElectronError("Авторизация отменена");
-        }
-      } else if (result.tokens === null) {
-        setElectronError("Окно закрыто без авторизации");
-      } else {
-        setElectronError(result.error || "Ошибка авторизации");
+        } else if (!cancelled) setCaptchaInfo(null);
+      } catch {
+        if (!cancelled) setCaptchaInfo(null);
       }
-    } catch (err: any) {
-      console.error("[Electron Login] Error:", err);
-      setElectronError(err?.message || "Неизвестная ошибка");
-    } finally {
-      setElectronLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, mode]);
+
+  const resetForm = () => {
+    setUsername("");
+    setEmail("");
+    setPassword("");
+    setPassword2("");
+    setCaptchaToken(null);
+    setCaptchaKey((k) => k + 1);
+    setError(null);
+  };
+
+  const switchMode = (m: AuthMode) => {
+    setMode(m);
+    resetForm();
+    setResetSent(false);
+  };
+
+  const runAuth = async () => {
+    setError(null);
+    const siteKey = captchaInfo?.site_key?.trim() ?? "";
+    if (!siteKey) {
+      setError(t("login.form.captchaUnavailable"));
+      return;
     }
-  }, [electronLoading, fetchMeAndMaybeClose, onRequestClose]);
-  if (isElectron) {
-    return (
-      <Modal
-        statusBarTranslucent
-        visible={visible}
-        animationType="slide"
-        onRequestClose={onRequestClose}
-        transparent
-      >
-        <View style={{ 
-          flex: 1, 
-          backgroundColor: "rgba(0,0,0,0.5)", 
-          justifyContent: "center", 
-          alignItems: "center",
-          padding: 20,
-        }}>
-          <View style={{ 
-            backgroundColor: colors.page, 
-            borderRadius: 16, 
-            padding: 24,
-            width: "100%",
-            maxWidth: 400,
-          }}>
-            {}
-            <View style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 20,
-            }}>
-              <Text style={{ color: colors.title, fontWeight: "900", fontSize: 18 }}>
-                {t("menu.login")}
-              </Text>
-              <IconBtn
-                ripple={"#fff2"}
-                overlayColor={"rgba(255,255,255,0.12)"}
-                onPress={onRequestClose}
-                size={36}
-              >
-                <Feather name="x" size={20} color={colors.title} />
-              </IconBtn>
-            </View>
-            {}
-            <Text style={{ 
-              color: colors.sub, 
-              fontSize: 14, 
-              marginBottom: 24,
-              lineHeight: 20,
-            }}>
-              Нажмите кнопку ниже, чтобы открыть окно авторизации. После входа в аккаунт окно закроется автоматически.
-            </Text>
-            {}
-            {electronError && (
-              <View style={{
-                backgroundColor: "#ff4444" + "22",
-                borderRadius: 8,
-                padding: 12,
-                marginBottom: 16,
-              }}>
-                <Text style={{ color: "#ff6666", fontSize: 13 }}>
-                  {electronError}
-                </Text>
-              </View>
-            )}
-            {}
-            <Pressable
-              onPress={handleElectronLogin}
-              disabled={electronLoading}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? colors.accent + "CC" : colors.accent,
-                borderRadius: 12,
-                paddingVertical: 14,
-                paddingHorizontal: 20,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
-                opacity: electronLoading ? 0.7 : 1,
-              })}
-            >
-              {electronLoading ? (
-                <ActivityIndicator color={colors.bg} />
-              ) : (
-                <>
-                  <Feather name="log-in" size={20} color={colors.bg} />
-                  <Text style={{ 
-                    color: colors.bg, 
-                    fontWeight: "700", 
-                    fontSize: 15,
-                  }}>
-                    {t("menu.login")}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-            {}
-            <Text style={{ 
-              color: colors.sub, 
-              fontSize: 11, 
-              textAlign: "center",
-              marginTop: 16,
-              opacity: 0.7,
-            }}>
-              nhentai.net
-            </Text>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
-  if (Platform.OS === "web" && !WebView) {
-    return (
-      <Modal
-        statusBarTranslucent
-        visible={visible}
-        animationType="slide"
-        onRequestClose={onRequestClose}
-        transparent
-      >
-        <View style={{ 
-          flex: 1, 
-          backgroundColor: "rgba(0,0,0,0.5)", 
-          justifyContent: "center", 
-          alignItems: "center",
-          padding: 20,
-        }}>
-          <View style={{ 
-            backgroundColor: colors.page, 
-            borderRadius: 16, 
-            padding: 24,
-            width: "100%",
-            maxWidth: 400,
-          }}>
-            <View style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 20,
-            }}>
-              <Text style={{ color: colors.title, fontWeight: "900", fontSize: 18 }}>
-                {t("menu.login")}
-              </Text>
-              <IconBtn
-                ripple={"#fff2"}
-                overlayColor={"rgba(255,255,255,0.12)"}
-                onPress={onRequestClose}
-                size={36}
-              >
-                <Feather name="x" size={20} color={colors.title} />
-              </IconBtn>
-            </View>
-            <Text style={{ color: colors.error || "#ff6666", fontSize: 14 }}>
-              React Native WebView does not support this platform.
-            </Text>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
+    if (!captchaToken) {
+      setError(t("login.form.captchaRequired"));
+      return;
+    }
+    if (mode === "login") {
+      const u = username.trim();
+      const p = password;
+      if (!u || !p) {
+        setError(t("login.form.fillAll"));
+        return;
+      }
+      setBusy(true);
+      setPowBusy(true);
+      try {
+        const pow = await getPowChallenge("login");
+        const nonce = await solvePoW(pow.challenge, pow.difficulty);
+        setPowBusy(false);
+        await login({
+          username: u,
+          password: p,
+          pow_challenge: pow.challenge,
+          pow_nonce: nonce,
+          captcha_response: captchaToken,
+        });
+        await fetchMeAndMaybeClose("v2-login");
+        resetForm();
+        onRequestClose();
+      } catch (e) {
+        setPowBusy(false);
+        const msg =
+          e instanceof ApiError
+            ? String(e.message)
+            : e instanceof Error
+              ? e.message
+              : t("login.form.failed");
+        setError(msg);
+        setCaptchaToken(null);
+        setCaptchaKey((k) => k + 1);
+      } finally {
+        setBusy(false);
+        setPowBusy(false);
+      }
+      return;
+    }
+
+    if (mode === "register") {
+      const u = username.trim();
+      const em = email.trim();
+      const p = password;
+      if (!u || !em || !p) {
+        setError(t("login.form.fillAll"));
+        return;
+      }
+      if (p !== password2) {
+        setError(t("login.form.passwordMismatch"));
+        return;
+      }
+      setBusy(true);
+      setPowBusy(true);
+      try {
+        const pow = await getPowChallenge("register");
+        const nonce = await solvePoW(pow.challenge, pow.difficulty);
+        setPowBusy(false);
+        await register({
+          username: u,
+          email: em,
+          password: p,
+          pow_challenge: pow.challenge,
+          pow_nonce: nonce,
+          captcha_response: captchaToken,
+        });
+        await fetchMeAndMaybeClose("v2-register");
+        resetForm();
+        onRequestClose();
+      } catch (e) {
+        setPowBusy(false);
+        const msg =
+          e instanceof ApiError
+            ? String(e.message)
+            : e instanceof Error
+              ? e.message
+              : t("login.form.failed");
+        setError(msg);
+        setCaptchaToken(null);
+        setCaptchaKey((k) => k + 1);
+      } finally {
+        setBusy(false);
+        setPowBusy(false);
+      }
+      return;
+    }
+
+    const em = email.trim();
+    if (!em) {
+      setError(t("login.form.emailRequired"));
+      return;
+    }
+    setBusy(true);
+    setPowBusy(true);
+    try {
+      const pow = await getPowChallenge("reset");
+      const nonce = await solvePoW(pow.challenge, pow.difficulty);
+      setPowBusy(false);
+      await requestPasswordReset({
+        email: em,
+        pow_challenge: pow.challenge,
+        pow_nonce: nonce,
+        captcha_response: captchaToken,
+      });
+      setResetSent(true);
+      resetForm();
+    } catch (e) {
+      setPowBusy(false);
+      const msg =
+        e instanceof ApiError
+          ? String(e.message)
+          : e instanceof Error
+            ? e.message
+            : t("login.form.failed");
+      setError(msg);
+      setCaptchaToken(null);
+      setCaptchaKey((k) => k + 1);
+    } finally {
+      setBusy(false);
+      setPowBusy(false);
+    }
+  };
+
+  const cardBg = colors.page || "#1e1e1e";
+  const titleC = colors.title || "#fff";
+  const subC = colors.sub || "#888";
+  const accent = colors.accent || "#e64";
+
   return (
     <Modal
       statusBarTranslucent
       visible={visible}
       animationType="slide"
       onRequestClose={onRequestClose}
+      transparent
     >
-      <View style={{ flex: 1, backgroundColor: colors.page, paddingTop: 10 }}>
-        <View
-          style={{
-            paddingHorizontal: 10,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Text
-            style={{ color: colors.title, fontWeight: "900", fontSize: 16 }}
-          >
-            {t("menu.login")}
-          </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            {canUseNativeJar && (
-              <IconBtn
-                ripple={"#fff2"}
-                overlayColor={"rgba(255,255,255,0.12)"}
-                onPress={() => refreshTokensFromJar("manual")}
-                size={36}
-                accessibilityLabel={t("login.sync")}
-              >
-                <Feather name="download" size={18} color={colors.title} />
-              </IconBtn>
-            )}
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <View style={[styles.card, { backgroundColor: cardBg, maxHeight: "92%" }]}>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: titleC }]}>
+              {mode === "login"
+                ? t("menu.login")
+                : mode === "register"
+                  ? t("login.form.registerTitle")
+                  : t("login.form.resetTitle")}
+            </Text>
             <IconBtn
               ripple={"#fff2"}
               overlayColor={"rgba(255,255,255,0.12)"}
               onPress={onRequestClose}
               size={36}
             >
-              <Feather name="x" size={20} color={colors.title} />
+              <Feather name="x" size={20} color={titleC} />
             </IconBtn>
           </View>
-        </View>
-        <View style={{ height: 10 }} />
-        {WebView && (
-          <WebView
-            originWhitelist={["*"]}
-            source={{ uri: LOGIN_URL }}
-            onLoadStart={() => setWvBusy(true)}
-            onLoadEnd={async () => {
-              setWvBusy(false);
-              if (canUseNativeJar) await refreshTokensFromJar("loadEnd");
-              await fetchMeAndMaybeClose("loadEnd");
-            }}
-            onLoadProgress={(e) => {
-              if (canUseNativeJar && e?.nativeEvent?.progress >= 0.6) {
-                refreshTokensFromJar("progress");
-              }
-            }}
-            onNavigationStateChange={handleNavChange}
-            onMessage={onWvMessage}
-            injectedJavaScript={injected}
-            sharedCookiesEnabled
-            thirdPartyCookiesEnabled
-            startInLoadingState
-            renderLoading={() => (
-              <View style={{ padding: 8 }}>
-                <ActivityIndicator />
-              </View>
-            )}
-            allowsBackForwardNavigationGestures
-            style={{ flex: 1 }}
-          />
-        )}
-        <View style={{ padding: 8 }}>
-          <Text
-            style={{ color: colors.sub, fontSize: 12, textAlign: "center" }}
+
+          <View style={styles.tabs}>
+            {(["login", "register", "reset"] as AuthMode[]).map((m) => (
+              <Pressable
+                key={m}
+                onPress={() => switchMode(m)}
+                style={[
+                  styles.tab,
+                  mode === m && { borderBottomColor: accent, borderBottomWidth: 2 },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: mode === m ? accent : subC,
+                    fontWeight: mode === m ? "800" : "500",
+                    fontSize: 13,
+                  }}
+                >
+                  {m === "login"
+                    ? t("menu.login")
+                    : m === "register"
+                      ? t("login.form.registerTab")
+                      : t("login.form.resetTab")}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
           >
-            {wvBusy ? t("login.loading") : t("login.ready")}
-          </Text>
+            {resetSent ? (
+              <Text style={[styles.hint, { color: subC }]}>
+                {t("login.form.resetSent")}
+              </Text>
+            ) : null}
+
+            {mode !== "reset" ? (
+              <Text style={[styles.label, { color: subC }]}>
+                {mode === "login"
+                  ? t("login.form.identifier")
+                  : t("login.form.username")}
+              </Text>
+            ) : null}
+            {mode !== "reset" ? (
+              <TextInput
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!busy}
+                placeholder={
+                  mode === "login"
+                    ? t("login.form.identifierPh")
+                    : t("login.form.usernamePh")
+                }
+                placeholderTextColor={subC + "99"}
+                style={[
+                  styles.input,
+                  { color: titleC, borderColor: subC + "44", backgroundColor: colors.bg || "#111" },
+                ]}
+              />
+            ) : null}
+
+            {mode === "register" || mode === "reset" ? (
+              <>
+                <Text style={[styles.label, { color: subC }]}>
+                  {t("login.form.email")}
+                </Text>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  editable={!busy}
+                  placeholder="email@…"
+                  placeholderTextColor={subC + "99"}
+                  style={[
+                    styles.input,
+                    { color: titleC, borderColor: subC + "44", backgroundColor: colors.bg || "#111" },
+                  ]}
+                />
+              </>
+            ) : null}
+
+            {mode !== "reset" ? (
+              <>
+                <Text style={[styles.label, { color: subC }]}>
+                  {t("login.form.password")}
+                </Text>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  editable={!busy}
+                  placeholder="••••••••"
+                  placeholderTextColor={subC + "99"}
+                  style={[
+                    styles.input,
+                    { color: titleC, borderColor: subC + "44", backgroundColor: colors.bg || "#111" },
+                  ]}
+                />
+              </>
+            ) : null}
+
+            {mode === "register" ? (
+              <>
+                <Text style={[styles.label, { color: subC }]}>
+                  {t("login.form.passwordAgain")}
+                </Text>
+                <TextInput
+                  value={password2}
+                  onChangeText={setPassword2}
+                  secureTextEntry
+                  editable={!busy}
+                  placeholder="••••••••"
+                  placeholderTextColor={subC + "99"}
+                  style={[
+                    styles.input,
+                    { color: titleC, borderColor: subC + "44", backgroundColor: colors.bg || "#111" },
+                  ]}
+                />
+              </>
+            ) : null}
+
+            {captchaInfo?.site_key ? (
+              <View style={styles.captchaBlock}>
+                <Text style={[styles.label, { color: subC }]}>
+                  {t("login.form.captcha")}
+                </Text>
+                <CaptchaEmbed
+                  siteKey={captchaInfo.site_key}
+                  provider={captchaInfo.provider}
+                  resetKey={captchaKey}
+                  onToken={(tok) => setCaptchaToken(tok)}
+                  onClear={() => setCaptchaToken(null)}
+                  accent={accent}
+                  subColor={subC}
+                />
+              </View>
+            ) : (
+              <Text style={[styles.hint, { color: subC }]}>
+                {t("login.form.captchaLoadHint")}
+              </Text>
+            )}
+
+            {error ? (
+              <View style={[styles.errBox, { backgroundColor: "#ff444422" }]}>
+                <Text style={{ color: "#f88", fontSize: 13 }}>{error}</Text>
+              </View>
+            ) : null}
+
+            <Pressable
+              onPress={runAuth}
+              disabled={busy || powBusy}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? accent + "cc" : accent,
+                borderRadius: 12,
+                paddingVertical: 14,
+                alignItems: "center",
+                marginTop: 8,
+                opacity: busy || powBusy ? 0.72 : 1,
+              })}
+            >
+              <Text style={{ color: cardBg, fontWeight: "800", fontSize: 15 }}>
+                {busy || powBusy
+                  ? t("login.form.loginInProgress")
+                  : mode === "reset"
+                    ? t("login.form.submitReset")
+                    : mode === "register"
+                      ? t("login.form.submitRegister")
+                      : t("login.form.submitLogin")}
+              </Text>
+            </Pressable>
+
+            <Text style={[styles.footer, { color: subC }]}>
+              nhentai.net · API v2
+            </Text>
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    paddingTop: 16,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  title: { fontWeight: "900", fontSize: 18, flex: 1 },
+  tabs: {
+    flexDirection: "row",
+    gap: 4,
+    marginBottom: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#ffffff18",
+  },
+  tab: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginRight: 8,
+  },
+  scrollContent: { paddingBottom: 12 },
+  label: { fontSize: 12, fontWeight: "700", marginBottom: 6, marginTop: 10 },
+  input: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === "ios" ? 12 : 10,
+    fontSize: 15,
+  },
+  captchaBlock: { marginTop: 8 },
+  hint: { fontSize: 12, lineHeight: 18, marginTop: 8 },
+  errBox: { borderRadius: 10, padding: 12, marginTop: 12 },
+  powRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
+  footer: {
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: 16,
+    opacity: 0.7,
+  },
+});

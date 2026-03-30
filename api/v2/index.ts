@@ -58,7 +58,12 @@ export {
   requestPasswordReset,
   confirmPasswordReset,
 } from "./auth";
-export type { LoginParams, RegisterParams, ConfirmResetParams } from "./auth";
+export type {
+  LoginParams,
+  RegisterParams,
+  ConfirmResetParams,
+  RequestPasswordResetParams,
+} from "./auth";
 
 // Galleries
 export {

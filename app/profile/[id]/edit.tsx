@@ -15,7 +15,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getMe, updateProfile, uploadAvatar } from "@/api/v2";
+import { getMe, getUserProfile, updateProfile, uploadAvatar } from "@/api/v2";
+import { resolveImageUrl } from "@/api/v2/config";
 import { isElectron, showOpenDialog } from "@/electron/bridge";
 
 interface ProfileEditFormData {
@@ -91,18 +92,27 @@ export default function ProfileEditScreen() {
     setError(null);
     try {
       const me = await getMe();
+      // about & favorite_tags are not in /user response — fetch from public profile
+      let about = "";
+      let favorite_tags = "";
+      try {
+        const pub = await getUserProfile(me.id, me.slug);
+        about = pub.about ?? "";
+        favorite_tags = pub.favorite_tags ?? "";
+      } catch {}
       setForm({
         username: me.username ?? "",
         email: me.email ?? "",
-        about: (me as any).about ?? "",
-        favorite_tags: Array.isArray((me as any).favorite_tags)
-          ? (me as any).favorite_tags.join(", ")
-          : (me as any).favorite_tags ?? "",
+        about,
+        favorite_tags,
         old_password: "",
         new_password1: "",
         new_password2: "",
       });
-      setCurrentAvatarUri(null);
+      // Show current avatar from API (resolve relative path)
+      if (me.avatar_url && !initialAvatarUrl) {
+        setCurrentAvatarUri(resolveImageUrl(me.avatar_url));
+      }
       setRemoveAvatar(false);
     } catch (e: any) {
       setError(
@@ -113,7 +123,7 @@ export default function ProfileEditScreen() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, initialAvatarUrl]);
 
   useEffect(() => {
     loadForm();

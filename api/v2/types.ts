@@ -175,6 +175,7 @@ export interface Comment {
 
 export interface Me extends UserLite {
   email: string;
+  theme?: string;
 }
 
 export interface ApiKey {
@@ -238,9 +239,10 @@ export interface PowChallenge {
   difficulty: number;
 }
 
+/** GET /api/v2/captcha — OpenAPI: `site_key` (не `public_key`). */
 export interface CaptchaInfo {
   provider: string;
-  public_key: string;
+  site_key: string;
 }
 
 // ─── Generic success ──────────────────────────────────────────────────────────

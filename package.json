@@ -1,6 +1,6 @@
 {
   "name": "nhappandroid",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.2.0",
   "scripts": {
     "fixGradle": "node scripts/fixGradle.js",

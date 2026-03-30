@@ -21,7 +21,19 @@
     "placeholder": "写评论…",
     "hint": {
       "needMore": "还差 {n} 个字符即可发送",
-      "captcha": "点击发送后会弹出验证码窗口，完成后评论会自动发送。"
+      "captcha": "点击发送后请完成验证码以发布评论。"
+    },
+    "status": {
+      "pow": "正在解决安全验证…",
+      "captcha": "请完成验证码…",
+      "posting": "正在发布评论…"
+    },
+    "captcha": {
+      "title": "人机验证",
+      "subtitle": "完成验证码以发布评论"
+    },
+    "error": {
+      "captchaUnavailable": "验证码暂不可用，请稍后再试。"
     }
   },
   "cloudflare": {
@@ -195,7 +207,7 @@
     "search": "搜索",
     "settings": "设置",
     "tags": "标签",
-    "profile": "个人中心",
+    "profile": "我的主页",
     "login": "登录",
     "section": {
       "library": "库"
@@ -219,7 +231,34 @@
       "signedAs": "已以 {user} 身份登录。",
       "cookiesFailed": "无法同步 Cookie。"
     },
-    "sync": "同步"
+    "sync": "同步",
+    "form": {
+      "registerTitle": "创建账户",
+      "resetTitle": "重置密码",
+      "registerTab": "注册",
+      "resetTab": "忘记",
+      "username": "用户名",
+      "identifier": "用户名或邮箱",
+      "identifierPh": "用户名或邮箱",
+      "usernamePh": "用户名",
+      "email": "邮箱",
+      "password": "密码",
+      "passwordAgain": "确认密码",
+      "captcha": "验证",
+      "captchaRequired": "请先完成验证。",
+      "captchaUnavailable": "无法加载验证码配置。请关闭窗口后重试，或检查网络。",
+      "captchaLoadHint": "正在加载验证码… 若未显示请稍后再试。",
+      "fillAll": "请填写所有必填项。",
+      "passwordMismatch": "两次密码不一致。",
+      "emailRequired": "请输入邮箱。",
+      "failed": "出错了，请重试。",
+      "resetSent": "若存在该账户，您将很快收到邮件说明。",
+      "powWait": "正在进行安全校验…",
+      "loginInProgress": "正在登录，请稍候…",
+      "submitReset": "发送重置链接",
+      "submitRegister": "创建账户",
+      "submitLogin": "登录"
+    }
   },
   "reader": {
     "banner": {

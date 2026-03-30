@@ -10,14 +10,15 @@ export const PageItem = memo(
     itemW,
     cols,
     metaColor,
-    onPress,
+    onOpenPage,
     showBackground = false,
   }: {
     page: { page: number; url: string; urlThumb?: string; width: number; height: number };
     itemW: number;
     cols: number;
     metaColor: string;
-    onPress: () => void;
+    /** Стабильная ссылка из useCallback — иначе memo ниже отрезает обновления router */
+    onOpenPage: (pageNum: number) => void;
     showBackground?: boolean;
   }) {
     const isGrid = cols > 1;
@@ -47,7 +48,7 @@ export const PageItem = memo(
         }}
       >
         <Pressable
-          onPress={onPress}
+          onPress={() => onOpenPage(page.page)}
           style={{
             width: "100%",
             flex: isGrid ? 1 : undefined,
@@ -91,6 +92,7 @@ export const PageItem = memo(
     );
   },
   (a, b) =>
+    a.onOpenPage === b.onOpenPage &&
     a.page.url === b.page.url &&
     a.page.urlThumb === b.page.urlThumb &&
     a.page.page === b.page.page &&
