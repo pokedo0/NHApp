@@ -7,6 +7,7 @@ import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import SmartImageWithRetry from "@/components/SmartImageWithRetry";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
+import { useFilterTags } from "@/context/TagFilterContext";
 import { makeCardStyles } from "../BookCard.styles";
 
 const LANG_TAG_JP = 6346;
@@ -49,6 +50,7 @@ export default function BookCardClassic({
 }: BookCardClassicProps) {
   const { colors } = useTheme();
   const { t, resolvedDateFns } = useI18n();
+  const { cycle, modeOf } = useFilterTags();
   const styles = useMemo(
     () => makeCardStyles(colors, cardWidth, contentScale),
     [colors, cardWidth, contentScale]
@@ -304,33 +306,53 @@ export default function BookCardClassic({
             >
               <View style={localStyles.tagsRow}>
                 {visibleChips.map((c) => {
+                  const mode = modeOf(c.type, c.name);
+                  const isIncluded = mode === "include";
+                  const isExcluded = mode === "exclude";
+
                   const chipStyle =
-                    c.type === "artist"
-                      ? localStyles.chipArtist
-                      : c.type === "parody"
-                        ? localStyles.chipParody
-                        : c.type === "character"
-                          ? localStyles.chipCharacter
-                          : c.type === "category"
-                            ? localStyles.chipCategory
-                            : localStyles.chipTag;
+                    isIncluded ? localStyles.chipIncluded
+                    : isExcluded ? localStyles.chipExcluded
+                    : c.type === "artist" ? localStyles.chipArtist
+                    : c.type === "parody" ? localStyles.chipParody
+                    : c.type === "character" ? localStyles.chipCharacter
+                    : c.type === "category" ? localStyles.chipCategory
+                    : localStyles.chipTag;
+
                   const textStyle =
-                    c.type === "artist"
-                      ? localStyles.chipTextArtist
-                      : c.type === "parody"
-                        ? localStyles.chipTextParody
-                        : c.type === "character"
-                          ? localStyles.chipTextCharacter
-                          : c.type === "category"
-                            ? localStyles.chipTextCategory
-                            : localStyles.chipTextTag;
+                    isIncluded ? localStyles.chipTextIncluded
+                    : isExcluded ? localStyles.chipTextExcluded
+                    : c.type === "artist" ? localStyles.chipTextArtist
+                    : c.type === "parody" ? localStyles.chipTextParody
+                    : c.type === "character" ? localStyles.chipTextCharacter
+                    : c.type === "category" ? localStyles.chipTextCategory
+                    : localStyles.chipTextTag;
 
                   return (
-                    <View key={`${c.type}:${c.name}`} style={[localStyles.tagChip, chipStyle]}>
+                    <Pressable
+                      key={`${c.type}:${c.name}`}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        const item = { type: c.type as any, name: c.name };
+                        if (mode === "include") {
+                          // skip "exclude" state — go straight back to none
+                          cycle(item);
+                          cycle(item);
+                        } else if (!mode) {
+                          cycle(item);
+                        }
+                        // if "exclude" (set from tags page) — do nothing on card press
+                      }}
+                      style={({ pressed }) => [
+                        localStyles.tagChip,
+                        chipStyle,
+                        pressed && { opacity: 0.75 },
+                      ]}
+                    >
                       <Text style={[localStyles.tagText, textStyle]} numberOfLines={1}>
                         {c.name}
                       </Text>
-                    </View>
+                    </Pressable>
                   );
                 })}
 
@@ -523,4 +545,14 @@ const localStyles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.18)",
   },
   chipTextTag: { color: "rgba(255,255,255,0.78)" },
+  chipIncluded: {
+    backgroundColor: "rgba(34,197,94,0.22)",
+    borderColor: "rgba(34,197,94,0.55)",
+  },
+  chipTextIncluded: { color: "rgba(134,239,172,0.95)" },
+  chipExcluded: {
+    backgroundColor: "rgba(239,68,68,0.18)",
+    borderColor: "rgba(239,68,68,0.50)",
+  },
+  chipTextExcluded: { color: "rgba(252,165,165,0.95)" },
 });
