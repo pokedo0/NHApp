@@ -15,6 +15,7 @@ export function makeCardStyles(
   const titleSize = Math.max(12, Math.round(cardWidth * 0.105 * S));
   const subtitleSize = Math.max(11, Math.round(cardWidth * 0.095 * S));
   const metaFont = Math.max(12, Math.round(cardWidth * 0.09 * S));
+  const metaFontSmall = Math.max(10, Math.round(metaFont * 0.88));
   const tagFont = Math.max(10, Math.round(cardWidth * 0.088 * S));
   const tagPadX = Math.max(6, Math.round(cardWidth * 0.04 * S));
   const tagPadY = Math.max(3, Math.round(cardWidth * 0.028 * S));
@@ -26,13 +27,13 @@ export function makeCardStyles(
       flex: 1,
       width: cardWidth,
       borderRadius: radius,
-      backgroundColor: colors.bg,
-      overflow: "hidden",
-      elevation: 5,
+      backgroundColor: "transparent",
+      overflow: "visible",
+      elevation: 0,
       shadowColor: "#000",
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 0 },
     } as ViewStyle,
     hCard: {
       width: "100%",
@@ -46,8 +47,7 @@ export function makeCardStyles(
       position: "relative",
       width: "100%",
       height: coverH,
-      borderTopLeftRadius: radius,
-      borderTopRightRadius: radius,
+      borderRadius: radius,
       overflow: "hidden",
     } as ViewStyle,
     hImageWrap: {
@@ -156,6 +156,47 @@ export function makeCardStyles(
       borderColor: colors.bg,
       marginTop: -18,
     } as ViewStyle,
+    posterBody: {
+      paddingHorizontal: 0,
+      paddingTop: Math.max(9, Math.round(bodyPad * 0.75)),
+      paddingBottom: Math.max(10, Math.round(bodyPad * 0.85)),
+      backgroundColor: "transparent",
+    } as ViewStyle,
+    posterTitle: {
+      color: colors.title,
+      fontWeight: "800",
+      fontSize: Math.max(12, Math.round(titleSize * 0.88)),
+      lineHeight: Math.round(Math.max(12, Math.round(titleSize * 0.88)) * 1.15),
+      letterSpacing: 0.15,
+    } as TextStyle,
+    posterMetaRow: {
+      marginTop: 6,
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "nowrap",
+      gap: 6,
+    } as ViewStyle,
+    posterMetaText: {
+      color: colors.metaText,
+      fontSize: metaFontSmall,
+      fontWeight: "700",
+      letterSpacing: 0.1,
+    } as TextStyle,
+    posterDot: {
+      width: 3,
+      height: 3,
+      borderRadius: 3,
+      backgroundColor: colors.metaText,
+      opacity: 0.8,
+      marginHorizontal: 2,
+    } as ViewStyle,
+    star: {
+      color: colors.metaText,
+      fontSize: metaFontSmall,
+      fontWeight: "900",
+      marginLeft: 2,
+      marginTop: -0.5,
+    } as TextStyle,
     hBody: {
       flex: 1,
       padding: bodyPad,

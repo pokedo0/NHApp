@@ -1,4 +1,5 @@
 import { Book } from "@/api/nhentai";
+import { fetchBooksFromRecommendationLib } from "@/api/recommendationLib";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
@@ -6,6 +7,7 @@ import React, {
     ReactElement,
     ReactNode,
     useCallback,
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -175,6 +177,77 @@ export default function BookList<T extends Book = Book>({
   const fadeLeft = useRef(new Animated.Value(0)).current;
   const fadeRight = useRef(new Animated.Value(0)).current;
 
+  const [enrichedById, setEnrichedById] = useState<Record<number, Book>>({});
+
+  const mergeEnriched = useCallback((base: T, enriched?: Book): T => {
+    if (!enriched) return base;
+    const bAny: any = base as any;
+    const eAny: any = enriched as any;
+
+    const pickStr = (a?: string, b?: string) => (a && a.trim() ? a : b || "");
+    const pickNum = (a?: number, b?: number) =>
+      typeof a === "number" && Number.isFinite(a) && a > 0 ? a : (b as any);
+
+    const merged: any = {
+      ...bAny,
+      title: {
+        english: pickStr(eAny?.title?.english, bAny?.title?.english),
+        japanese: pickStr(eAny?.title?.japanese, bAny?.title?.japanese),
+        pretty: pickStr(eAny?.title?.pretty, bAny?.title?.pretty),
+      },
+      uploaded: pickStr(eAny?.uploaded, bAny?.uploaded),
+      pagesCount: pickNum(eAny?.pagesCount, bAny?.pagesCount) ?? bAny?.pagesCount,
+      // keep favorites from base (nhentai provides it; reco-lib currently doesn't)
+      favorites: typeof bAny?.favorites === "number" ? bAny.favorites : (eAny?.favorites ?? 0),
+      tags: Array.isArray(eAny?.tags) && eAny.tags.length ? eAny.tags : bAny?.tags,
+      artists:
+        Array.isArray(eAny?.artists) && eAny.artists.length ? eAny.artists : bAny?.artists,
+      characters:
+        Array.isArray(eAny?.characters) && eAny.characters.length
+          ? eAny.characters
+          : bAny?.characters,
+      parodies:
+        Array.isArray(eAny?.parodies) && eAny.parodies.length ? eAny.parodies : bAny?.parodies,
+      groups: Array.isArray(eAny?.groups) && eAny.groups.length ? eAny.groups : bAny?.groups,
+      categories:
+        Array.isArray(eAny?.categories) && eAny.categories.length
+          ? eAny.categories
+          : bAny?.categories,
+      languages:
+        Array.isArray(eAny?.languages) && eAny.languages.length
+          ? eAny.languages
+          : bAny?.languages,
+      // keep visuals from base to avoid flicker; fill only if empty
+      cover: pickStr(bAny?.cover, eAny?.cover),
+      thumbnail: pickStr(bAny?.thumbnail, eAny?.thumbnail),
+      coverW: pickNum(bAny?.coverW, eAny?.coverW) ?? bAny?.coverW,
+      coverH: pickNum(bAny?.coverH, eAny?.coverH) ?? bAny?.coverH,
+      media: pickNum(bAny?.media, eAny?.media) ?? bAny?.media,
+    };
+    return merged as T;
+  }, []);
+
+  useEffect(() => {
+    if (horizontal) return;
+    const ids = uniqueData.map((b) => b.id).filter((n) => Number.isFinite(n) && n > 0);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const enriched = await fetchBooksFromRecommendationLib(ids);
+        if (cancelled) return;
+        const next: Record<number, Book> = {};
+        for (const b of enriched) next[b.id] = b;
+        setEnrichedById((prev) => ({ ...prev, ...next }));
+      } catch {
+        // offline / server down: ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [horizontal, uniqueData]);
+
   const updateFades = (x: number, cW: number, vW: number) => {
     const canScroll = horizontal && cW > vW + 1;
     const toLeft = canScroll ? Math.min(1, x / 24) : 0;
@@ -203,6 +276,7 @@ export default function BookList<T extends Book = Book>({
     ({ item, index }) => {
       const isLastInRow = !horizontal && (index + 1) % cols === 0;
       const isLastHoriz = horizontal && index === uniqueData.length - 1;
+      const merged = !horizontal ? mergeEnriched(item, enrichedById[item.id]) : item;
 
       return (
         <View
@@ -220,7 +294,7 @@ export default function BookList<T extends Book = Book>({
           }}
         >
           <BookCard
-            book={item}
+            book={merged as any}
             cardWidth={cardWidth}
             contentScale={contentScale}
             onPress={() => onPress?.(item.id)}
@@ -237,6 +311,8 @@ export default function BookList<T extends Book = Book>({
       isSingleCol,
       contentScale,
       onPress,
+      enrichedById,
+      mergeEnriched,
     ]
   );
 
@@ -305,13 +381,14 @@ export default function BookList<T extends Book = Book>({
           ) : (
             <View style={[webGridStyles.wrap, { gap: columnGap }]}>
               {uniqueData.map((item) => {
+                const merged = mergeEnriched(item, enrichedById[item.id]);
                 return (
                   <View
                     key={String(item.id)}
                     style={{ width: cardWidth }}
                   >
                     <BookCard
-                      book={item}
+                      book={merged as any}
                       cardWidth={cardWidth}
                       contentScale={contentScale}
                       onPress={() => onPress?.(item.id)}

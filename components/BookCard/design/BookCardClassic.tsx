@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Image, Pressable, Text, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Book } from "@/api/nhentai";
 import SmartImageWithRetry from "@/components/SmartImageWithRetry";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
+import NhModal from "@/components/nhModal";
 import { useTheme } from "@/lib/ThemeContext";
 import { makeCardStyles } from "../BookCard.styles";
 
@@ -16,7 +17,6 @@ const FLAG_MAP: Record<string, any> = {
   japanese: JP_FLAG,
 };
 
-/** nhentai language tag ids (type `language` on the site) */
 const LANG_TAG_JP = 6346;
 const LANG_TAG_CN = 29963;
 const LANG_TAG_EN = 12227;
@@ -44,6 +44,8 @@ export interface BookCardClassicProps {
   isFavorite?: boolean;
   onPress?: (id: number) => void;
   background?: string;
+  score?: number;
+  onTagPress?: (name: string) => void;
 }
 
 export default function BookCardClassic({
@@ -52,6 +54,8 @@ export default function BookCardClassic({
   contentScale = 1,
   onPress,
   background,
+  score,
+  onTagPress,
 }: BookCardClassicProps) {
   const { colors } = useTheme();
   const styles = useMemo(
@@ -59,42 +63,10 @@ export default function BookCardClassic({
     [colors, cardWidth, contentScale]
   );
 
-  const S = contentScale;
-  const pillPadX = Math.max(10, Math.round(cardWidth * 0.06 * S));
-  const pillPadY = Math.max(5, Math.round(cardWidth * 0.035 * S));
-  const padX = pillPadX;
-  const padY = Math.max(8, Math.round(pillPadY * 0.9));
-
-  const titleFontSize = Math.max(12, Math.round(cardWidth * 0.08 * S));
-  const lineH = Math.max(14, Math.round(cardWidth * 0.09 * S));
-  const textWidth = Math.max(0, cardWidth - padX * 2);
-
-  const [measured, setMeasured] = useState(false);
-  const [lines, setLines] = useState<number>(1);
-  const [canExpand, setCanExpand] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-
-  const oneLinePad = Math.round(padY * 0.6);
-
-  const collapsedH0 = oneLinePad * 2 + lineH;
-  const [collapsedH, setCollapsedH] = useState(collapsedH0);
-  const [expandedH, setExpandedH] = useState(collapsedH0);
-
-  const hAnim = useRef(new Animated.Value(collapsedH0)).current;
-  const measuredOnce = useRef(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const fullTitle = book.title?.pretty ?? "";
-
-  useEffect(() => {
-    measuredOnce.current = false;
-    setMeasured(false);
-    setLines(1);
-    setCanExpand(false);
-    setExpanded(false);
-    setExpandedH(collapsedH0);
-    setCollapsedH(collapsedH0);
-    hAnim.setValue(collapsedH0);
-  }, [book.id, cardWidth, contentScale, lineH, padY, titleFontSize, textWidth]);
 
   const langName = (() => {
     const arr = book.languages || [];
@@ -110,115 +82,280 @@ export default function BookCardClassic({
   const sources = buildImageFallbacks(book.cover);
 
   const handlePressCard = () => onPress?.(book.id);
+  const openMenu = () => setMenuOpen(true);
+  const closeMenu = () => setMenuOpen(false);
 
-  const animateTo = (to: number) => {
-    Animated.timing(hAnim, {
-      toValue: to,
-      duration: 180,
-      useNativeDriver: false, 
-    }).start();
-  };
+  const year = (() => {
+    const d = book.uploaded ? new Date(book.uploaded) : null;
+    const y = d && Number.isFinite(d.getTime()) ? d.getFullYear() : undefined;
+    return y && y > 1970 ? y : undefined;
+  })();
+  const pages = book.pagesCount || book.pages?.length || undefined;
+  const scoreClamped =
+    typeof score === "number" && Number.isFinite(score)
+      ? Math.max(0, Math.min(5, score))
+      : undefined;
 
-  const toggleExpand = () => {
-    if (!canExpand) return;
-    const to = expanded ? collapsedH : expandedH;
-    setExpanded(!expanded);
-    animateTo(to);
-  };
+  const langShort = (langName ? langName.slice(0, 2) : "").toUpperCase();
 
-  const applyMeasurement = (ln: number) => {
-    const L = Math.max(1, ln);
-    const cH = collapsedH0;
-    const eH = padY * 2 + L * lineH;
-    setLines(L);
-    setCanExpand(L > 1);
-    setCollapsedH(cH);
-    setExpandedH(eH);
-    setMeasured(true);
-    hAnim.setValue(cH);
-  };
+  // Collect all semantic tag-like names: tags + parodies + characters + artists + groups + categories
+  // (languages are shown as flag badge — skip them here)
+  const namedTags = useMemo(() => {
+    const pick = (arr?: { name?: string }[]) =>
+      arr?.map((x) => x.name).filter(Boolean) as string[] ?? [];
+    const all = [
+      ...pick(book.tags),
+      ...pick(book.parodies),
+      ...pick(book.characters),
+      ...pick(book.artists),
+      ...pick(book.groups),
+      ...pick(book.categories),
+    ];
+    // deduplicate
+    return [...new Set(all)];
+  }, [book.tags, book.parodies, book.characters, book.artists, book.groups, book.categories]);
+
+  // Full list for modal: namedTags first, then #id fallback if everything is empty
+  const tagNames = useMemo(() => {
+    if (namedTags.length) return namedTags;
+    const ids = (book.tagIds ?? []).filter((n) => Number.isFinite(n) && n > 0);
+    return ids.map((id) => `#${id}`);
+  }, [namedTags, book.tagIds]);
+
+  const visibleTags = useMemo(() => namedTags.slice(0, 3), [namedTags]);
+  const moreTags = Math.max(0, namedTags.length - visibleTags.length);
+
+  const hasMetaRow =
+    !!langShort || (typeof pages === "number" && pages > 0) || !!year || scoreClamped != null;
 
   return (
-    <Pressable
-      style={[
-        styles.card,
-        background ? { backgroundColor: background } : undefined,
-      ]}
-      onPress={handlePressCard}
-    >
-      <View style={styles.imageWrap}>
-        <SmartImageWithRetry
-          sources={sources}
-          style={styles.cover}
-          maxRetries={3}
-          retryDelay={1000}
-        />
-
-        {flagSrc && (
-          <View style={[styles.langBadge]} pointerEvents="none">
-            <Image source={flagSrc} style={styles.langImg} resizeMode="cover" />
-          </View>
-        )}
-
-        <Animated.View
-          style={[
-            styles.classicBarBase,
-            styles.classicBarAbs,
-            { height: hAnim },
-          ]}
-        >
-          <Pressable
-            onPress={(e: any) => {
-              e?.stopPropagation?.();
-              toggleExpand();
-            }}
-            style={[
-              styles.classicInner,
-              {
-                paddingHorizontal: padX,
-                paddingVertical: expanded ? padY : oneLinePad,
+    <>
+      <Pressable
+        style={({ pressed }) => [
+          localStyles.card,
+          background ? { backgroundColor: background } : undefined,
+          hovered && Platform.OS === "web" ? localStyles.cardHover : null,
+          pressed ? localStyles.cardPressed : null,
+          { width: cardWidth },
+        ]}
+        onPress={handlePressCard}
+        onLongPress={openMenu}
+        delayLongPress={350}
+        onHoverIn={Platform.OS === "web" ? () => setHovered(true) : undefined}
+        onHoverOut={Platform.OS === "web" ? () => setHovered(false) : undefined}
+        {...(Platform.OS === "web"
+          ? ({
+              onContextMenu: (e: any) => {
+                e?.preventDefault?.();
+                e?.stopPropagation?.();
+                openMenu();
               },
-            ]}
-          >
-            <Text
-              style={[
-                styles.classicTitle,
-                { fontSize: titleFontSize, lineHeight: lineH },
-              ]}
-              numberOfLines={expanded ? undefined : 1}
-              ellipsizeMode="tail"
-            >
+            } as any)
+          : {})}
+      >
+        {/* ── Cover ── */}
+        <View style={[styles.imageWrap, localStyles.imageWrap]}>
+          <SmartImageWithRetry
+            sources={sources}
+            style={styles.cover}
+            maxRetries={3}
+            retryDelay={1000}
+          />
+          {flagSrc && (
+            <View style={styles.langBadge} pointerEvents="none">
+              <Image source={flagSrc} style={styles.langImg} resizeMode="cover" />
+            </View>
+          )}
+        </View>
+
+        {/* ── Info block (below image, no overlay) ── */}
+        <View style={localStyles.infoBlock}>
+          {!!fullTitle && (
+            <Text style={localStyles.title} numberOfLines={2} ellipsizeMode="tail">
               {fullTitle}
             </Text>
-          </Pressable>
+          )}
 
-          <View style={styles.classicSeamFix} pointerEvents="none" />
-        </Animated.View>
-      </View>
+          {hasMetaRow && (
+            <View style={localStyles.metaRow}>
+              {!!langShort && <Text style={localStyles.metaText}>{langShort}</Text>}
+              {!!langShort && typeof pages === "number" && pages > 0 && (
+                <View style={localStyles.dot} />
+              )}
+              {typeof pages === "number" && pages > 0 && (
+                <Text style={localStyles.metaText}>{pages} стр.</Text>
+              )}
+              {(!!langShort || (typeof pages === "number" && pages > 0)) && !!year && (
+                <View style={localStyles.dot} />
+              )}
+              {!!year && <Text style={localStyles.metaText}>{year}</Text>}
+              {scoreClamped != null && (
+                <>
+                  <View style={localStyles.dot} />
+                  <Text style={[localStyles.metaText, localStyles.score]}>
+                    ★ {scoreClamped.toFixed(1)}
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
 
-      {!measured && textWidth > 0 && (
-        <Text
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            width: textWidth,
-            opacity: 0,
-            fontSize: titleFontSize,
-            lineHeight: lineH,
-            fontWeight: "700",
-          }}
-          pointerEvents="none"
-          onTextLayout={(e) => {
-            if (measuredOnce.current) return;
-            measuredOnce.current = true;
-            const ln = e?.nativeEvent?.lines?.length ?? 1;
-            applyMeasurement(ln);
-          }}
+          {(visibleTags.length > 0 || moreTags > 0) && (
+            <View style={localStyles.tagsRow}>
+              {visibleTags.map((t) => (
+                <View key={t} style={localStyles.tagChip}>
+                  <Text style={localStyles.tagText} numberOfLines={1}>
+                    {t}
+                  </Text>
+                </View>
+              ))}
+              {moreTags > 0 && (
+                <View style={[localStyles.tagChip, localStyles.tagChipMore]}>
+                  <Text style={localStyles.tagTextMore}>+{moreTags}</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      </Pressable>
+
+      {/* ── Context menu: all tags ── */}
+      <NhModal
+        visible={menuOpen}
+        onClose={closeMenu}
+        title={fullTitle || `#${book.id}`}
+        sheetStyle={{ backgroundColor: colors.page, borderColor: colors.page }}
+        sizing="wrap"
+      >
+        <ScrollView
+          style={{ maxHeight: 420 }}
+          contentContainerStyle={{ padding: 12, paddingBottom: 18 }}
+          showsVerticalScrollIndicator={false}
         >
-          {fullTitle}
-        </Text>
-      )}
-    </Pressable>
+          <Text
+            style={{ color: colors.metaText, fontWeight: "800", fontSize: 12, marginBottom: 10 }}
+          >
+            Теги
+          </Text>
+          <View style={localStyles.tagsWrap}>
+            {tagNames.map((t) => (
+              <Pressable
+                key={t}
+                onPress={() => {
+                  closeMenu();
+                  onTagPress?.(t);
+                }}
+                style={({ pressed }) => [
+                  localStyles.tagPill,
+                  { backgroundColor: colors.tagBg, borderColor: colors.page },
+                  pressed ? { opacity: 0.85 } : null,
+                ]}
+                android_ripple={{ color: colors.accent + "22", borderless: false }}
+              >
+                <Text
+                  style={{ color: colors.tagText, fontWeight: "700", fontSize: 12 }}
+                  numberOfLines={1}
+                >
+                  {t}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
+      </NhModal>
+    </>
   );
 }
+
+const localStyles = StyleSheet.create({
+  card: {
+    backgroundColor: "transparent",
+    overflow: "visible",
+  },
+  cardHover: {
+    transform: [{ translateY: -2 }],
+  },
+  cardPressed: {
+    transform: [{ scale: 0.985 }],
+    opacity: 0.92,
+  },
+  imageWrap: {
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#111",
+  },
+  infoBlock: {
+    paddingTop: 8,
+    paddingHorizontal: 4,
+    paddingBottom: 4,
+    gap: 5,
+  },
+  title: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    flexWrap: "wrap",
+  },
+  metaText: {
+    color: "rgba(255,255,255,0.50)",
+    fontWeight: "600",
+    fontSize: 11,
+    lineHeight: 13,
+  },
+  score: {
+    color: "#FFD166",
+  },
+  dot: {
+    width: 2,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.35)",
+  },
+  tagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 5,
+  },
+  tagChip: {
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.16)",
+    maxWidth: "100%",
+  },
+  tagChipMore: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: "rgba(255,255,255,0.22)",
+  },
+  tagText: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 10,
+    fontWeight: "600",
+    maxWidth: 120,
+  },
+  tagTextMore: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  tagsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  tagPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderWidth: StyleSheet.hairlineWidth,
+    maxWidth: "100%",
+  },
+});

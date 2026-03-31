@@ -565,8 +565,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     elevation: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
     overflow: "hidden",
     zIndex: 20,
   },
