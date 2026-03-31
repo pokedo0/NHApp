@@ -35,6 +35,7 @@ import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
 import { TagLibraryProvider } from "@/context/TagLibraryContext";
 import { useCloudStorageSync } from "@/hooks/useCloudStorageSync";
+import { syncOnlineFavoritesFullOnLaunch } from "@/lib/onlineFavoritesStartupSync";
 import { isElectron } from "@/electron/bridge";
 import { ThemeProvider, useTheme } from "@/lib/ThemeContext";
 import { I18nProvider } from "@/lib/i18n/I18nContext";
@@ -53,6 +54,14 @@ const TopChrome = React.memo(function TopChrome({ bg }: { bg: string }) {
 
 function CloudStorageSync() {
   useCloudStorageSync();
+  return null;
+}
+
+/** Сессия nhentai: полный обход /favorites при старте; без изменений — без записи и без лишних страниц. */
+function OnlineFavoritesStartupSync() {
+  React.useEffect(() => {
+    void syncOnlineFavoritesFullOnLaunch();
+  }, []);
   return null;
 }
 
@@ -407,6 +416,7 @@ export default function RootLayout() {
                 <TagProvider>
                   <TagLibraryProvider>
                     <CloudStorageSync />
+                    <OnlineFavoritesStartupSync />
                     <AppShell />
                   </TagLibraryProvider>
                 </TagProvider>

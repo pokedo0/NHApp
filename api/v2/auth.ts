@@ -33,6 +33,9 @@ export async function login(params: LoginParams): Promise<AuthTokens> {
     skipRefresh: true,
   });
   await storeTokens(result.access_token, result.refresh_token);
+  void import("@/lib/onlineFavoritesStartupSync").then((m) =>
+    m.syncOnlineFavoritesFullOnLaunch()
+  );
   return result;
 }
 
@@ -53,6 +56,9 @@ export async function register(params: RegisterParams): Promise<AuthTokens> {
     skipRefresh: true,
   });
   await storeTokens(result.access_token, result.refresh_token);
+  void import("@/lib/onlineFavoritesStartupSync").then((m) =>
+    m.syncOnlineFavoritesFullOnLaunch()
+  );
   return result;
 }
 

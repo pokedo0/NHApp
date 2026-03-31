@@ -16,6 +16,7 @@ import { galleryCardToBook } from "@/api/v2/compat";
 import BookListOnline from "@/components/BookListOnline";
 import PaginationBar from "@/components/PaginationBar";
 import { subscribeToStorageApplied } from "@/api/cloudStorage";
+import { mergeOnlineFavoriteIds } from "@/lib/onlineFavoritesStorage";
 import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
 import { scrollToTop } from "@/utils/scrollToTop";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -114,6 +115,8 @@ export default function FavoritesOnlineScreen() {
           setEverLoaded(true);
           return;
         }
+
+        void mergeOnlineFavoriteIds(newBooks.map((b) => b.id));
 
         if (pageNum > 1 && infiniteScroll) {
           setBooks((prev) => [...prev, ...newBooks]);

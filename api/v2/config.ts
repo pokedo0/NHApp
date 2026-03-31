@@ -29,8 +29,18 @@ export async function getCdnConfig(): Promise<CdnConfig> {
 const FALLBACK_THUMB = "https://t1.nhentai.net";
 const FALLBACK_IMAGE = "https://i1.nhentai.net";
 
+/** Дефолт до initCdn — тот же набор, что в /api/v2/config `thumb_servers`. */
+const DEFAULT_THUMB_SERVERS: string[] = [
+  "https://t1.nhentai.net",
+  "https://t2.nhentai.net",
+  "https://t3.nhentai.net",
+  "https://t4.nhentai.net",
+];
+
 let _thumbServer: string = FALLBACK_THUMB;
 let _imageServer: string = FALLBACK_IMAGE;
+/** Все thumb-хосты для перебора обложек (t1–t4). */
+let _thumbServers: string[] = [...DEFAULT_THUMB_SERVERS];
 let _cdnInitialized = false;
 let _cdnInitPromise: Promise<void> | null = null;
 
@@ -68,14 +78,20 @@ export async function initCdn(): Promise<void> {
     _cdnInitPromise = (async () => {
       try {
         const cfg = await loadCdnServers();
-        if (cfg?.thumb_servers?.[0]) {
-          _thumbServer = cfg.thumb_servers[0].replace(/\/$/, "");
+        if (cfg?.thumb_servers?.length) {
+          _thumbServers = cfg.thumb_servers.map((s) => String(s).replace(/\/$/, ""));
+          _thumbServer = _thumbServers[0];
+        } else {
+          _thumbServers = [...DEFAULT_THUMB_SERVERS];
+          _thumbServer = _thumbServers[0];
         }
         if (cfg?.image_servers?.[0]) {
           _imageServer = cfg.image_servers[0].replace(/\/$/, "");
         }
       } catch {
         /* keep FALLBACK_* */
+        _thumbServers = [...DEFAULT_THUMB_SERVERS];
+        _thumbServer = _thumbServers[0];
       } finally {
         _cdnInitialized = true;
         _cdnInitPromise = null;
@@ -85,9 +101,14 @@ export async function initCdn(): Promise<void> {
   await _cdnInitPromise;
 }
 
+/** Список `thumb_servers` (после initCdn — из API, иначе t1–t4). Для перебора зеркал обложек. */
+export function getThumbServerList(): string[] {
+  return _thumbServers.length > 0 ? [..._thumbServers] : [...DEFAULT_THUMB_SERVERS];
+}
+
 /**
  * v2 sometimes returns duplicate ".webp" (e.g. `cover.webp.webp`, `3t.webp.webp`).
- * CDN serves a single `.webp` — normalize before building URLs.
+ * CDN serves a single `.webp` — collapse chains of `.webp.webp` at end of path.
  */
 export function normalizeV2MediaPath(path: string): string {
   if (!path) return path;
@@ -95,13 +116,24 @@ export function normalizeV2MediaPath(path: string): string {
   if (/^https?:\/\//i.test(p)) {
     try {
       const u = new URL(p);
-      u.pathname = u.pathname.replace(/\.webp\.webp$/i, ".webp");
+      let pathname = u.pathname;
+      while (/\.webp\.webp$/i.test(pathname)) {
+        pathname = pathname.replace(/\.webp\.webp$/i, ".webp");
+      }
+      u.pathname = pathname;
       return u.toString();
     } catch {
-      return p.replace(/\.webp\.webp$/i, ".webp");
+      let s = p;
+      while (/\.webp\.webp$/i.test(s)) {
+        s = s.replace(/\.webp\.webp$/i, ".webp");
+      }
+      return s;
     }
   }
-  return p.replace(/\.webp\.webp$/i, ".webp");
+  while (/\.webp\.webp$/i.test(p)) {
+    p = p.replace(/\.webp\.webp$/i, ".webp");
+  }
+  return p;
 }
 
 function rewriteLegacyImageHost(absUrl: string): string {

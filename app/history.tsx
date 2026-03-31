@@ -5,8 +5,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { Platform, SectionList, StyleSheet, Text, View } from "react-native";
 
 import type { Book } from "@/api/nhentai";
-import { getGallery, initCdn } from "@/api/v2";
-import { galleryToBook } from "@/api/v2/compat";
+import { fetchBooksFromRecommendationLib } from "@/api/recommendationLib";
 import BookListHistory, { READ_HISTORY_KEY, ReadHistoryEntry } from "@/components/BookListHistory";
 import { scrollToTop } from "@/utils/scrollToTop";
 import { useGridConfig } from "@/hooks/useGridConfig";
@@ -87,19 +86,10 @@ export default function HistoryScreen() {
       if (pageNum > 1) setIsLoadingMore(true);
 
       try {
-        await initCdn();
-        const settled = await Promise.all(
-          pageIds.map((id) =>
-            getGallery(id)
-              .then((g) => ({ id, book: galleryToBook(g) as Book }))
-              .catch(() => ({ id, book: null as Book | null }))
-          )
-        );
+        const ordered = await fetchBooksFromRecommendationLib(pageIds, {
+          placeholdersForMissing: true,
+        });
         if (reqIdRef.current !== myReq) return;
-        const byId = new Map(settled.map((x) => [x.id, x.book]));
-        const ordered = pageIds
-          .map((id) => byId.get(id) ?? null)
-          .filter((b): b is Book => b != null);
         setBooks((prev) => (pageNum === 1 ? ordered : [...prev, ...ordered]));
         setPage(pageNum);
       } catch {

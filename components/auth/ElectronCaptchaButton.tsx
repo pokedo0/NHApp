@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Easing,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
+    Animated,
+    Easing,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
 } from "react-native";
 
 type Status = "idle" | "verifying" | "success" | "error";

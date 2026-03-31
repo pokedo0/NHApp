@@ -24,6 +24,10 @@ import LoadingSpinner from "./LoadingSpinner";
 
 import { getFavorites, type Book } from "@/api/nhentai";
 import { addFavorite, removeFavorite } from "@/api/v2";
+import {
+  addOnlineFavoriteIds,
+  removeOnlineFavoriteIds,
+} from "@/lib/onlineFavoritesStorage";
 
 // Bulk helpers — sequential with small delay to avoid rate limiting
 async function onlineBulkFavorite(
@@ -142,8 +146,14 @@ export default function BookListOnline({
     const toRestore = [...undoStack];
     const ids = toRestore.map((b) => b.id);
     try {
-      if (ids.length === 1) await onlineFavorite(ids[0]);
-      else await onlineBulkFavorite(ids);
+      if (ids.length === 1) {
+        await onlineFavorite(ids[0]);
+        await addOnlineFavoriteIds(ids);
+      } else {
+        const { failed } = await onlineBulkFavorite(ids);
+        const ok = ids.filter((id) => !failed.includes(id));
+        await addOnlineFavoriteIds(ok);
+      }
     } catch {}
     setItems((prev) => {
       const exist = new Set(prev.map((b) => b.id));
@@ -226,8 +236,14 @@ export default function BookListOnline({
     onAfterUnfavorite?.(ids);
     pushUndo(removed);
     try {
-      if (ids.length === 1) await onlineUnfavorite(ids[0]);
-      else await onlineBulkUnfavorite(ids);
+      if (ids.length === 1) {
+        await onlineUnfavorite(ids[0]);
+        await removeOnlineFavoriteIds(ids);
+      } else {
+        const { failed } = await onlineBulkUnfavorite(ids);
+        const ok = ids.filter((id) => !failed.includes(id));
+        await removeOnlineFavoriteIds(ok);
+      }
     } catch {
     } finally {
       setSelectMode(false);
@@ -377,11 +393,13 @@ export default function BookListOnline({
     }
     setImportBusy(true);
     try {
-      await onlineBulkFavorite(ids);
+      const { failed } = await onlineBulkFavorite(ids);
+      const ok = ids.filter((id) => !failed.includes(id));
+      await addOnlineFavoriteIds(ok);
       Alert.alert(
         t("favorites.import.doneTitle") || "Готово",
-        (t("favorites.import.doneMessage", { count: ids.length }) ||
-          `Импортировано: ${ids.length}`) as string
+        (t("favorites.import.doneMessage", { count: ok.length }) ||
+          `Импортировано: ${ok.length}`) as string
       );
       setImportOpen(false);
     } catch {

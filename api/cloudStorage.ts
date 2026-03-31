@@ -13,6 +13,8 @@ const STORAGE_KEYS_EXCLUDE = new Set([
   "@v2.refresh_token",
   "@nh.access_token",
   "@nh.refresh_token",
+  /** CSRF одноразовый / привязан к сессии — в storage_json на сервере не нужен */
+  "nh.csrf",
 ]);
 
 export type StorageResponse = {

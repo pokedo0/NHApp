@@ -5,8 +5,7 @@ import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
 import { requestStoragePush } from "@/api/cloudStorage";
 import type { Book } from "@/api/nhentai";
-import { getGallery, initCdn } from "@/api/v2";
-import { galleryToBook } from "@/api/v2/compat";
+import { fetchBooksFromRecommendationLib } from "@/api/recommendationLib";
 import BookList from "@/components/BookList";
 import { scrollToTop } from "@/utils/scrollToTop";
 import { useGridConfig } from "@/hooks/useGridConfig";
@@ -51,21 +50,11 @@ export default function FavoritesScreen() {
       const totalPg = Math.max(1, Math.ceil(ids.length / perPage));
 
       try {
-        await initCdn();
-        const settled = await Promise.all(
-          pageIds.map((id) =>
-            getGallery(id)
-              .then((g) => ({ id, book: galleryToBook(g) as Book }))
-              .catch(() => ({ id, book: null as Book | null }))
-          )
+        const ordered = await fetchBooksFromRecommendationLib(
+          pageIds.slice().reverse(),
+          { placeholdersForMissing: true }
         );
         if (reqIdRef.current !== myReq) return;
-        const byId = new Map(settled.map((x) => [x.id, x.book]));
-        const ordered = pageIds
-          .slice()
-          .reverse()
-          .map((id) => byId.get(id) ?? null)
-          .filter((b): b is Book => b != null);
         setBooks((prev) => (pageNum === 1 ? ordered : [...prev, ...ordered]));
         setTotalPages(totalPg);
         setPage(pageNum);
