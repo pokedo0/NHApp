@@ -1,15 +1,12 @@
 
 export {
-  getFavoritesOnline,
-  getFavoritesPageIds,
-  getBooksBatch,
-  yieldToUi,
-  BATCH_SIZE,
-} from "./online/favorites";
-export { getMe } from "./online/me";
-export { getUserOverview, getUserProfile } from "./online/profile";
-export { normalizeNhUrl } from "./online/scrape";
-export type { Me, UserComment, UserOverview } from "./online/types";
+  BATCH_SIZE, getBooksBatch, getFavoritesOnline,
+  getFavoritesPageIds, yieldToUi
+} from "@/api/online/favorites";
+export { getMe } from "@/api/online/me";
+export { getUserOverview, getUserProfile } from "@/api/online/profile";
+export { normalizeNhUrl } from "@/api/online/scrape";
+export type { Me, UserComment, UserOverview } from "@/api/online/types";
 import { NH_HOST, nhFetch } from "@/api/auth";
 type FavoriteResponse = {
   favorited: boolean;

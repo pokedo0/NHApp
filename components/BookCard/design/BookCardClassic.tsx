@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { format } from "date-fns";
 
-import { Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import SmartImageWithRetry from "@/components/SmartImageWithRetry";
 import { useI18n } from "@/lib/i18n/I18nContext";

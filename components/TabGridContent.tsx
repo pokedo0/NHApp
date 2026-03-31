@@ -2,7 +2,10 @@
  * Сетка книг для одной вкладки (Главная, Рекомендации, Скаченные, Лайкнутые, История, Персонажи).
  * Загружает данные по tabKey и рендерит BookList или переход на полный экран.
  */
-import { Book, getFavorites, getRecommendations, searchBooks } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
+import { galleryCardToBook } from "@/api/v2/compat";
+import { fetchGalleryBrowsePaginated } from "@/api/v2/galleryBrowse";
+import { fetchBooksFromRecommendationLib } from "@/api/nhappApi/recommendationLib";
 import { BROWSE_CARDS_PER_PAGE } from "@/utils/browseGridPageSize";
 import BookList from "@/components/BookList";
 import type { GridConfig } from "@/components/BookList";
@@ -11,13 +14,13 @@ import { useFilterTags } from "@/context/TagFilterContext";
 import { useSort } from "@/context/SortContext";
 import { useTheme } from "@/lib/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { requestStoragePush } from "@/api/cloudStorage";
+import { requestStoragePush } from "@/api/nhappApi/cloudStorage";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 
 export type TabGridContentProps = {
-  tabKey: "home" | "recommendations" | "downloaded" | "favorites" | "history" | "characters";
+  tabKey: "home" | "downloaded" | "favorites" | "history" | "characters";
   gridConfig?: {
     phonePortrait?: GridConfig;
     phoneLandscape?: GridConfig;
@@ -61,52 +64,23 @@ export function TabGridContent({ tabKey, gridConfig }: TabGridContentProps) {
     const myId = ++reqIdRef.current;
     setLoading(true);
     try {
-      const res = await searchBooks({
+      const res = await fetchGalleryBrowsePaginated({
         query: "",
-        sort: sort || "date",
+        includes: activeIncludes,
+        excludes: activeExcludes,
+        uploaded: uploaded ?? null,
+        sort: (sort || "date") as any,
         page: 1,
-        perPage: 60,
-        includeTags: activeIncludes,
-        excludeTags: activeExcludes,
-        uploaded: uploaded ?? undefined,
-        sessionKey: `tabs::home::${incStr}::${excStr}`,
+        per_page: 60,
       });
       if (myId !== reqIdRef.current) return;
-      setBooks(res.books);
-    } catch (e) {
+      setBooks(res.result.map(galleryCardToBook));
+    } catch {
       if (myId === reqIdRef.current) setBooks([]);
     } finally {
       if (myId === reqIdRef.current) setLoading(false);
     }
   }, [sort, incStr, excStr, uploaded, activeIncludes, activeExcludes]);
-
-  const fetchRecommendations = useCallback(async () => {
-    const favIds = await AsyncStorage.getItem("bookFavorites").then((j) =>
-      j ? (JSON.parse(j) as number[]) : []
-    );
-    if (favIds.length === 0) {
-      setBooks([]);
-      setLoading(false);
-      return;
-    }
-    const myId = ++reqIdRef.current;
-    setLoading(true);
-    try {
-      const { books: recs } = await getRecommendations({
-        ids: favIds,
-        includeTags: activeIncludes,
-        excludeTags: activeExcludes,
-        page: 1,
-        perPage: BROWSE_CARDS_PER_PAGE,
-      });
-      if (myId !== reqIdRef.current) return;
-      setBooks(recs as Book[]);
-    } catch (e) {
-      if (myId === reqIdRef.current) setBooks([]);
-    } finally {
-      if (myId === reqIdRef.current) setLoading(false);
-    }
-  }, [activeIncludes, activeExcludes]);
 
   const fetchFavorites = useCallback(async () => {
     const ids = await AsyncStorage.getItem("bookFavorites").then((j) =>
@@ -121,17 +95,14 @@ export function TabGridContent({ tabKey, gridConfig }: TabGridContentProps) {
     setLoading(true);
     try {
       const pageIds = ids.slice(0, BROWSE_CARDS_PER_PAGE);
-      const { books: fetched } = await getFavorites({
-        ids: pageIds,
-        perPage: BROWSE_CARDS_PER_PAGE,
-      });
+      const fetched = await fetchBooksFromRecommendationLib(pageIds);
       const ordered = pageIds
         .map((id) => fetched.find((b: Book) => b.id === id))
         .filter((b): b is Book => !!b);
       if (myId !== reqIdRef.current) return;
       setBooks(ordered);
       setFav(new Set(ids));
-    } catch (e) {
+    } catch {
       if (myId === reqIdRef.current) setBooks([]);
     } finally {
       if (myId === reqIdRef.current) setLoading(false);
@@ -141,20 +112,17 @@ export function TabGridContent({ tabKey, gridConfig }: TabGridContentProps) {
   useEffect(() => {
     if (tabKey === "home" && isHydrated) {
       fetchHome();
-    } else if (tabKey === "recommendations") {
-      fetchRecommendations();
     } else if (tabKey === "favorites") {
       fetchFavorites();
     } else if (tabKey === "downloaded" || tabKey === "history" || tabKey === "characters") {
       setLoading(false);
       setBooks([]);
     }
-  }, [tabKey, isHydrated, fetchHome, fetchRecommendations, fetchFavorites]);
+  }, [tabKey, isHydrated, fetchHome, fetchFavorites]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     if (tabKey === "home") await fetchHome();
-    else if (tabKey === "recommendations") await fetchRecommendations();
     else if (tabKey === "favorites") await fetchFavorites();
     else loadFavIds();
     setRefreshing(false);

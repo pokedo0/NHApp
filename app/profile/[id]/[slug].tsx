@@ -20,8 +20,8 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { requestStoragePush } from "@/api/cloudStorage";
-import type { Book } from "@/api/nhentai";
+import { requestStoragePush } from "@/api/nhappApi/cloudStorage";
+import type { Book } from "@/api/nhappApi/types";
 import { getMe, getUserProfile } from "@/api/v2";
 import { resolveImageUrl } from "@/api/v2/config";
 import type { Me, UserProfile } from "@/api/v2";

@@ -2,8 +2,8 @@
  * Clears local nhentai-related data when the user logs out so another account
  * does not inherit favorites, history, recommendations, etc.
  */
-import { notifyStorageApplied } from "@/api/cloudStorage";
-import { disconnectLobby } from "@/api/lobbyStorage";
+import { notifyStorageApplied } from "@/api/nhappApi/cloudStorage";
+import { disconnectLobby } from "@/api/nhappApi/lobbyStorage";
 import { resetRecommendationStateForNewUser } from "@/api/nhappApi/recommendations";
 import { READ_HISTORY_KEY } from "@/components/BookListHistory";
 import { FAV_KEY, FAV_KEY_LEGACY } from "@/components/tags/helpers";

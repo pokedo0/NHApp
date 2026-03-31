@@ -12,8 +12,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { requestStoragePush } from "@/api/cloudStorage";
-import type { Book } from "@/api/nhentai";
+import { requestStoragePush } from "@/api/nhappApi/cloudStorage";
+import type { Book } from "@/api/nhappApi/types";
 import { searchGalleries } from "@/api/v2";
 import { galleryCardToBook, buildV2Query } from "@/api/v2/compat";
 import SmartImage from "@/components/SmartImage";

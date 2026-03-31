@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { requestStoragePush } from "@/api/cloudStorage";
+import { requestStoragePush } from "@/api/nhappApi/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -17,7 +17,7 @@ import {
   View,
 } from "react-native";
 
-import type { Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
 import {
   clearRecommendationCache,
   generateRecommendations,

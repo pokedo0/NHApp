@@ -1,5 +1,5 @@
-import { loadBookFromLocal } from "@/api/nhentai";
-import type { Book } from "@/api/nhentai";
+import { loadBookFromLocal } from "@/api/nhappApi/localBook";
+import type { Book } from "@/api/nhappApi/types";
 import { getGallery, initCdn } from "@/api/v2";
 import { galleryToBook } from "@/api/v2/compat";
 import { useRouter } from "expo-router";

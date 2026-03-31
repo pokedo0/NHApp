@@ -31,10 +31,11 @@ import {
     withTiming,
 } from "react-native-reanimated";
 
-import { requestStoragePush } from "@/api/cloudStorage";
+import { requestStoragePush } from "@/api/nhappApi/cloudStorage";
 import { galleryToBook } from "@/api/v2/compat";
 import { getGallery } from "@/api/v2/galleries";
-import { BookPage, getBook, loadBookFromLocal } from "@/api/nhentai";
+import type { BookPage } from "@/api/nhappApi/types";
+import { loadBookFromLocal } from "@/api/nhappApi/localBook";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { ControlsDesktop } from "../components/read/ControlsDesktop";
@@ -207,12 +208,8 @@ export default function ReadScreen() {
         const bookPromise = (async () => {
           const local = await loadBookFromLocal(bookId);
           if (local) return local;
-          try {
-            const g = await getGallery(bookId);
-            return galleryToBook(g);
-          } catch {
-            return await getBook(bookId);
-          }
+          const g = await getGallery(bookId);
+          return galleryToBook(g);
         })();
 
         const [[gOrient, gDual, gFit, gTap, gHand, gInsp, hh, gCont], book] =

@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Platform, Text } from "react-native";
 
-import { Book, BookPage } from "@/api/nhentai";
+import type { Book, BookPage } from "@/api/nhappApi/types";
 import BookList from "@/components/BookList";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useI18n } from "@/lib/i18n/I18nContext";

@@ -23,7 +23,7 @@ import {
     deleteCharacterCard,
     getCharacterCatalog,
     updateCharacterCard,
-} from "@/api/characterCards";
+} from "@/api/nhappApi/characterCards";
 import { TagLite } from "@/components/book/TagBlock";
 import EditCharacterCardModal from "@/components/EditCharacterCardModal";
 import { useOnlineMe } from "@/hooks/useOnlineMe";

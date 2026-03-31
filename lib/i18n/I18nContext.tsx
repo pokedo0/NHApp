@@ -1,4 +1,4 @@
-import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/nhappApi/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Locale } from "date-fns";
 import { enUS, ja, ru, zhCN } from "date-fns/locale";

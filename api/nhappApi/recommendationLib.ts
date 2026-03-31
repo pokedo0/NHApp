@@ -3,7 +3,7 @@
  * GET {EXPO_PUBLIC_API_BASE_URL}/api/recommendation-lib/books/batch?q=1,2,3
  */
 
-import type { Book, Tag } from "@/api/nhentai";
+import type { Book, Tag } from "@/api/nhappApi/types";
 import { galleryToBook } from "@/api/v2/compat";
 import { initCdn, resolveThumbUrl } from "@/api/v2/config";
 import { getGallery } from "@/api/v2/galleries";

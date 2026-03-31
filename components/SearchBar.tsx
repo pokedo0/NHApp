@@ -18,7 +18,7 @@ import {
     subscribeToLobbyPeersDevices,
     subscribeToLobbyRole,
     type LobbyPeerDevice,
-} from "@/api/lobbyStorage";
+} from "@/api/nhappApi/lobbyStorage";
 import { CalendarRangePicker } from "@/components/CalendarRangePicker";
 import { useDrawer } from "@/components/DrawerContext";
 import NhModal from "@/components/nhModal";

@@ -1,4 +1,4 @@
-import type { Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
 import { sanitize } from "@/utils/book/sanitize";
 import { useThrottle } from "@/utils/book/useThrottle";
 import * as FileSystem from "expo-file-system/legacy";

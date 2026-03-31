@@ -1,4 +1,4 @@
-import { requestStoragePush } from "@/api/cloudStorage";
+import { requestStoragePush } from "@/api/nhappApi/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 export type GridProfile = "phonePortrait" | "phoneLandscape" | "tabletPortrait" | "tabletLandscape";
 export type GridConfig = {

@@ -3,7 +3,7 @@
  * под ключом bookFavoritesOnline.v1, чтобы при синхронизации storage_json на сервере
  * можно было строить персональные рекомендации.
  */
-import { requestStoragePush } from "@/api/cloudStorage";
+import { requestStoragePush } from "@/api/nhappApi/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const ONLINE_FAVORITES_STORAGE_KEY = "bookFavoritesOnline.v1";

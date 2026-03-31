@@ -1,15 +1,15 @@
+import LoadingSpinner from "@/components/LoadingSpinner";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import LoadingSpinner from "@/components/LoadingSpinner";
 import { Platform, SectionList, StyleSheet, Text, View } from "react-native";
 
-import type { Book } from "@/api/nhentai";
-import { fetchBooksFromRecommendationLib } from "@/api/recommendationLib";
+import { fetchBooksFromRecommendationLib } from "@/api/nhappApi/recommendationLib";
+import type { Book } from "@/api/nhappApi/types";
 import BookListHistory, { READ_HISTORY_KEY, ReadHistoryEntry } from "@/components/BookListHistory";
-import { scrollToTop } from "@/utils/scrollToTop";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
+import { scrollToTop } from "@/utils/scrollToTop";
 
 const PER_PAGE = 2000;
 
@@ -24,7 +24,7 @@ export default function HistoryScreen() {
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const scrollRef = useRef<SectionList<any>>(null);
+  const scrollRef = useRef<SectionList<any> | null>(null);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(ids.length / PER_PAGE)), [ids.length]);
 

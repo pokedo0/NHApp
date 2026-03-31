@@ -1,5 +1,5 @@
-import type { Book } from "@/api/nhentai";
-import type { GalleryComment } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
+import type { GalleryComment } from "@/api/nhappApi/types";
 import { getGalleryComments, getRelatedGalleries } from "@/api/v2";
 import { commentToGalleryComment, galleryRelatedToBook } from "@/api/v2/compat";
 import { useCallback, useEffect, useState } from "react";

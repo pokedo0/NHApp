@@ -1,4 +1,4 @@
-import type { ApiUser } from "@/api/nhentai";
+import type { ApiUser } from "@/api/nhappApi/types";
 import { deleteComment } from "@/api/v2";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";

@@ -1,7 +1,8 @@
 
 import { NH_HOST } from "@/api/auth";
-import type { Book, Paged } from "@/api/nhentai";
-import { getBook } from "@/api/nhentai";
+import type { Book, Paged } from "@/api/nhappApi/types";
+import { galleryToBook } from "@/api/v2/compat";
+import { getGallery } from "@/api/v2/galleries";
 import { fetchHtml } from "./http";
 import { extractGalleryIdsFromHtml, extractTotalPagesFromHtml } from "./scrape";
 
@@ -51,7 +52,7 @@ export const BATCH_SIZE = 4;
 export async function getBooksBatch(ids: number[]): Promise<(Book | null)[]> {
   if (ids.length === 0) return [];
   return Promise.all(
-    ids.map((id) => raceTimeout(getBook(id), PER_BOOK_MS).catch(() => null))
+    ids.map((id) => raceTimeout(getGallery(id).then(galleryToBook), PER_BOOK_MS).catch(() => null))
   );
 }
 

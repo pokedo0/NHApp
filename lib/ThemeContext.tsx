@@ -1,5 +1,5 @@
 import { getBaseHue, hsbToHex, setBaseHue } from "@/constants/Colors";
-import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/nhappApi/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,

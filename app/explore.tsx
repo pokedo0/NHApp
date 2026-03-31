@@ -9,8 +9,8 @@ import React, {
 } from "react";
 import { FlatList, Platform, StyleSheet, View } from "react-native";
 
-import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
-import type { Book } from "@/api/nhentai";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/nhappApi/cloudStorage";
+import type { Book } from "@/api/nhappApi/types";
 import { fetchGalleryBrowseSlice } from "@/api/v2";
 import { galleryCardToBook } from "@/api/v2/compat";
 import BookList from "@/components/BookList";

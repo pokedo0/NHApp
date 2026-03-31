@@ -1,10 +1,10 @@
-import type { Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
 import { fetchGalleryBrowseSlice } from "@/api/v2";
 import { galleryCardToBook } from "@/api/v2/compat";
 import BookList from "@/components/BookList";
 import NoResultsPanel from "@/components/NoResultsPanel";
 import PaginationBar from "@/components/PaginationBar";
-import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/nhappApi/cloudStorage";
 import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
 import { useDateRange } from "@/context/DateRangeContext";
 import { useSort } from "@/context/SortContext";

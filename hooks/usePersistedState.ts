@@ -1,4 +1,4 @@
-import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/nhappApi/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCallback, useEffect, useState } from "react";
 

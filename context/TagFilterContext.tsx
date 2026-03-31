@@ -1,5 +1,5 @@
-import { Tag } from "@/api/nhentai";
-import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
+import type { Tag } from "@/api/nhappApi/types";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/nhappApi/cloudStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,

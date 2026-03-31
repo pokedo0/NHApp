@@ -24,14 +24,14 @@
  *   the user to search, favorite, or read first.
  */
 
-import type { Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
 import {
   fetchTagCountsLookup,
   hydrateMissingThumbnails,
   nhappApiBase,
   recommendationLibRowToBook,
   type RecommendationLibBatchRow,
-} from "@/api/recommendationLib";
+} from "@/api/nhappApi/recommendationLib";
 import { initCdn } from "@/api/v2";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 

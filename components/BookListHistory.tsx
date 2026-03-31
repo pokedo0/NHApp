@@ -1,4 +1,4 @@
-import { Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
 import { format, Locale } from "date-fns";
 import { enUS, ja, ru, zhCN } from "date-fns/locale";
 import React, {
@@ -56,7 +56,7 @@ export interface BookListHistoryProps<T extends Book = Book> {
     default?: GridConfig;
   };
   children?: ReactNode;
-  scrollRef?: React.RefObject<SectionList<SectionRow<T>>>;
+  scrollRef?: React.RefObject<SectionList<any> | null>;
 }
 
 type RowItem<T extends Book> = {
@@ -90,7 +90,7 @@ export default function BookListHistory<T extends Book = Book>({
 }: BookListHistoryProps<T>) {
   const { colors } = useTheme();
   const { t, resolved } = useI18n();
-  const internalListRef = useRef<SectionList<SectionRow<T>>>(null);
+  const internalListRef = useRef<SectionList<any> | null>(null);
   const listRef = externalScrollRef || internalListRef;
   const { width, height } = useWindowDimensions();
   /** На веб используем измеренные размеры контейнера — при узком окне useWindowDimensions() может давать 0 или не обновляться, из‑за чего не грузится контент. */

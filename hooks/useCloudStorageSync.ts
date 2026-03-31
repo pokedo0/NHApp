@@ -6,14 +6,14 @@ import {
   touchOnline,
   collectLocalStorageForSync,
   setStoragePushCallback,
-} from "@/api/cloudStorage";
+} from "@/api/nhappApi/cloudStorage";
 import {
   connectLobby,
   disconnectLobby,
   sendStorageToLobby,
   setLobbyOnOpen,
   getLastReceivedFromLobbyAt,
-} from "@/api/lobbyStorage";
+} from "@/api/nhappApi/lobbyStorage";
 import { getDeviceId } from "@/utils/deviceId";
 import { useOnlineMe } from "@/hooks/useOnlineMe";
 import { useCallback, useEffect, useRef } from "react";

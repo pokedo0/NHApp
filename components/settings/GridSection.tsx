@@ -1,4 +1,6 @@
-import { searchBooks, type Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
+import { galleryCardToBook } from "@/api/v2/compat";
+import { searchGalleries } from "@/api/v2/search";
 import BookList from "@/components/BookList";
 import Card from "@/components/settings/Card";
 import { useTheme } from "@/lib/ThemeContext";
@@ -45,8 +47,8 @@ export default function GridSection({
     const perPage = BROWSE_CARDS_PER_PAGE;
     (async () => {
       try {
-        const res = await searchBooks({ sort: "popular", page: 1, perPage });
-        if (mounted) setPreviewBooks(res.books);
+        const res = await searchGalleries({ query: "*", sort: "popular", page: 1, per_page: perPage });
+        if (mounted) setPreviewBooks(res.result.map(galleryCardToBook));
       } catch {}
     })();
     return () => {

@@ -2,7 +2,7 @@ import {
   collectLocalStorageForSync,
   fetchCloudStorage,
   pushCloudStorage,
-} from "@/api/cloudStorage";
+} from "@/api/nhappApi/cloudStorage";
 import HuePaletteSelector from "@/components/settings/HuePaletteSelector";
 import { STORAGE_KEY_HUE, UIKIT_AS_HOME_KEY } from "@/components/settings/keys";
 import SwitchRow from "@/components/settings/rows/SwitchRow";

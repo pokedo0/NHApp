@@ -1,4 +1,4 @@
-import { requestStoragePush } from "@/api/cloudStorage";
+import { requestStoragePush } from "@/api/nhappApi/cloudStorage";
 import { bulkAddFavoritesV2 } from "@/lib/onlineFavoritesBulk";
 import { addOnlineFavoriteIds } from "@/lib/onlineFavoritesStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";

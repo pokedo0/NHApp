@@ -1,4 +1,4 @@
-import type { Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
 import { getRandomGalleryId, getGallery, getMe, initCdn } from "@/api/v2";
 import { galleryToBook } from "@/api/v2/compat";
 import LoadingSpinner from "@/components/LoadingSpinner";

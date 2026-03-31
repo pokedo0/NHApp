@@ -1,5 +1,5 @@
-import { Book } from "@/api/nhentai";
-import { fetchBooksFromRecommendationLib } from "@/api/recommendationLib";
+import type { Book } from "@/api/nhappApi/types";
+import { fetchBooksFromRecommendationLib } from "@/api/nhappApi/recommendationLib";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";

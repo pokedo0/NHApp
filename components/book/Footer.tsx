@@ -1,4 +1,4 @@
-import type { Book, GalleryComment } from "@/api/nhentai";
+import type { Book, GalleryComment } from "@/api/nhappApi/types";
 import { deleteComment } from "@/api/v2";
 import type { Comment as ApiComment } from "@/api/v2";
 import BookList from "@/components/BookList";

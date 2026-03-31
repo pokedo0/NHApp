@@ -3,9 +3,9 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, Platform, StyleSheet, Text, View } from "react-native";
 
-import { requestStoragePush } from "@/api/cloudStorage";
-import type { Book } from "@/api/nhentai";
-import { fetchBooksFromRecommendationLib } from "@/api/recommendationLib";
+import { requestStoragePush } from "@/api/nhappApi/cloudStorage";
+import type { Book } from "@/api/nhappApi/types";
+import { fetchBooksFromRecommendationLib } from "@/api/nhappApi/recommendationLib";
 import BookList from "@/components/BookList";
 import { scrollToTop } from "@/utils/scrollToTop";
 import { useGridConfig } from "@/hooks/useGridConfig";

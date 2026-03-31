@@ -1,4 +1,4 @@
-import { requestStoragePush, subscribeToStorageApplied } from "@/api/cloudStorage";
+import { requestStoragePush, subscribeToStorageApplied } from "@/api/nhappApi/cloudStorage";
 import { getAuthStorageReady } from "@/api/v2/client";
 import { initCdn } from "@/api/v2";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -373,7 +373,8 @@ export default function RootLayout() {
           try {
             const fontFace = new FontFace(fontName, `url(${fontUrl})`);
             await fontFace.load();
-            document.fonts.add(fontFace);
+            // TS DOM typings differ across targets; guard + cast for web/electron.
+            (document as any).fonts?.add?.(fontFace);
             console.log("[RootLayout] Feather font loaded and added to document.fonts");
             await document.fonts.ready;
             const isLoaded = document.fonts.check(`12px ${fontName}`);

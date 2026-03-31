@@ -22,8 +22,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LoadingSpinner from "./LoadingSpinner";
 
-import type { Book } from "@/api/nhentai";
-import { fetchBooksFromRecommendationLib } from "@/api/recommendationLib";
+import type { Book } from "@/api/nhappApi/types";
+import { fetchBooksFromRecommendationLib } from "@/api/nhappApi/recommendationLib";
 import { addFavorite, removeFavorite } from "@/api/v2";
 import {
   addOnlineFavoriteIds,

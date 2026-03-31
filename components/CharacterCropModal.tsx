@@ -1,4 +1,4 @@
-﻿import { Rect } from "@/api/characterCards";
+﻿import { Rect } from "@/api/nhappApi/characterCards";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import React, { useEffect, useRef, useState } from "react";

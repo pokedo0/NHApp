@@ -17,8 +17,8 @@ import type {
 import { resolveThumbUrl, resolveImageUrl } from "./config";
 
 // Pull old types for the return signatures without importing the whole old module
-import type { Book, BookPage, GalleryComment, ApiUser } from "@/api/nhentai";
-import type { TagFilter } from "@/api/nhentai";
+import type { Book, BookPage, GalleryComment, ApiUser } from "@/api/nhappApi/types";
+import type { TagFilter } from "@/api/nhappApi/types";
 
 // ─── Gallery (full detail) → Book ─────────────────────────────────────────────
 

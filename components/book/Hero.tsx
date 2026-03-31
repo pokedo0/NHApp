@@ -3,8 +3,8 @@ import {
   getCharactersWithCards,
   getGlobalCharacterCardForCharacter,
   Rect,
-} from "@/api/characterCards";
-import type { Book } from "@/api/nhentai";
+} from "@/api/nhappApi/characterCards";
+import type { Book } from "@/api/nhappApi/types";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { CharacterCropModal } from "@/components/CharacterCropModal";
 import { CharacterSelectModal } from "@/components/CharacterSelectModal";

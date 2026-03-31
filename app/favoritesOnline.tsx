@@ -9,13 +9,13 @@ import {
   View,
 } from "react-native";
 
-import type { Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhappApi/types";
 import { getFavorites, hasSession } from "@/api/v2";
 import { BROWSE_CARDS_PER_PAGE } from "@/utils/browseGridPageSize";
 import { galleryCardToBook } from "@/api/v2/compat";
 import BookListOnline from "@/components/BookListOnline";
 import PaginationBar from "@/components/PaginationBar";
-import { subscribeToStorageApplied } from "@/api/cloudStorage";
+import { subscribeToStorageApplied } from "@/api/nhappApi/cloudStorage";
 import { mergeOnlineFavoriteIds } from "@/lib/onlineFavoritesStorage";
 import { INFINITE_SCROLL_KEY } from "@/components/settings/keys";
 import { scrollToTop } from "@/utils/scrollToTop";
