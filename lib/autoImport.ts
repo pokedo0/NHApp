@@ -1,5 +1,5 @@
 import { requestStoragePush } from "@/api/cloudStorage";
-import { onlineBulkFavorite } from "@/api/nhentaiOnline";
+import { bulkAddFavoritesV2 } from "@/lib/onlineFavoritesBulk";
 import { addOnlineFavoriteIds } from "@/lib/onlineFavoritesStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 const K_LOCAL_FAV = "bookFavorites";
@@ -60,7 +60,7 @@ async function flushPendingBatches(): Promise<{ sent: number }> {
   for (let i = 0; i < ids.length; i += BATCH_SIZE) {
     const chunk = ids.slice(i, i + BATCH_SIZE);
     try {
-      const { failed } = await onlineBulkFavorite(chunk);
+      const { failed } = await bulkAddFavoritesV2(chunk);
       const ok = chunk.filter((id) => !failed.includes(id));
       ok.forEach((id) => {
         cache.add(id);

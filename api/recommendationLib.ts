@@ -250,3 +250,39 @@ export async function fetchBooksFromRecommendationLib(
   }
   return hydrateMissingThumbnails(out);
 }
+
+/**
+ * Batch lookup of tag popularity (book counts in recommendation_lib) from nhapp-api.
+ */
+export async function fetchTagCountsLookup(
+  names: string[]
+): Promise<Map<string, number>> {
+  const base = nhappApiBase();
+  const unique = [
+    ...new Set(names.map((n) => String(n).trim().toLowerCase()).filter(Boolean)),
+  ];
+  const map = new Map<string, number>();
+  if (unique.length === 0) return map;
+
+  const CHUNK = 500;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const slice = unique.slice(i, i + CHUNK);
+    try {
+      const res = await fetch(`${base}/api/recommendation-lib/tag-counts/lookup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ names: slice }),
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        tagCounts?: { tagName: string; count: number }[];
+      };
+      for (const row of data.tagCounts ?? []) {
+        map.set(String(row.tagName).trim().toLowerCase(), row.count ?? 0);
+      }
+    } catch {
+      /* offline / timeout */
+    }
+  }
+  return map;
+}

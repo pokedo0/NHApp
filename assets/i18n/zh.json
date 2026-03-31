@@ -667,21 +667,27 @@
     },
     "emptyTitle": {
       "default": "暂时还没有推荐",
-      "noFav": "暂无推荐——先把一些书加入收藏吧"
+      "noFav": "暂时还没有可推荐的内容"
     },
     "emptySubtitle": {
       "default": "试着修改筛选条件或刷新列表。",
-      "noFav": "先给几本书点个赞，我会为你推荐相似的作品。"
+      "noFav": "先搜索、加入收藏（本地或在线）、阅读，或给标签加星，然后下拉刷新。"
     },
-    "howItWorks": "工作原理",
+    "howItWorks": "推荐设置",
     "loading": "正在生成推荐…",
     "modal": {
-      "title": "推荐系统工作原理",
+      "title": "推荐设置",
       "dataSection": "使用的数据",
+      "tagPopCalibration": "标签热度与你的信号",
+      "tagPopCalibrationHint": "α=滑块/100，分数=raw/pop^(1−α)。0 为 raw÷pop（小众更靠前），100 为原始分。不同 pop 排名变化不同。",
+      "tagPopCalibrationLow": "小众 (0)",
+      "tagPopCalibrationHigh": "原始 (100)",
       "topPrefs": "检测到的偏好",
       "queriesSection": "执行的查询",
       "algorithm": "评分算法",
       "algorithmDesc": "每本书根据与您的偏好信号的匹配程度进行评分。您互动过的标签、艺术家和同人原作权重最高。已在收藏或历史记录中的书籍将被排除。首选语言获得10%加成。",
+      "algorithmColdDesc": "推荐需要至少一种信号：搜索、收藏、阅读历史或收藏的标签。请先使用应用，再刷新此页面。",
+      "coldStartHint": "还没有可供学习的数据。请先搜索、收藏、阅读或给标签加星，然后下拉刷新。",
       "refreshNote": "推荐仅在下拉刷新或重新打开应用时更新。",
       "favs": "本地收藏",
       "onlineFavs": "在线收藏",
@@ -690,7 +696,24 @@
       "searchHist": "搜索历史",
       "tags": "标签",
       "artists": "艺术家",
-      "parodies": "同人原作"
+      "parodies": "同人原作",
+      "filtersSection": "已启用的标签过滤器",
+      "filterInclude": "必须包含",
+      "filterExclude": "已排除",
+      "pageSection": "页数偏好",
+      "pageAvg": "平均阅读页数",
+      "pages": "页",
+      "pageRange": "偏好范围",
+      "pageTendency": "倾向",
+      "pageLabel": {
+        "short": "短篇",
+        "medium": "中篇",
+        "long": "长篇",
+        "mixed": "长短不一"
+      },
+      "yearSection": "偏好上传年份",
+      "books": "本",
+      "generation": "刷新代数"
     }
   },
   "sync": {

@@ -667,21 +667,27 @@
     },
     "emptyTitle": {
       "default": "まだおすすめはありません",
-      "noFav": "おすすめがありません ― まず本をお気に入りに追加してください"
+      "noFav": "まだおすすめの材料がありません"
     },
     "emptySubtitle": {
       "default": "フィルターを変えるか、リストを更新してみてください。",
-      "noFav": "いくつかの本に「いいね」すると、似た作品を探します。"
+      "noFav": "検索したり、お気に入りに追加したり、読んだり、タグに星を付けたりしてから、下に引いて更新してください。"
     },
-    "howItWorks": "仕組みを見る",
+    "howItWorks": "おすすめ設定",
     "loading": "おすすめを作成中…",
     "modal": {
-      "title": "おすすめの仕組み",
+      "title": "おすすめ設定",
       "dataSection": "使用データ",
+      "tagPopCalibration": "タグの人気度とあなたのシグナル",
+      "tagPopCalibrationHint": "α=スライダー/100。スコア=raw/pop^(1−α)。0=raw÷pop（ニッチが上がる）、100=生。popが違うと順位が変わる。",
+      "tagPopCalibrationLow": "ニッチ (0)",
+      "tagPopCalibrationHigh": "そのまま (100)",
       "topPrefs": "検出された好み",
       "queriesSection": "実行されたクエリ",
       "algorithm": "スコアリングアルゴリズム",
       "algorithmDesc": "各作品は、あなたの好みシグナルとの一致度でスコアリングされます。インタラクションしたタグ・アーティスト・元ネタが最も高いスコアになります。お気に入りや履歴にある作品は除外されます。優先言語は10%ボーナスを得ます。",
+      "algorithmColdDesc": "おすすめには少なくとも1つのシグナル（検索・お気に入り・読書履歴・お気に入りタグ）が必要です。しばらく使ってからこの画面を更新してください。",
+      "coldStartHint": "まだ学習するデータがありません。検索・お気に入り・読書・タグの星を付けたあと、下に引いて更新してください。",
       "refreshNote": "おすすめは下に引いて更新するか、アプリを再起動したときのみ更新されます。",
       "favs": "ローカルお気に入り",
       "onlineFavs": "オンラインお気に入り",
@@ -690,7 +696,24 @@
       "searchHist": "検索履歴",
       "tags": "タグ",
       "artists": "アーティスト",
-      "parodies": "元ネタ"
+      "parodies": "元ネタ",
+      "filtersSection": "有効なタグフィルター",
+      "filterInclude": "必須",
+      "filterExclude": "除外",
+      "pageSection": "ページ数の好み",
+      "pageAvg": "平均読了ページ数",
+      "pages": "ページ",
+      "pageRange": "好みの範囲",
+      "pageTendency": "傾向",
+      "pageLabel": {
+        "short": "短編",
+        "medium": "中編",
+        "long": "長編",
+        "mixed": "長さ混合"
+      },
+      "yearSection": "好みのアップロード年",
+      "books": "冊",
+      "generation": "更新世代"
     }
   },
   "sync": {

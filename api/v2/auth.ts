@@ -12,6 +12,7 @@
  * POST /api/v2/auth/reset/confirm  Confirm password reset with token
  */
 
+import { clearUserLocalDataOnLogout } from "@/lib/clearUserLocalDataOnLogout";
 import { nhApi, storeTokens, clearTokens, loadRefreshToken } from "./client";
 import type { AuthTokens, Session, SuccessResponse } from "./types";
 
@@ -93,12 +94,14 @@ export async function logout(): Promise<void> {
     }
   }
   await clearTokens();
+  await clearUserLocalDataOnLogout();
 }
 
 /** Revoke all sessions for this account. */
 export async function logoutAll(): Promise<SuccessResponse> {
   const result = await nhApi.post<SuccessResponse>("/auth/logout/all", {});
   await clearTokens();
+  await clearUserLocalDataOnLogout();
   return result;
 }
 

@@ -1,7 +1,6 @@
 import type { Book } from "@/api/nhentai";
 import { getRandomGalleryId, getGallery, getMe, initCdn } from "@/api/v2";
 import { galleryToBook } from "@/api/v2/compat";
-import { updateReadHistory } from "@/app/read";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
@@ -17,7 +16,6 @@ import {
     StyleSheet,
     Text,
     View,
-    ViewToken,
 } from "react-native";
 
 import { isElectron, openReaderWindow } from "@/electron/bridge";
@@ -93,35 +91,6 @@ export default function BookScreen() {
   const scrollPositionRef = useRef<number>(0);
   const prevDataLengthRef = useRef<number>(0);
   const prevColsRef = useRef<number>(cols);
-  const lastSavedPageRef = useRef<number | null>(null);
-  const historyUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const bookRef = useRef(book);
-  const bookIdRef = useRef(book?.id);
-  const bookPagesRef = useRef(book?.pages);
-  useEffect(() => {
-    bookRef.current = book;
-    bookIdRef.current = book?.id;
-    bookPagesRef.current = book?.pages;
-  }, [book]);
-  const handleViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    const currentBook = bookRef.current;
-    const currentBookId = bookIdRef.current;
-    const currentPages = bookPagesRef.current;
-    if (!currentBookId || !currentPages || viewableItems.length === 0) return;
-    const firstVisible = viewableItems[0];
-    if (!firstVisible?.item) return;
-    const currentPage = firstVisible.item.page;
-    if (lastSavedPageRef.current !== currentPage) {
-      if (historyUpdateTimeoutRef.current) {
-        clearTimeout(historyUpdateTimeoutRef.current);
-      }
-      historyUpdateTimeoutRef.current = setTimeout(() => {
-        updateReadHistory(currentBookId, currentPage, currentPages.length);
-        lastSavedPageRef.current = currentPage;
-        console.log('[Book] History saved:', currentBookId, currentPage, currentPages.length);
-      }, 2000) as any;
-    }
-  }, []); 
   useEffect(() => {
     setListW(win.w);
   }, [win.w]);
@@ -491,11 +460,6 @@ export default function BookScreen() {
           if (h > 0) {
             setCommentSectionOffset(h * 0.8);
           }
-        }}
-        onViewableItemsChanged={handleViewableItemsChanged}
-        viewabilityConfig={{
-          itemVisiblePercentThreshold: 50, 
-          minimumViewTime: 500, 
         }}
         onLayout={(e) => {
           const newWidth = e.nativeEvent.layout.width;

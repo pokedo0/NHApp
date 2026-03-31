@@ -22,26 +22,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import LoadingSpinner from "./LoadingSpinner";
 
-import { getFavorites, type Book } from "@/api/nhentai";
+import type { Book } from "@/api/nhentai";
+import { fetchBooksFromRecommendationLib } from "@/api/recommendationLib";
 import { addFavorite, removeFavorite } from "@/api/v2";
 import {
   addOnlineFavoriteIds,
   removeOnlineFavoriteIds,
 } from "@/lib/onlineFavoritesStorage";
-
-// Bulk helpers — sequential with small delay to avoid rate limiting
-async function onlineBulkFavorite(
-  ids: number[],
-  onProgress?: (done: number, total: number) => void
-): Promise<{ failed: number[] }> {
-  const failed: number[] = [];
-  for (let i = 0; i < ids.length; i++) {
-    try { await addFavorite(ids[i]); } catch { failed.push(ids[i]); }
-    onProgress?.(i + 1, ids.length);
-    await new Promise((r) => setTimeout(r, 120));
-  }
-  return { failed };
-}
+import { bulkAddFavoritesV2 } from "@/lib/onlineFavoritesBulk";
 
 async function onlineBulkUnfavorite(
   ids: number[],
@@ -150,7 +138,7 @@ export default function BookListOnline({
         await onlineFavorite(ids[0]);
         await addOnlineFavoriteIds(ids);
       } else {
-        const { failed } = await onlineBulkFavorite(ids);
+        const { failed } = await bulkAddFavoritesV2(ids);
         const ok = ids.filter((id) => !failed.includes(id));
         await addOnlineFavoriteIds(ok);
       }
@@ -357,10 +345,10 @@ export default function BookListOnline({
     }
     setImportBusy(true);
     try {
-      const { books } = await getFavorites({
-        ids: localIds,
-        perPage: Math.max(24, localIds.length),
-      });
+      const books = await fetchBooksFromRecommendationLib(
+        localIds.slice().reverse(),
+        { placeholdersForMissing: true }
+      );
       setLocalBooks(books);
       setLocalSelected(new Set());
       setImportOpen(true);
@@ -393,7 +381,7 @@ export default function BookListOnline({
     }
     setImportBusy(true);
     try {
-      const { failed } = await onlineBulkFavorite(ids);
+      const { failed } = await bulkAddFavoritesV2(ids);
       const ok = ids.filter((id) => !failed.includes(id));
       await addOnlineFavoriteIds(ok);
       Alert.alert(

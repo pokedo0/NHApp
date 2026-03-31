@@ -195,6 +195,8 @@ export function SearchBar() {
     hasSeg(pathname, "favorites") ||
     hasSeg(pathname, "favoritesOnline");
 
+  const hideSearchFilter = hasSeg(pathname, "recommendations");
+
 
   const backOne = () => {
     setBackOpen(false);
@@ -473,36 +475,40 @@ export function SearchBar() {
               </IconBtn>
             )}
 
-            <IconBtn
-              onPress={() => {
-                router.push({
-                  pathname: "/search",
-                  params: q ? { query: q } : {},
-                });
-              }}
-            >
-              <Feather name="search" size={18} color={colors.searchTxt} />
-            </IconBtn>
+            {!hideSearchFilter && (
+              <IconBtn
+                onPress={() => {
+                  router.push({
+                    pathname: "/search",
+                    params: q ? { query: q } : {},
+                  });
+                }}
+              >
+                <Feather name="search" size={18} color={colors.searchTxt} />
+              </IconBtn>
+            )}
 
-            <FilterDropdown
-              value={uploaded ?? sort}
-              secondaryValue={uploaded ? sort : undefined}
-              onChange={(val) => {
-                const isDatePreset = DATE_PRESETS.some((p) => p.value === val);
-                if (isDatePreset) {
-                  setUploaded(val === uploaded ? null : val);
-                } else {
-                  setSort(val as SortKey);
-                }
-              }}
-              options={sortSelectItems}
-              keepOpen
-              trigger={({ onPress }) => (
-                <IconBtn onPress={onPress}>
-                  <Feather name="filter" size={18} color={colors.accent} />
-                </IconBtn>
-              )}
-            />
+            {!hideSearchFilter && (
+              <FilterDropdown
+                value={uploaded ?? sort}
+                secondaryValue={uploaded ? sort : undefined}
+                onChange={(val) => {
+                  const isDatePreset = DATE_PRESETS.some((p) => p.value === val);
+                  if (isDatePreset) {
+                    setUploaded(val === uploaded ? null : val);
+                  } else {
+                    setSort(val as SortKey);
+                  }
+                }}
+                options={sortSelectItems}
+                keepOpen
+                trigger={({ onPress }) => (
+                  <IconBtn onPress={onPress}>
+                    <Feather name="filter" size={18} color={colors.accent} />
+                  </IconBtn>
+                )}
+              />
+            )}
 
             <IconBtn onPress={() => router.push("/tags")}>
               <Feather name="tag" size={18} color={colors.accent} />

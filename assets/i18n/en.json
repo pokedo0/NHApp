@@ -676,21 +676,27 @@
     },
     "emptyTitle": {
       "default": "No recommendations yet",
-      "noFav": "No recommendations — add some books to favorites"
+      "noFav": "Nothing to recommend yet"
     },
     "emptySubtitle": {
       "default": "Try changing the filters or refreshing the list.",
-      "noFav": "Like a few books and I'll find similar ones."
+      "noFav": "Search for titles, add favorites (local or online), read books, or star tags — then pull to refresh."
     },
-    "howItWorks": "How it works",
+    "howItWorks": "Recommendation settings",
     "loading": "Building recommendations…",
     "modal": {
-      "title": "How recommendations work",
+      "title": "Recommendation settings",
       "dataSection": "Your data used",
+      "tagPopCalibration": "Tag popularity vs. your signal",
+      "tagPopCalibrationHint": "α = slider/100. Score = raw / pop^(1−α). At 0: raw÷pop (niche tags rise in the list, common tags fall). At 100: raw score (pop ignored). Each row: raw/(pop^exp)=score with exp=1−α — different tags move at different rates.",
+      "tagPopCalibrationLow": "Niche (0)",
+      "tagPopCalibrationHigh": "Raw (100)",
       "topPrefs": "Top detected preferences",
       "queriesSection": "Queries executed",
       "algorithm": "Scoring algorithm",
       "algorithmDesc": "Each book is scored by matching your preference signals. Tags, artists, and parodies you've interacted with score highest. Books already in your favorites or history are excluded. The preferred language gets a 10% bonus.",
+      "algorithmColdDesc": "Recommendations need at least one signal: search queries, favorites, reading history, or starred tags. Use the app for a bit, then refresh this screen.",
+      "coldStartHint": "There is no data to learn from yet. Search, like books, read, or favorite tags — recommendations will appear after you pull to refresh.",
       "refreshNote": "Recommendations update only on pull-to-refresh or when you re-open the app.",
       "favs": "Local favorites",
       "onlineFavs": "Online favorites",
@@ -699,7 +705,24 @@
       "searchHist": "Search history",
       "tags": "Tags",
       "artists": "Artists",
-      "parodies": "Parodies"
+      "parodies": "Parodies",
+      "filtersSection": "Active tag filters",
+      "filterInclude": "Required",
+      "filterExclude": "Excluded",
+      "pageSection": "Page length preference",
+      "pageAvg": "Average pages read",
+      "pages": "pages",
+      "pageRange": "Preferred range",
+      "pageTendency": "Tendency",
+      "pageLabel": {
+        "short": "short books",
+        "medium": "medium-length books",
+        "long": "long books",
+        "mixed": "mixed lengths"
+      },
+      "yearSection": "Preferred upload years",
+      "books": "books",
+      "generation": "Refresh generation"
     }
   },
   "sync": {

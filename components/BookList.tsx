@@ -272,31 +272,37 @@ export default function BookList<T extends Book = Book>({
       }
     };
 
+    const emptyWeb =
+      uniqueData.length === 0 && !loading
+        ? ((ListEmptyComponent as ReactElement) ?? <Empty />)
+        : null;
+
     return (
       <View
         style={[styles.container, { backgroundColor: themeBg, position: "relative" }]}
       >
-        {uniqueData.length === 0 && !loading ? (
-          (ListEmptyComponent as ReactElement) ?? <Empty />
-        ) : (
-          <ScrollView
-            ref={listRef as React.RefObject<ScrollView>}
-            style={webGridStyles.scroll}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-            onScroll={handleWebScroll}
-            scrollEventThrottle={16}
-            contentContainerStyle={[
-              webGridStyles.content,
-              {
-                paddingHorizontal,
-                paddingTop: topPad,
-                paddingBottom: bottomPad || undefined,
-              },
-            ]}
-          >
-            {ListHeaderComponent}
+        <ScrollView
+          ref={listRef as React.RefObject<ScrollView>}
+          style={webGridStyles.scroll}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onScroll={handleWebScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={[
+            webGridStyles.content,
+            {
+              paddingHorizontal,
+              paddingTop: topPad,
+              paddingBottom: bottomPad || undefined,
+              flexGrow: uniqueData.length === 0 ? 1 : undefined,
+            },
+          ]}
+        >
+          {ListHeaderComponent}
+          {emptyWeb ? (
+            emptyWeb
+          ) : (
             <View style={[webGridStyles.wrap, { gap: columnGap }]}>
               {uniqueData.map((item) => {
                 return (
@@ -314,9 +320,9 @@ export default function BookList<T extends Book = Book>({
                 );
               })}
             </View>
-            {loading ? <LoadingSpinner /> : ListFooterComponent}
-          </ScrollView>
-        )}
+          )}
+          {loading ? <LoadingSpinner /> : ListFooterComponent}
+        </ScrollView>
         {children}
       </View>
     );
@@ -353,11 +359,8 @@ export default function BookList<T extends Book = Book>({
         { backgroundColor: themeBg, position: "relative" },
       ]}
     >
-      {uniqueData.length === 0 && !loading ? (
-        (ListEmptyComponent as ReactElement) ?? <Empty />
-      ) : (
-        <>
-          <FlatList
+      <>
+        <FlatList
             ref={listRef}
             key={listKey}
             horizontal={horizontal}
@@ -370,7 +373,13 @@ export default function BookList<T extends Book = Book>({
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
+            ListEmptyComponent={
+              !loading
+                ? ((ListEmptyComponent as ReactElement) ?? <Empty />)
+                : undefined
+            }
             contentContainerStyle={{
+              flexGrow: !horizontal && uniqueData.length === 0 ? 1 : undefined,
               paddingHorizontal,
               paddingTop: topPad,
               paddingBottom: bottomPad || undefined,
@@ -450,7 +459,6 @@ export default function BookList<T extends Book = Book>({
             </>
           )}
         </>
-      )}
       {children}
     </View>
   );
