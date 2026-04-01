@@ -7,13 +7,6 @@
 
 # dependencies
 node_modules/*
-!api/online
-!api/nhentai-tags.json
-!api/nhentai.ts
-!api/nhentaiOnline.ts
-!api/auth.ts
-!api/RuTags.json
-!api/EnTags.json
 
 # Expo
 .expo/
