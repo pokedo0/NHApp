@@ -128,8 +128,13 @@
     "react-native-svg-transformer": "^1.5.1",
     "typescript": "~5.9.2"
   },
+  "resolutions": {
+    "tar": "^7.5.13",
+    "markdown-it": "^14.1.0",
+    "@tootallnate/once": "^3.0.1"
+  },
   "overrides": {
-    "tar": "^7.4.3",
+    "tar": "^7.5.13",
     "minimatch": "^10.2.1",
     "semver": "^7.6.0",
     "glob": "^11.0.0"
