@@ -138,10 +138,16 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
-    const load = () =>
-      AsyncStorage.getItem(FS_KEY).then((raw) => {
+    const load = () => {
+      // Desktop/Electron: never hide window chrome via mobile fullscreen setting.
+      if (Platform.OS === "web" && isElectron()) {
+        setFullscreen(false);
+        return Promise.resolve();
+      }
+      return AsyncStorage.getItem(FS_KEY).then((raw) => {
         setFullscreen(raw === "true");
       });
+    };
     load();
     const unsub = subscribeToStorageApplied(load);
     return unsub;
@@ -149,12 +155,14 @@ function AppShell() {
 
   const fullscreenPushSkipRef = React.useRef(true);
   useEffect(() => {
+    if (Platform.OS === "web" && isElectron()) return;
     AsyncStorage.setItem(FS_KEY, fullscreen ? "true" : "false").catch(() => {});
     if (!fullscreenPushSkipRef.current) requestStoragePush();
     fullscreenPushSkipRef.current = false;
   }, [fullscreen]);
 
   useEffect(() => {
+    if (Platform.OS === "web" && isElectron()) return;
     (async () => {
       try {
         if (fullscreen) {
