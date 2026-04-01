@@ -1,3 +1,14 @@
+import { getGallery, getRandomGalleryId, initCdn } from "@/api/v2";
+import { galleryToBook } from "@/api/v2/compat";
+import { resolveImageUrl } from "@/api/v2/config";
+import { CardPressable } from "@/components/ui/CardPressable";
+import { IconBtn } from "@/components/ui/IconBtn";
+import { Section } from "@/components/ui/Section";
+import { LIBRARY_MENU, type MenuItem as LibraryMenuItem } from "@/constants/Menu";
+import { useAuthBridge } from "@/hooks/useAuthBridge";
+import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
+import type { MenuRoute } from "@/types/routes";
 import { Feather } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import React from "react";
@@ -14,18 +25,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getRandomGalleryId, getGallery, initCdn } from "@/api/v2";
-import { resolveImageUrl } from "@/api/v2/config";
-import { galleryToBook } from "@/api/v2/compat";
-import { LIBRARY_MENU, type MenuItem as LibraryMenuItem } from "@/constants/Menu";
-import { useAuthBridge } from "@/hooks/useAuthBridge";
-import { useTheme } from "@/lib/ThemeContext";
-import { useI18n } from "@/lib/i18n/I18nContext";
-import type { MenuRoute } from "@/types/routes";
 import { LoginModal } from "./LoginModal";
-import { CardPressable } from "@/components/ui/CardPressable";
-import { IconBtn } from "@/components/ui/IconBtn";
-import { Section } from "@/components/ui/Section";
 const M3_RADIUS = 12;
 const M3_SPACING = 12;
 const M3_RAIL_ITEM_SIZE = 48;
@@ -228,6 +228,12 @@ export default function SideMenu({
       : colors.menuTxt;
     const tileBg = active && !locked ? colors.accent + "1A" : "transparent";
     const fontWeight = active ? "600" : "500";
+    const NEW_BADGE_UNTIL_MS = Date.parse("2026-05-01T00:00:00.000Z");
+    const showNewBadge =
+      Date.now() < NEW_BADGE_UNTIL_MS &&
+      item.route === "/recommendations" &&
+      !locked &&
+      !isRail;
     return (
       <CardPressable
         ripple={rippleItem}
@@ -294,6 +300,31 @@ export default function SideMenu({
                   </Text>
                 ) : null}
               </View>
+              {showNewBadge ? (
+                <View
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 999,
+                    backgroundColor: colors.accent,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: colors.accent + "AA",
+                    marginRight: 6,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: colors.bg,
+                      fontSize: 10,
+                      fontWeight: "800",
+                      letterSpacing: 0.6,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {t("menu.new")}
+                  </Text>
+                </View>
+              ) : null}
               {locked ? null : disabled ? (
                 <Feather name="lock" size={14} color={colors.sub} />
               ) : (

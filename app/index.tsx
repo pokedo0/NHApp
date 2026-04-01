@@ -295,12 +295,24 @@ export default function HomeScreen() {
       let inFlight = false;
       let appState: "active" | "background" | "inactive" =
         (AppState.currentState as any) ?? "active";
+      let webVisible = true;
+      if (Platform.OS === "web") {
+        try {
+          webVisible = !(globalThis as any).document?.hidden;
+        } catch {
+          webVisible = true;
+        }
+      }
 
       const intervalMs = 75_000;
 
       const tick = async () => {
         if (cancelled || inFlight) return;
-        if (appState !== "active") return;
+        if (Platform.OS === "web") {
+          if (!webVisible) return;
+        } else if (appState !== "active") {
+          return;
+        }
         // If user is not on the first page or not sorted by date, avoid background polling.
         if (currentPage !== 1 || sort !== "date") return;
 
@@ -312,10 +324,35 @@ export default function HomeScreen() {
         }
       };
 
-      const sub = AppState.addEventListener("change", (next) => {
-        appState = next as any;
-        if (next === "active") void tick();
-      });
+      const sub =
+        Platform.OS === "web"
+          ? null
+          : AppState.addEventListener("change", (next) => {
+              appState = next as any;
+              if (next === "active") void tick();
+            });
+
+      const onVisibility = () => {
+        try {
+          webVisible = !(globalThis as any).document?.hidden;
+        } catch {
+          webVisible = true;
+        }
+        if (webVisible) void tick();
+      };
+      const onWindowFocus = () => void tick();
+
+      if (Platform.OS === "web") {
+        try {
+          (globalThis as any).document?.addEventListener?.(
+            "visibilitychange",
+            onVisibility
+          );
+          (globalThis as any).addEventListener?.("focus", onWindowFocus);
+        } catch {
+          // ignore
+        }
+      }
 
       const t0 = setTimeout(() => void tick(), 5_000);
       const id = setInterval(() => void tick(), intervalMs);
@@ -323,7 +360,19 @@ export default function HomeScreen() {
         cancelled = true;
         clearTimeout(t0);
         clearInterval(id);
-        sub.remove();
+        if (Platform.OS === "web") {
+          try {
+            (globalThis as any).document?.removeEventListener?.(
+              "visibilitychange",
+              onVisibility
+            );
+            (globalThis as any).removeEventListener?.("focus", onWindowFocus);
+          } catch {
+            // ignore
+          }
+        } else {
+          sub?.remove();
+        }
       };
     }, [isHydrated, isPaginating, currentPage, sort, onRefresh])
   );
