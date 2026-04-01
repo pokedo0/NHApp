@@ -366,6 +366,8 @@ export function LoginModal({
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   editable={!busy}
                   placeholder="••••••••"
                   placeholderTextColor={subC + "99"}
@@ -386,6 +388,8 @@ export function LoginModal({
                   value={password2}
                   onChangeText={setPassword2}
                   secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   editable={!busy}
                   placeholder="••••••••"
                   placeholderTextColor={subC + "99"}

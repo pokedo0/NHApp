@@ -1,29 +1,29 @@
-import type { Book } from "@/api/nhappApi/types";
 import { fetchBooksFromRecommendationLib } from "@/api/nhappApi/recommendationLib";
+import type { Book } from "@/api/nhappApi/types";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { LinearGradient } from "expo-linear-gradient";
 import React, {
-    ReactElement,
-    ReactNode,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  ReactElement,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import {
-    Animated,
-    FlatList,
-    ListRenderItem,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    View,
-    useWindowDimensions,
+  Animated,
+  FlatList,
+  ListRenderItem,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
 } from "react-native";
 import BookCard from "./BookCard";
 import LoadingSpinner from "./LoadingSpinner";
@@ -179,6 +179,67 @@ export default function BookList<T extends Book = Book>({
 
   const [enrichedById, setEnrichedById] = useState<Record<number, Book>>({});
 
+  // Lazy enrichment queue: only fetch metadata for actually rendered cards.
+  const enrichQueuedRef = useRef<Set<number>>(new Set());
+  const enrichInFlightRef = useRef<Set<number>>(new Set());
+  const enrichTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enrichLastFetchAtRef = useRef<number>(0);
+
+  const flushEnrichQueue = useCallback(() => {
+    if (enrichTimerRef.current) {
+      clearTimeout(enrichTimerRef.current);
+      enrichTimerRef.current = null;
+    }
+    const now = Date.now();
+    const MIN_INTERVAL_MS = 10000; // don't spam backend while it scans
+    if (now - enrichLastFetchAtRef.current < MIN_INTERVAL_MS) {
+      enrichTimerRef.current = setTimeout(
+        flushEnrichQueue,
+        MIN_INTERVAL_MS - (now - enrichLastFetchAtRef.current)
+      );
+      return;
+    }
+    const queued = Array.from(enrichQueuedRef.current);
+    enrichQueuedRef.current.clear();
+    if (!queued.length) return;
+
+    // Limit per flush to keep UI responsive.
+    const BATCH = 25;
+    const ids = queued.slice(0, BATCH);
+    for (const id of ids) enrichInFlightRef.current.add(id);
+    enrichLastFetchAtRef.current = Date.now();
+
+    void (async () => {
+      try {
+        const enriched = await fetchBooksFromRecommendationLib(ids);
+        const next: Record<number, Book> = {};
+        for (const b of enriched) next[b.id] = b;
+        setEnrichedById((prev) => ({ ...prev, ...next }));
+      } catch {
+        // offline / server down: ignore
+      } finally {
+        for (const id of ids) enrichInFlightRef.current.delete(id);
+        // If more were queued while fetching, schedule another flush.
+        if (enrichQueuedRef.current.size) {
+          enrichTimerRef.current = setTimeout(flushEnrichQueue, 300);
+        }
+      }
+    })();
+  }, []);
+
+  const requestEnrich = useCallback(
+    (id: number) => {
+      if (!Number.isFinite(id) || id <= 0) return;
+      if (enrichedById[id]) return;
+      if (enrichInFlightRef.current.has(id)) return;
+      enrichQueuedRef.current.add(id);
+      if (!enrichTimerRef.current) {
+        enrichTimerRef.current = setTimeout(flushEnrichQueue, 300);
+      }
+    },
+    [enrichedById, flushEnrichQueue]
+  );
+
   const mergeEnriched = useCallback((base: T, enriched?: Book): T => {
     if (!enriched) return base;
     const bAny: any = base as any;
@@ -228,25 +289,13 @@ export default function BookList<T extends Book = Book>({
   }, []);
 
   useEffect(() => {
-    if (horizontal) return;
-    const ids = uniqueData.map((b) => b.id).filter((n) => Number.isFinite(n) && n > 0);
-    if (ids.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const enriched = await fetchBooksFromRecommendationLib(ids);
-        if (cancelled) return;
-        const next: Record<number, Book> = {};
-        for (const b of enriched) next[b.id] = b;
-        setEnrichedById((prev) => ({ ...prev, ...next }));
-      } catch {
-        // offline / server down: ignore
-      }
-    })();
     return () => {
-      cancelled = true;
+      if (enrichTimerRef.current) clearTimeout(enrichTimerRef.current);
+      enrichTimerRef.current = null;
+      enrichQueuedRef.current.clear();
+      enrichInFlightRef.current.clear();
     };
-  }, [horizontal, uniqueData]);
+  }, []);
 
   const updateFades = (x: number, cW: number, vW: number) => {
     const canScroll = horizontal && cW > vW + 1;
@@ -277,6 +326,15 @@ export default function BookList<T extends Book = Book>({
       const isLastInRow = !horizontal && (index + 1) % cols === 0;
       const isLastHoriz = horizontal && index === uniqueData.length - 1;
       const merged = !horizontal ? mergeEnriched(item, enrichedById[item.id]) : item;
+
+      if (!horizontal) {
+        const anyMerged: any = merged as any;
+        const hasAnyTags =
+          (Array.isArray(anyMerged?.tags) && anyMerged.tags.length > 0) ||
+          (Array.isArray(anyMerged?.artists) && anyMerged.artists.length > 0) ||
+          (Array.isArray(anyMerged?.languages) && anyMerged.languages.length > 0);
+        if (!hasAnyTags) requestEnrich(item.id);
+      }
 
       return (
         <View
@@ -313,6 +371,7 @@ export default function BookList<T extends Book = Book>({
       onPress,
       enrichedById,
       mergeEnriched,
+      requestEnrich,
     ]
   );
 
@@ -332,9 +391,13 @@ export default function BookList<T extends Book = Book>({
   // ─── Web grid: ScrollView + flex-wrap (no FlatList remount on resize) ───
   if (useWebGrid) {
     const endFiredRef = useRef(false);
+    const [webScrollY, setWebScrollY] = useState(0);
+    const [webViewportH, setWebViewportH] = useState(0);
 
     const handleWebScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+      setWebScrollY(contentOffset.y);
+      setWebViewportH(layoutMeasurement.height);
       const distFromEnd =
         contentSize.height - contentOffset.y - layoutMeasurement.height;
       const threshold = layoutMeasurement.height * 0.4;
@@ -352,6 +415,24 @@ export default function BookList<T extends Book = Book>({
       uniqueData.length === 0 && !loading
         ? ((ListEmptyComponent as ReactElement) ?? <Empty />)
         : null;
+
+    // Enrich only visible window (avoid spamming: web grid renders all items).
+    const rowH = estCardH + columnGap;
+    const startRow = rowH > 0 ? Math.max(0, Math.floor(webScrollY / rowH) - 1) : 0;
+    const visibleRows = rowH > 0 ? Math.ceil((webViewportH || height) / rowH) + 3 : 8;
+    const startIdx = startRow * cols;
+    const endIdx = Math.min(uniqueData.length, (startRow + visibleRows) * cols);
+    const visibleSlice = uniqueData.slice(startIdx, endIdx);
+    // Queue in render (cheap): requestEnrich is internally debounced + rate-limited.
+    visibleSlice.forEach((item) => {
+      const merged = mergeEnriched(item, enrichedById[item.id]);
+      const anyMerged: any = merged as any;
+      const hasAnyTags =
+        (Array.isArray(anyMerged?.tags) && anyMerged.tags.length > 0) ||
+        (Array.isArray(anyMerged?.artists) && anyMerged.artists.length > 0) ||
+        (Array.isArray(anyMerged?.languages) && anyMerged.languages.length > 0);
+      if (!hasAnyTags) requestEnrich(item.id);
+    });
 
     return (
       <View

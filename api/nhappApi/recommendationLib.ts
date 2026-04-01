@@ -8,6 +8,41 @@ import { galleryToBook } from "@/api/v2/compat";
 import { initCdn, resolveThumbUrl } from "@/api/v2/config";
 import { getGallery } from "@/api/v2/galleries";
 
+function isElectronRenderer(): boolean {
+  return typeof window !== "undefined" && !!(window as any).electron?.isElectron;
+}
+
+async function fetchJsonCompat<T>(url: string): Promise<T> {
+  // Electron renderer served from app:// can hit CORS issues with plain fetch.
+  // Use the preload bridge when available (main process fetch) to bypass CORS.
+  if (isElectronRenderer()) {
+    const e = (window as any).electron;
+    if (e?.fetchJson) {
+      const res = await e.fetchJson(url, {});
+      if (res && typeof res === "object" && "success" in res) {
+        if ((res as any).success) {
+          if ((res as any).data != null) return (res as any).data as T;
+          const body = (res as any).body;
+          if (typeof body === "string" && body.trim()) {
+            try {
+              return JSON.parse(body) as T;
+            } catch (e2: any) {
+              throw new Error(`electron.fetchJson invalid JSON: ${e2?.message || e2}`);
+            }
+          }
+          throw new Error("electron.fetchJson empty body");
+        }
+        throw new Error((res as any).error || `electron.fetchJson failed (status ${(res as any).status ?? "?"})`);
+      }
+      // Some older bridges may return raw JSON.
+      return res as T;
+    }
+  }
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return (await r.json()) as T;
+}
+
 export function nhappApiBase(): string {
   return (
     process.env.EXPO_PUBLIC_API_BASE_URL || "https://nhapp-api.onrender.com"
@@ -227,19 +262,32 @@ export async function fetchBooksFromRecommendationLib(
     const chunk = ordered.slice(i, i + BATCH_CHUNK);
     const q = chunk.join(",");
     const url = `${base}/api/recommendation-lib/books/batch?q=${encodeURIComponent(q)}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`recommendation-lib batch failed: ${res.status}`);
-    }
-    const data = (await res.json()) as {
-      books: RecommendationLibBatchRow[];
-    };
+    // Backend returns `{ books: recommendation_lib rows, missing: number[] }`.
+    // Older code expected `{ books: RecommendationLibBatchRow[] }` — normalize both.
+    const data = await fetchJsonCompat<{
+      books?: any[];
+      missing?: number[];
+    }>(url);
     const byId = new Map<number, Book>();
-    for (const row of data.books ?? []) {
-      const b = recommendationLibRowToBook({
-        ...row,
-        tags: row.tags ?? [],
-      });
+    const normalizeRow = (row: any): RecommendationLibBatchRow => ({
+      book_id: row?.book_id ?? row?.bookId ?? row?.id,
+      media_id: row?.media_id ?? row?.mediaId ?? null,
+      title_english: row?.title_english ?? row?.titleEnglish ?? null,
+      title_japanese: row?.title_japanese ?? row?.titleJapanese ?? null,
+      title_pretty: row?.title_pretty ?? row?.titlePretty ?? null,
+      parodies: row?.parodies ?? [],
+      characters: row?.characters ?? [],
+      artists: row?.artists ?? [],
+      groups: row?.groups ?? [],
+      languages: row?.languages ?? [],
+      categories: row?.categories ?? [],
+      pages: row?.pages ?? 0,
+      uploaded_at: row?.uploaded_at ?? row?.uploadedAt ?? null,
+      tags: row?.tags ?? [],
+    });
+    for (const raw of data.books ?? []) {
+      const row = normalizeRow(raw);
+      const b = recommendationLibRowToBook(row);
       byId.set(b.id, b);
     }
     for (const id of chunk) {

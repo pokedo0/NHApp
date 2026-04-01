@@ -17,6 +17,9 @@ import {
     SectionList,
     SectionListData,
     SectionListRenderItem,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
+    ScrollView,
     StyleSheet,
     Text,
     useWindowDimensions,
@@ -317,6 +320,7 @@ export default function BookListHistory<T extends Book = Book>({
   const onEndReachedRef = useRef(onEndReached);
   const lastRowKeyRef = useRef(lastRowKey);
   const [tick, setTick] = useState(0);
+  const endFiredRef = useRef(false);
 
   useEffect(() => {
     onEndReachedRef.current = onEndReached;
@@ -356,6 +360,27 @@ export default function BookListHistory<T extends Book = Book>({
     []
   );
 
+  const maybeTriggerEndReachedWeb = useCallback(
+    (e: { nativeEvent: { layoutMeasurement: { height: number }; contentOffset: { y: number }; contentSize: { height: number } } }) => {
+      const currentOnEndReached = onEndReachedRef.current;
+      if (!currentOnEndReached) return;
+      // Use a manual "near end" detector on web/Electron: RNW SectionList's onEndReached can be flaky
+      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+      const distFromEnd = contentSize.height - contentOffset.y - layoutMeasurement.height;
+      const threshold = Math.max(120, layoutMeasurement.height * 0.4);
+      if (distFromEnd <= threshold) {
+        if (!endFiredRef.current) {
+          endFiredRef.current = true;
+          currentOnEndReached();
+          setTick((x) => (x + 1) % 100000);
+        }
+      } else {
+        endFiredRef.current = false;
+      }
+    },
+    []
+  );
+
   const containerStyle = useMemo(
     () => [
       styles.container,
@@ -373,6 +398,58 @@ export default function BookListHistory<T extends Book = Book>({
           : Math.max(200, height - 100))
       : undefined;
 
+  if (Platform.OS === "web") {
+    const emptyWeb =
+      sections.length === 0 && !loading ? ((ListEmptyComponent as ReactElement) ?? <Empty />) : null;
+
+    const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      maybeTriggerEndReachedWeb(e as any);
+    };
+
+    return (
+      <View style={containerStyle} onLayout={onContainerLayout}>
+        <ScrollView
+          ref={listRef as any}
+          style={[styles.listWeb, listHeightWeb != null && { height: listHeightWeb }]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onContentSizeChange={() => {
+            endFiredRef.current = false;
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingTop: paddingHorizontal / 2,
+            paddingBottom: 16,
+          }}
+        >
+          {ListHeaderComponent}
+          {emptyWeb ? (
+            emptyWeb
+          ) : (
+            <>
+              {sections.map((sec) => (
+                <View key={sec.key}>
+                  {renderSectionHeader({ section: sec as any })}
+                  {sec.data.map((row, idx) => (
+                    <View key={rowKey(row, idx)}>
+                      {renderRow({ item: row as any, index: idx, section: sec as any, separators: null as any })}
+                    </View>
+                  ))}
+                </View>
+              ))}
+              {loading ? <ActivityIndicator style={styles.loader} /> : ListFooterComponent}
+            </>
+          )}
+        </ScrollView>
+        {children}
+      </View>
+    );
+  }
+
   return (
     <View style={containerStyle} onLayout={onContainerLayout}>
       {sections.length === 0 && !loading ? (
@@ -381,11 +458,7 @@ export default function BookListHistory<T extends Book = Book>({
         <SectionList
           key={`sections-${cols}`}
           ref={listRef}
-          style={
-            Platform.OS === "web"
-              ? [styles.listWeb, listHeightWeb != null && { height: listHeightWeb }]
-              : undefined
-          }
+          style={undefined}
           stickySectionHeadersEnabled={false}
           sections={sections}
           keyExtractor={(row, index) =>
@@ -398,6 +471,9 @@ export default function BookListHistory<T extends Book = Book>({
           }
           onEndReached={onEndReached}
           onEndReachedThreshold={0.4}
+          onScroll={undefined}
+          scrollEventThrottle={undefined}
+          onContentSizeChange={undefined}
           ListFooterComponent={
             loading ? (
               <ActivityIndicator style={styles.loader} />
