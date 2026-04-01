@@ -1,11 +1,18 @@
 import type { Book } from "@/api/nhappApi/types";
+import { getGallery, initCdn } from "@/api/v2";
+import { galleryToBook } from "@/api/v2/compat";
 import { sanitize } from "@/utils/book/sanitize";
 import { useThrottle } from "@/utils/book/useThrottle";
 import * as FileSystem from "expo-file-system/legacy";
 import { useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, ToastAndroid } from "react-native";
 import { electronFileSystem } from "@/utils/electronFileSystem";
+import {
+  clearDownloadProgress,
+  markDownloadFinished,
+  setDownloadProgress,
+} from "@/lib/downloadProgressStore";
 
 export const useDownload = (
   book: Book | null,
@@ -16,7 +23,23 @@ export const useDownload = (
   const router = useRouter();
   const [dl, setDL] = useState(false);
   const [pr, setPr] = useState(0);
-  const setPrThrottled = useThrottle((v: number) => setPr(v), 120);
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+  const setPrThrottled = useThrottle((v: number) => {
+    if (aliveRef.current) setPr(v);
+    setDownloadProgress({
+      active: true,
+      bookId: book?.id ?? null,
+      title: book?.title?.pretty ?? null,
+      cover: book?.cover ?? null,
+      progress: v,
+    });
+  }, 120);
 
   const currentDL = useRef<FileSystem.DownloadResumable | null>(null);
   const cancelReq = useRef(false);
@@ -82,8 +105,17 @@ export const useDownload = (
       ? await pathJoin(nhDirTrimmed, `${book.id}_${title}`, sanitize(lang)) + await (window as any).electron.pathSep()
       : `${nhDirTrimmed}/${book.id}_${title}/${sanitize(lang)}/`;
 
-    setDL(true);
-    setPr(0);
+    if (aliveRef.current) {
+      setDL(true);
+      setPr(0);
+    }
+    setDownloadProgress({
+      active: true,
+      bookId: book.id,
+      title: book.title.pretty,
+      cover: book.cover ?? null,
+      progress: 0,
+    });
     cancelReq.current = false;
 
     try {
@@ -105,9 +137,15 @@ export const useDownload = (
               await fs.deleteAsync(titleDir, { idempotent: true });
               if (Platform.OS === "android")
                 ToastAndroid.show("Deleted", ToastAndroid.SHORT);
-              setLocal(false);
-              setBook(null);
-              router.back();
+              if (aliveRef.current) setLocal(false);
+              // After deleting local copy, stay on the screen and switch to online version.
+              try {
+                await initCdn();
+                const gallery = await getGallery(book.id, { include: ["comments", "related", "favorite"] });
+                if (aliveRef.current) setBook(galleryToBook(gallery));
+              } catch {
+                // If online fetch fails, keep current UI (user may be offline).
+              }
               return;
             } catch {}
           }
@@ -182,11 +220,21 @@ export const useDownload = (
         { encoding: "utf8" }
       );
 
-      setBook((prev: any) => (prev ? { ...prev, pages: pagesCopy } : prev));
-      setPr(1);
+      if (aliveRef.current) {
+        setBook((prev: any) => (prev ? { ...prev, pages: pagesCopy } : prev));
+        setPr(1);
+      }
+      setDownloadProgress({
+        active: true,
+        bookId: book.id,
+        title: book.title.pretty,
+        cover: book.cover ?? null,
+        progress: 1,
+      });
       if (Platform.OS === "android")
         ToastAndroid.show("Saved", ToastAndroid.SHORT);
-      setLocal(true);
+      if (aliveRef.current) setLocal(true);
+      markDownloadFinished(book.id);
     } catch (e: any) {
       if (e?.message === "__CANCELLED__") {
         if (Platform.OS === "android")
@@ -197,10 +245,11 @@ export const useDownload = (
           ToastAndroid.show("Error", ToastAndroid.LONG);
       }
     } finally {
-      setDL(false);
+      if (aliveRef.current) setDL(false);
       cancelReq.current = false;
       currentDL.current = null;
-      setTimeout(() => setPr(0), 150);
+      clearDownloadProgress();
+      if (aliveRef.current) setTimeout(() => setPr(0), 150);
     }
   }, [book, dl, local, router, setLocal, setBook, setPrThrottled]);
 

@@ -395,7 +395,6 @@ export default function BookHeader({
           accessibilityLabel={t("download") || "Download"}
         >
           <Feather name="download" size={15} color={colors.metaText} />
-          <Text style={[s.pillTxt, { color: colors.metaText }]}>{t("download") || "Download"}</Text>
         </Pressable>
       )}
       {!dl && local && (
@@ -406,7 +405,6 @@ export default function BookHeader({
           accessibilityLabel={t("downloaded") || "Downloaded"}
         >
           <Feather name="hard-drive" size={15} color={colors.accent} />
-          <Text style={[s.pillTxt, { color: colors.accent }]}>{t("downloaded") || "Downloaded"}</Text>
         </Pressable>
       )}
       {dl && (
@@ -422,7 +420,6 @@ export default function BookHeader({
               <Feather name="x" size={10} color={colors.accent} />
             </View>
           </View>
-          <Text style={[s.pillTxt, { color: colors.accent }]}>{t("book.downloading") || "Downloading"}</Text>
         </Pressable>
       )}
     </ScrollView>

@@ -236,6 +236,13 @@ export default function BookCardClassic({
 
   const collectingInfoText = t("bookcard.collectingInfo");
 
+  const downloadingLabel = (book as any)?.__downloading ? "Downloading" : null;
+  const downloadingProgressRaw = (book as any)?.__downloadProgress;
+  const downloadingPct =
+    downloadingLabel && typeof downloadingProgressRaw === "number"
+      ? Math.round(Math.max(0, Math.min(1, downloadingProgressRaw)) * 100)
+      : null;
+
   return (
     <>
       <Pressable
@@ -263,6 +270,13 @@ export default function BookCardClassic({
           {isNew && (
             <View pointerEvents="none" style={localStyles.newBadge}>
               <Text style={localStyles.newBadgeText}>{t("book.new")}</Text>
+            </View>
+          )}
+          {!!downloadingLabel && (
+            <View pointerEvents="none" style={dl.overlay}>
+              <Text style={dl.overlayText} numberOfLines={1}>
+                {downloadingPct != null ? `${downloadingLabel} · ${downloadingPct}%` : downloadingLabel}
+              </Text>
             </View>
           )}
         </View>
@@ -555,4 +569,18 @@ const localStyles = StyleSheet.create({
     borderColor: "rgba(239,68,68,0.50)",
   },
   chipTextExcluded: { color: "rgba(252,165,165,0.95)" },
+});
+
+const dl = StyleSheet.create({
+  overlay: {
+    position: "absolute",
+    left: 8,
+    top: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 10,
+    maxWidth: "92%",
+  },
+  overlayText: { color: "#fff", fontSize: 11, fontWeight: "800" },
 });

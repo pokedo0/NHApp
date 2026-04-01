@@ -2,8 +2,9 @@ import * as FileSystem from "expo-file-system/legacy";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Platform, Text } from "react-native";
+import { getDownloadProgressSnapshot, subscribeDownloadProgress } from "@/lib/downloadProgressStore";
 
-import type { Book, BookPage } from "@/api/nhappApi/types";
+import type { Book } from "@/api/nhappApi/types";
 import BookList from "@/components/BookList";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -16,6 +17,12 @@ export default function DownloadedScreen() {
   const router = useRouter();
   const gridConfig = useGridConfig();
   const { t } = useI18n();
+
+  const dlSnap = React.useSyncExternalStore(
+    subscribeDownloadProgress,
+    getDownloadProgressSnapshot,
+    getDownloadProgressSnapshot
+  );
 
   const fetchDownloadedBooks = useCallback(async () => {
     setPending(true);
@@ -70,7 +77,7 @@ export default function DownloadedScreen() {
       }
 
       const titles = await fs.readDirectoryAsync(nhDir);
-      const books: Book[] = [];
+      const books: Array<Book & { __downloadedAt?: number }> = [];
 
       for (const title of titles) {
         try {
@@ -93,48 +100,41 @@ export default function DownloadedScreen() {
               const book: Book = JSON.parse(raw);
               if (titleId && book.id !== titleId) continue;
 
+              // Fast path: only resolve cover (don't build pages[] — expensive during active download).
               const files = await fs.readDirectoryAsync(langDir);
-              const imageFiles = files
-                .filter((f) => f.startsWith("Image"))
-                .sort((a, b) => {
-                  const numA = parseInt(a.match(/\d+/)?.[0] || '0');
-                  const numB = parseInt(b.match(/\d+/)?.[0] || '0');
-                  return numA - numB;
-                }); 
+              const imageFiles = files.filter((f) => f.startsWith("Image"));
               if (imageFiles.length === 0) continue;
-              const pages = await Promise.all(
-                imageFiles.map(
-                  async (img, i): Promise<BookPage> => {
-                    const imgPath = isElectron ? await pathJoin(langDir, img) : pathJoin(langDir, img);
-                    let url: string;
-                    if (isElectron) {
-                      const normalizedPath = imgPath.replace(/\\/g, '/');
-                      if (normalizedPath.match(/^[A-Za-z]:/)) {
-                        url = `local:///${normalizedPath}`;
-                      } else if (normalizedPath.startsWith('/')) {
-                        url = `local://${normalizedPath}`;
-                      } else {
-                        url = `local:///${normalizedPath}`;
-                      }
-                    } else {
-                      url = imgPath;
-                    }
-                    return {
-                      url,
-                      urlThumb: url,
-                      width: book.pages[i]?.width || 100,
-                      height: book.pages[i]?.height || 100,
-                      page: i + 1,
-                    };
-                  }
-                )
-              );
+              let first = imageFiles[0];
+              for (const f of imageFiles) {
+                // Prefer Image001.* if present, otherwise minimal numeric suffix.
+                if (/^Image0*1\./i.test(f)) { first = f; break; }
+                const a = parseInt(first.match(/\d+/)?.[0] || "0", 10);
+                const b = parseInt(f.match(/\d+/)?.[0] || "0", 10);
+                if (b > 0 && (a === 0 || b < a)) first = f;
+              }
+              const imgPath = isElectron ? await pathJoin(langDir, first) : pathJoin(langDir, first);
+              const url = (() => {
+                if (!isElectron) return imgPath;
+                const normalizedPath = String(imgPath).replace(/\\/g, "/");
+                return normalizedPath.match(/^[A-Za-z]:/)
+                  ? `local:///${normalizedPath}`
+                  : normalizedPath.startsWith("/")
+                    ? `local://${normalizedPath}`
+                    : `local:///${normalizedPath}`;
+              })();
+              const downloadedAt =
+                (metaInfo as any)?.modificationTime ??
+                (metaInfo as any)?.mtime ??
+                (titleInfo as any)?.modificationTime ??
+                Date.now();
+
               books.push({
                 ...book,
-                cover: pages[0]?.url || book.cover,
-                thumbnail: pages[0]?.urlThumb || book.thumbnail,
-                pages,
-              });
+                cover: url || book.cover,
+                thumbnail: url || book.thumbnail,
+                pages: [], // not needed for list
+                __downloadedAt: typeof downloadedAt === "number" ? downloadedAt : Date.now(),
+              } as any);
             } catch (langErr) {
               console.warn(`[fetchDownloadedBooks] Error processing lang ${lang} in ${title}:`, langErr);
               continue;
@@ -146,7 +146,8 @@ export default function DownloadedScreen() {
         }
       }
 
-      books.sort((a, b) => b.id - a.id);
+      // Sort by download time (most recent first)
+      books.sort((a, b) => (b.__downloadedAt ?? 0) - (a.__downloadedAt ?? 0));
       const unique = Array.from(
         books
           .reduce(
@@ -170,6 +171,13 @@ export default function DownloadedScreen() {
     }, [fetchDownloadedBooks])
   );
 
+  // When a download finishes, refresh list automatically so the new book appears.
+  React.useEffect(() => {
+    if (!dlSnap.lastFinishedAt) return;
+    void fetchDownloadedBooks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dlSnap.lastFinishedAt]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchDownloadedBooks();
@@ -177,28 +185,60 @@ export default function DownloadedScreen() {
   }, [fetchDownloadedBooks]);
 
   return (
-    <BookList
-      data={downloadedBooks}
-      loading={pending}
-      refreshing={refreshing}
-      onRefresh={onRefresh}
-      onPress={(id) =>
-        router.push({
-          pathname: "/book/[id]",
-          params: {
-            id: String(id),
-            title: downloadedBooks.find((b) => b.id === id)?.title.pretty,
-          },
-        })
-      }
-      ListEmptyComponent={
-        !pending && downloadedBooks.length === 0 ? (
-          <Text style={{ textAlign: "center", marginTop: 40, color: "#888" }}>
-            {t("downloaded.noHaveADownloadBook")}
-          </Text>
-        ) : null
-      }
-      gridConfig={{ default: gridConfig }}
-    />
+    <>
+      <BookList
+        data={[
+          ...(dlSnap.active && dlSnap.bookId
+            ? ([
+                {
+                  __downloading: true,
+                  __downloadProgress: dlSnap.progress,
+                  id: -dlSnap.bookId,
+                  title: { pretty: dlSnap.title || "Downloading", english: "", japanese: "" },
+                  cover: dlSnap.cover || "",
+                  thumbnail: dlSnap.cover || "",
+                  uploaded: "",
+                  media: 0,
+                  favorites: 0,
+                  pagesCount: 0,
+                  scanlator: "",
+                  tags: [],
+                  pages: [],
+                  artists: [],
+                  characters: [],
+                  parodies: [],
+                  groups: [],
+                  categories: [],
+                  languages: [],
+                  tagIds: [],
+                } as any,
+              ] as Book[])
+            : []),
+          ...downloadedBooks,
+        ]}
+        loading={pending}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onPress={(id) => {
+          // Don't open the placeholder "downloading" card.
+          if (typeof id === "number" && id < 0) return;
+          router.push({
+            pathname: "/book/[id]",
+            params: {
+              id: String(id),
+              title: downloadedBooks.find((b) => b.id === id)?.title.pretty,
+            },
+          });
+        }}
+        ListEmptyComponent={
+          !pending && downloadedBooks.length === 0 ? (
+            <Text style={{ textAlign: "center", marginTop: 40, color: "#888" }}>
+              {t("downloaded.noHaveADownloadBook")}
+            </Text>
+          ) : null
+        }
+        gridConfig={{ default: gridConfig }}
+      />
+    </>
   );
 }

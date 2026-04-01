@@ -27,6 +27,7 @@ import { OverlayPortalProvider } from "@/components/OverlayPortal";
 import { SearchBar } from "@/components/SearchBar";
 import SideMenu from "@/components/SideMenu";
 import { ToastProvider } from "@/components/ToastProvider";
+import DownloadProgressBanner from "@/components/DownloadProgressBanner";
 import { getGridConfigMap } from "@/config/gridConfig";
 import AutoImportProvider from "@/context/AutoImportProvider";
 import { DateRangeProvider } from "@/context/DateRangeContext";
@@ -255,6 +256,7 @@ function AppContent() {
   const pathname = usePathname();
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let alive = true;
@@ -294,6 +296,12 @@ function AppContent() {
             <SearchBar />
           </View>
         ) : null}
+
+        {/* Global download progress banner (all screens) */}
+        <DownloadProgressBanner
+          topInset={insets.top}
+          pressable={pathname !== "/downloaded"}
+        />
 
         <Stack
           screenOptions={{

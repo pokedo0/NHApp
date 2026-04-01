@@ -6,6 +6,10 @@ import PageItem, { GAP } from "@/components/book/PageItem";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
+import {
+  getDownloadProgressSnapshot,
+  subscribeDownloadProgress,
+} from "@/lib/downloadProgressStore";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
@@ -13,8 +17,10 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useSyncExternalStore,
   useState,
 } from "react";
+ 
 import {
   Animated,
   FlatList,
@@ -78,6 +84,16 @@ export default function BookScreen() {
   const prevDataLengthRef = useRef<number>(0);
   const prevColsRef = useRef<number>(cols);
 
+  const dlSnap = useSyncExternalStore(
+    subscribeDownloadProgress,
+    getDownloadProgressSnapshot,
+    getDownloadProgressSnapshot
+  );
+  const isGlobalDownloadingThis =
+    !!book?.id && dlSnap.active && dlSnap.bookId === book.id;
+  const dlUi = dl || isGlobalDownloadingThis;
+  const prUi = dl ? pr : isGlobalDownloadingThis ? dlSnap.progress : 0;
+
   useEffect(() => { setListW(win.w); }, [win.w]);
 
   useEffect(() => {
@@ -120,10 +136,10 @@ export default function BookScreen() {
         cycleCols={cycleCols}
         bookmarked={favorites.has(book.id)}
         onToggleBookmark={() => toggleFav(book.id, !favorites.has(book.id))}
-        dl={dl}
-        pr={pr}
+        dl={dlUi}
+        pr={prUi}
         local={local}
-        handleDownloadOrDelete={handleDownloadOrDelete}
+        handleDownloadOrDelete={dlUi ? () => {} : handleDownloadOrDelete}
         modeOf={modeOf}
         onTagPress={(name: any) =>
           router.push({ pathname: "/explore", params: { query: name, solo: "1" } })
@@ -131,7 +147,7 @@ export default function BookScreen() {
         win={win}
         innerPadding={innerPadding}
         cycle={cycle}
-        cancel={cancel}
+        cancel={dl ? cancel : () => {}}
         commentCount={allComments.length}
       />
     );
