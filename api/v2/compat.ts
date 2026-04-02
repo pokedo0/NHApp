@@ -35,7 +35,10 @@ export function galleryToBook(g: Gallery): Book {
 
   return {
     id: g.id,
-    title: g.title,
+    title: {
+      ...g.title,
+      pretty: g.title.japanese || g.title.english || g.title.pretty,
+    },
     uploaded: new Date(g.upload_date * 1000).toISOString(),
     media: parseInt(g.media_id, 10) || 0,
     favorites: g.num_favorites,
@@ -74,7 +77,7 @@ export function galleryCardToBook(c: GalleryCard): Book {
     title: {
       english: c.english_title,
       japanese: c.japanese_title,
-      pretty: c.english_title,
+      pretty: c.japanese_title || c.english_title,
     },
     uploaded: c.upload_date ? new Date(c.upload_date * 1000).toISOString() : "",
     media: parseInt(c.media_id, 10) || 0,
@@ -106,7 +109,7 @@ export function galleryRelatedToBook(r: GalleryRelated): Book {
     title: {
       english: r.english_title,
       japanese: r.japanese_title,
-      pretty: r.english_title,
+      pretty: r.japanese_title || r.english_title,
     },
     uploaded: r.upload_date ? new Date(r.upload_date * 1000).toISOString() : "",
     media: parseInt(r.media_id ?? "0", 10) || 0,

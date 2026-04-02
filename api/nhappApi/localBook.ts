@@ -104,6 +104,9 @@ export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
       try {
         const raw = await fs.readAsStringAsync(metaUri);
         const book: Book = JSON.parse(raw);
+        if (book.title) {
+          book.title.pretty = book.title.japanese || book.title.english || book.title.pretty;
+        }
 
         if (book.id !== id) continue;
         if (titleId && titleId !== book.id) continue;
