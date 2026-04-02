@@ -131,12 +131,16 @@ export default function BookListOnline({
     const pickStr = (a?: string, bb?: string) => (a && String(a).trim() ? a : bb || "");
     const pickNum = (a?: number, bb?: number) =>
       typeof a === "number" && Number.isFinite(a) && a > 0 ? a : (bb as any);
+    const mergedTitleEnglish = pickStr(e?.title?.english, b?.title?.english);
+    const mergedTitleJapanese = pickStr(e?.title?.japanese, b?.title?.japanese);
+    const mergedTitlePretty =
+      mergedTitleJapanese || pickStr(e?.title?.pretty, b?.title?.pretty) || mergedTitleEnglish;
     return {
       ...b,
       title: {
-        english: pickStr(e?.title?.english, b?.title?.english),
-        japanese: pickStr(e?.title?.japanese, b?.title?.japanese),
-        pretty: pickStr(e?.title?.pretty, b?.title?.pretty),
+        english: mergedTitleEnglish,
+        japanese: mergedTitleJapanese,
+        pretty: mergedTitlePretty,
       },
       uploaded: pickStr(e?.uploaded, b?.uploaded),
       pagesCount: pickNum(e?.pagesCount, b?.pagesCount) ?? b?.pagesCount,

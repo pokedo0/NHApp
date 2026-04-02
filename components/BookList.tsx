@@ -249,12 +249,17 @@ export default function BookList<T extends Book = Book>({
     const pickNum = (a?: number, b?: number) =>
       typeof a === "number" && Number.isFinite(a) && a > 0 ? a : (b as any);
 
+    const mergedTitleEnglish = pickStr(eAny?.title?.english, bAny?.title?.english);
+    const mergedTitleJapanese = pickStr(eAny?.title?.japanese, bAny?.title?.japanese);
+    const mergedTitlePretty =
+      mergedTitleJapanese || pickStr(eAny?.title?.pretty, bAny?.title?.pretty) || mergedTitleEnglish;
+
     const merged: any = {
       ...bAny,
       title: {
-        english: pickStr(eAny?.title?.english, bAny?.title?.english),
-        japanese: pickStr(eAny?.title?.japanese, bAny?.title?.japanese),
-        pretty: pickStr(eAny?.title?.pretty, bAny?.title?.pretty),
+        english: mergedTitleEnglish,
+        japanese: mergedTitleJapanese,
+        pretty: mergedTitlePretty,
       },
       uploaded: pickStr(eAny?.uploaded, bAny?.uploaded),
       pagesCount: pickNum(eAny?.pagesCount, bAny?.pagesCount) ?? bAny?.pagesCount,
