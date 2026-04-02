@@ -1,4 +1,4 @@
-name: Sync Upstream & Auto Build Debug
+name: Sync Upstream & Auto Build Release
 
 on:
   schedule:
@@ -46,12 +46,12 @@ jobs:
             echo "✅ Already up to date."
           fi
 
-  build-debug:
+  build-release:
     needs: check-and-sync
     if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || needs.check-and-sync.outputs.has_new_release == 'true')
     runs-on: ubuntu-latest
     permissions:
-      contents: write # 必须赋予写权限，以便发布 Release
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -68,11 +68,9 @@ jobs:
           distribution: "temurin"
           java-version: 17
 
-      # 优化1：项目实际使用 yarn.lock，因此使用 yarn install --frozen-lockfile 替代
       - name: Install Dependencies
         run: yarn install --frozen-lockfile
 
-      # 优化2：完整的 Gradle 缓存（加快下载依赖与原生构建准备）
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -92,38 +90,54 @@ jobs:
           path: ~/.android/debug.keystore
           key: android-debug-keystore-permanent
 
-      # 优化3 & 优化4：
-      #   1) 传入 -PreactNativeArchitectures=arm64-v8a,armeabi-v7a 来忽略 x86 架构的庞大 C++ 编译耗时。
-      #   2) 加上 --build-cache 和 --parallel 缩短任务链时间。
-      - name: Build Debug ARM Package
+      - name: Ensure Keystore Exists
+        run: |
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            echo "Keystore not found in cache, generating a permanent one..."
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "O=Android, C=US"
+          fi
+
+      - name: Build Release APK
         if: success()
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon --build-cache --parallel
+          # 编译成原生的 Release 版！彻底移除 Expo Dev 工具！
+          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon --build-cache --parallel
 
-      # 统一提取并重命名 APK，方便下载页直接辨认
-      - name: Rename Output APK
+      - name: Sign & Align Release APK
         if: success()
         run: |
           mkdir -p final-apks
-          # 因为我们限制了只打 ARM 架构，且默认不拆分 APK，所以它产出的就是一个轻量级的涵盖最新手机架构的安装包
-          cp android/app/build/outputs/apk/debug/app-debug.apk final-apks/NHApp-Debug-ARM.apk
+          # 拿到刚刚编译出来的未签名发行版安装包
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*-unsigned.apk" -o -name "app-release.apk" | head -n 1)
+          
+          # 获取系统安装的 Android 签名工具 (zipalign & apksigner)
+          BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/$(ls -1 $ANDROID_HOME/build-tools | sort -r | head -n 1)"
+          
+          # 先进行应用优化对齐
+          $BUILD_TOOLS_DIR/zipalign -v -p 4 "$APK_PATH" final-apks/NHApp-Release-ARM-aligned.apk
+          
+          # 【这才是封神的一步】：使用我们的万年缓存且不会变的测试密钥，去盖章并激活正式版的发行层 APK！
+          $BUILD_TOOLS_DIR/apksigner sign --ks ~/.android/debug.keystore \
+            --ks-pass pass:android --key-pass pass:android \
+            --ks-key-alias androiddebugkey \
+            --out final-apks/NHApp-Release-ARM.apk \
+            final-apks/NHApp-Release-ARM-aligned.apk
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: NHApp-Debug-ARM-APK
-          path: final-apks/NHApp-Debug-ARM.apk
+          name: NHApp-Release-ARM-APK
+          path: final-apks/NHApp-Release-ARM.apk
 
-      # 优化5：新增自动发布到 Github Releases 功能 (只在真有更新或手动触发时打 Tag 和 Release)
       - name: Generate Release Tag
         id: tag
         run: |
-          # 如果是因为上游更新触发的，沿用上游 Tag名加 -debug
           if [ "${{ needs.check-and-sync.outputs.has_new_release }}" == "true" ]; then
-            echo "tag_name=${{ needs.check-and-sync.outputs.upstream_tag }}-debug" >> $GITHUB_OUTPUT
+            echo "tag_name=${{ needs.check-and-sync.outputs.upstream_tag }}" >> $GITHUB_OUTPUT
           else
             echo "tag_name=dev-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
           fi
@@ -134,5 +148,5 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag_name }}
           name: "Auto Build: ${{ steps.tag.outputs.tag_name }}"
-          body: "🚀 自动同步与构建的非官方自编译 Debug 版本 (由 GitHub Action 自动生成)。\n\n📌 包含 ARM64 架构，免去多余模拟器架构以极速出包并精简体积。\n⚠️ 请注意因为缓存了同一套测试密钥，这可以用于在原有自编译版本上的直接覆盖升级。"
-          files: final-apks/NHApp-Debug-ARM.apk
+          body: "🚀 自动同步与构建的正式版本（无内嵌 Expo-Dev-Client 工具包）。\n\n📌 包含 ARM64 架构，免去多余模拟器架构以极速出包并精简体积。\n⚠️ 虽然内含功能为 Release 模式（流畅、无开发工具面板），但使用了固定测试签名进行封装，**支持长期直接覆盖升级使用**！"
+          files: final-apks/NHApp-Release-ARM.apk
