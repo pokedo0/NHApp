@@ -20,9 +20,9 @@ jobs:
       - name: Check upstream latest release
         id: check
         run: |
-          UPSTREAM_TAG=$(curl -sf "https://api.github.com/repos/MetaCubeX/ClashMetaForAndroid/releases/latest" | jq -r '.tag_name')
+          UPSTREAM_TAG=$(curl -sf "https://api.github.com/repos/e18lab/NHApp/releases/latest" | jq -r '.tag_name')
           OUR_TAG=$(curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name' || echo "null")
-          
+
           if [ "$UPSTREAM_TAG" != "null" ] && [ "$UPSTREAM_TAG" != "$OUR_TAG" ]; then
             echo "has_new_release=true" >> $GITHUB_OUTPUT
             
@@ -105,7 +105,7 @@ jobs:
       - name: Build Debug APK
         if: success()
         run: ./gradlew --no-daemon app:assembleAlphaDebug
-          
+
       # 拆分上传多架构安装包，让你可以在手机只下载一个
       - name: Upload Artifact (universal)
         uses: actions/upload-artifact@v4
@@ -113,7 +113,7 @@ jobs:
         with:
           name: CMFA_Debug_universal
           path: app/build/outputs/apk/alpha/debug/*-universal-*.apk
-      
+
       - name: Upload Artifact (arm64-v8a)
         uses: actions/upload-artifact@v4
         if: success()
