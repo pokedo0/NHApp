@@ -408,7 +408,7 @@ export default function CharactersScreen() {
       } else {
         router.push({
           pathname: "/explore",
-          params: { query: tag.name, solo: "1" },
+          params: { query: tag.name },
         });
       }
     }
@@ -430,7 +430,7 @@ export default function CharactersScreen() {
     if (!cardAction) return;
     router.push({
       pathname: "/explore",
-      params: { query: cardAction.tag.name, solo: "1" },
+      params: { query: cardAction.tag.name },
     });
     setCardAction(null);
   };

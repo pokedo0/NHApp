@@ -162,7 +162,7 @@ export default function BookScreen() {
       handleDownloadOrDelete={dlUi ? () => {} : handleDownloadOrDelete}
       modeOf={modeOf}
       onTagPress={(name: any) =>
-        router.push({ pathname: "/explore", params: { query: name, solo: "1" } })
+        router.push({ pathname: "/explore", params: { query: name } })
       }
       win={win}
       innerPadding={innerPadding}
