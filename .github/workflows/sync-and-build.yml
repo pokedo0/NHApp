@@ -1,0 +1,122 @@
+name: Sync Upstream & Auto Build Debug
+
+on:
+  schedule:
+    # 每天 UTC 2:00（北京时间 10:00）自动检测一次
+    - cron: "0 2 * * *"
+  workflow_dispatch: # 允许你随时在网页上手动点运行
+  push:
+    branches:
+      - main # 如果你有特殊的代码推送也会自动打包
+
+jobs:
+  check-and-sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 给 github token 开启同步写入权限
+    outputs:
+      has_new_release: ${{ steps.check.outputs.has_new_release }}
+    steps:
+      - name: Check upstream latest release
+        id: check
+        run: |
+          UPSTREAM_TAG=$(curl -sf "https://api.github.com/repos/MetaCubeX/ClashMetaForAndroid/releases/latest" | jq -r '.tag_name')
+          OUR_TAG=$(curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name' || echo "null")
+          
+          if [ "$UPSTREAM_TAG" != "null" ] && [ "$UPSTREAM_TAG" != "$OUR_TAG" ]; then
+            echo "has_new_release=true" >> $GITHUB_OUTPUT
+            
+            # 使用 GitHub API 自动安全同步主分支
+            echo "🔄 Syncing fork with upstream..."
+            HTTP_CODE=$(curl -s -o /tmp/sync_response.json -w "%{http_code}" \
+              -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/merge-upstream" \
+              -d '{"branch":"main"}')
+
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "409" ]; then
+              echo "✅ Fork synced successfully"
+            else
+              echo "❌ Sync failed with HTTP $HTTP_CODE"
+              exit 1
+            fi
+          else
+            echo "has_new_release=false" >> $GITHUB_OUTPUT
+            echo "✅ Already up to date."
+          fi
+
+  build-debug:
+    needs: check-and-sync
+    # 当有新版本同步、或者是你手动触发、或者主动 Push 时，执行此任务。
+    if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || needs.check-and-sync.outputs.has_new_release == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          check-latest: true
+
+      - name: Apply Patches
+        run: |
+          cd $(go env GOROOT)
+          for p in $GITHUB_WORKSPACE/.github/patch/*.patch; do patch --verbose -p 1 < "$p"; done || true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Update CA
+        run: |
+          sudo apt-get update && sudo apt-get install ca-certificates
+          sudo update-ca-certificates
+          cp -f /etc/ssl/certs/ca-certificates.crt core/src/foss/golang/clash/component/ca/ca-certificates.crt || true
+
+      # ====== 关键步骤：锁定临时测试签名 ======
+      # GitHub 只有在你第一次打包时会自己生成这个文件，后面全走缓存！
+      - name: Cache Android Debug Keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-permanent
+
+      # 编译！这里必须要打 Debug 包（内部自签）。不能打 Release 因为缺少正式证书会直接崩溃不生成。
+      - name: Build Debug APK
+        if: success()
+        run: ./gradlew --no-daemon app:assembleAlphaDebug
+          
+      # 拆分上传多架构安装包，让你可以在手机只下载一个
+      - name: Upload Artifact (universal)
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: CMFA_Debug_universal
+          path: app/build/outputs/apk/alpha/debug/*-universal-*.apk
+      
+      - name: Upload Artifact (arm64-v8a)
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: CMFA_Debug_arm64-v8a
+          path: app/build/outputs/apk/alpha/debug/*-arm64-v8a-*.apk
