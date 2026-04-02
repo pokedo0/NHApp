@@ -43,6 +43,7 @@ jobs:
             fi
           else
             echo "has_new_release=false" >> $GITHUB_OUTPUT
+            echo "upstream_tag=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
             echo "✅ Already up to date."
           fi
 
@@ -139,7 +140,7 @@ jobs:
           if [ "${{ needs.check-and-sync.outputs.has_new_release }}" == "true" ]; then
             echo "tag_name=${{ needs.check-and-sync.outputs.upstream_tag }}" >> $GITHUB_OUTPUT
           else
-            echo "tag_name=dev-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
+            echo "tag_name=${{ needs.check-and-sync.outputs.upstream_tag }}-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
           fi
 
       - name: Publish GitHub Release
