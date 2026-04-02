@@ -2,31 +2,31 @@ name: Sync Upstream & Auto Build Debug
 
 on:
   schedule:
-    # 每天 UTC 2:00（北京时间 10:00）自动检测一次
     - cron: "0 2 * * *"
-  workflow_dispatch: # 允许你随时在网页上手动点运行
+  workflow_dispatch:
   push:
     branches:
-      - main # 如果你有特殊的代码推送也会自动打包
+      - main
 
 jobs:
   check-and-sync:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # 给 github token 开启同步写入权限
+      contents: write
     outputs:
       has_new_release: ${{ steps.check.outputs.has_new_release }}
+      upstream_tag: ${{ steps.check.outputs.upstream_tag }}
     steps:
       - name: Check upstream latest release
         id: check
         run: |
           UPSTREAM_TAG=$(curl -sf "https://api.github.com/repos/e18lab/NHApp/releases/latest" | jq -r '.tag_name')
           OUR_TAG=$(curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name' || echo "null")
-
+          
           if [ "$UPSTREAM_TAG" != "null" ] && [ "$UPSTREAM_TAG" != "$OUR_TAG" ]; then
             echo "has_new_release=true" >> $GITHUB_OUTPUT
+            echo "upstream_tag=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
             
-            # 使用 GitHub API 自动安全同步主分支
             echo "🔄 Syncing fork with upstream..."
             HTTP_CODE=$(curl -s -o /tmp/sync_response.json -w "%{http_code}" \
               -X POST \
@@ -48,9 +48,10 @@ jobs:
 
   build-debug:
     needs: check-and-sync
-    # 当有新版本同步、或者是你手动触发、或者主动 Push 时，执行此任务。
     if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || needs.check-and-sync.outputs.has_new_release == 'true')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # 必须赋予写权限，以便发布 Release
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -67,32 +68,71 @@ jobs:
           distribution: "temurin"
           java-version: 17
 
+      # 优化1：使用 npm ci 替代 install，提升速度和依赖解析稳定性
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
+
+      # 优化2：完整的 Gradle 缓存（加快下载依赖与原生构建准备）
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/settings.gradle*') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Prebuild Android
         run: npx expo prebuild --platform android
 
-      # ====== 关键步骤：锁定临时测试签名 ======
-      # GitHub 只有在你第一次打包时会自己生成这个文件，后面全走缓存！
       - name: Cache Android Debug Keystore
         uses: actions/cache@v4
         with:
           path: ~/.android/debug.keystore
           key: android-debug-keystore-permanent
 
-      # 编译！这里必须要打 Debug 包（内部自签）。
-      - name: Build Debug APK
+      # 优化3 & 优化4：
+      #   1) 传入 -PreactNativeArchitectures=arm64-v8a,armeabi-v7a 来忽略 x86 架构的庞大 C++ 编译耗时。
+      #   2) 加上 --build-cache 和 --parallel 缩短任务链时间。
+      - name: Build Debug ARM Package
         if: success()
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon --build-cache --parallel
 
-      # 上传安装包
+      # 统一提取并重命名 APK，方便下载页直接辨认
+      - name: Rename Output APK
+        if: success()
+        run: |
+          mkdir -p final-apks
+          # 因为我们限制了只打 ARM 架构，且默认不拆分 APK，所以它产出的就是一个轻量级的涵盖最新手机架构的安装包
+          cp android/app/build/outputs/apk/debug/app-debug.apk final-apks/NHApp-Debug-ARM.apk
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: NHApp-Debug-APK
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: NHApp-Debug-ARM-APK
+          path: final-apks/NHApp-Debug-ARM.apk
+
+      # 优化5：新增自动发布到 Github Releases 功能 (只在真有更新或手动触发时打 Tag 和 Release)
+      - name: Generate Release Tag
+        id: tag
+        run: |
+          # 如果是因为上游更新触发的，沿用上游 Tag名加 -debug
+          if [ "${{ needs.check-and-sync.outputs.has_new_release }}" == "true" ]; then
+            echo "tag_name=${{ needs.check-and-sync.outputs.upstream_tag }}-debug" >> $GITHUB_OUTPUT
+          else
+            echo "tag_name=dev-$(date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: "Auto Build: ${{ steps.tag.outputs.tag_name }}"
+          body: "🚀 自动同步与构建的非官方自编译 Debug 版本 (由 GitHub Action 自动生成)。\n\n📌 包含 ARM64 架构，免去多余模拟器架构以极速出包并精简体积。\n⚠️ 请注意因为缓存了同一套测试密钥，这可以用于在原有自编译版本上的直接覆盖升级。"
+          files: final-apks/NHApp-Debug-ARM.apk
