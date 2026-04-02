@@ -1,12 +1,7 @@
 name: Sync Upstream & Auto Build Release
 
 on:
-  schedule:
-    - cron: "0 2 * * *"
   workflow_dispatch:
-  push:
-    branches:
-      - master
 
 jobs:
   check-and-sync:
