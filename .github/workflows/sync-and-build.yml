@@ -54,44 +54,24 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          submodules: recursive
+          node-version: 20
+          cache: "npm"
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: 21
+          java-version: 17
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: Install Dependencies
+        run: npm install
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: "1.26"
-          check-latest: true
-
-      - name: Apply Patches
-        run: |
-          cd $(go env GOROOT)
-          for p in $GITHUB_WORKSPACE/.github/patch/*.patch; do patch --verbose -p 1 < "$p"; done || true
-
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Update CA
-        run: |
-          sudo apt-get update && sudo apt-get install ca-certificates
-          sudo update-ca-certificates
-          cp -f /etc/ssl/certs/ca-certificates.crt core/src/foss/golang/clash/component/ca/ca-certificates.crt || true
+      - name: Prebuild Android
+        run: npx expo prebuild --platform android
 
       # ====== 关键步骤：锁定临时测试签名 ======
       # GitHub 只有在你第一次打包时会自己生成这个文件，后面全走缓存！
@@ -101,22 +81,18 @@ jobs:
           path: ~/.android/debug.keystore
           key: android-debug-keystore-permanent
 
-      # 编译！这里必须要打 Debug 包（内部自签）。不能打 Release 因为缺少正式证书会直接崩溃不生成。
+      # 编译！这里必须要打 Debug 包（内部自签）。
       - name: Build Debug APK
         if: success()
-        run: ./gradlew --no-daemon app:assembleAlphaDebug
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
 
-      # 拆分上传多架构安装包，让你可以在手机只下载一个
-      - name: Upload Artifact (universal)
+      # 上传安装包
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: CMFA_Debug_universal
-          path: app/build/outputs/apk/alpha/debug/*-universal-*.apk
-
-      - name: Upload Artifact (arm64-v8a)
-        uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: CMFA_Debug_arm64-v8a
-          path: app/build/outputs/apk/alpha/debug/*-arm64-v8a-*.apk
+          name: NHApp-Debug-APK
+          path: android/app/build/outputs/apk/debug/*.apk
