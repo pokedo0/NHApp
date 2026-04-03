@@ -17,8 +17,20 @@ jobs:
         run: |
           UPSTREAM_TAG=$(curl -sf "https://api.github.com/repos/e18lab/NHApp/releases/latest" | jq -r '.tag_name')
           OUR_TAG=$(curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name' || echo "null")
-          
-          if [ "$UPSTREAM_TAG" != "null" ] && [ "$UPSTREAM_TAG" != "$OUR_TAG" ]; then
+
+          echo "Upstream Tag: $UPSTREAM_TAG"
+          echo "Our Tag: $OUR_TAG"
+
+          is_new_release="true"
+          if [[ "$UPSTREAM_TAG" == "null" ]]; then
+            is_new_release="false"
+          elif [[ "$UPSTREAM_TAG" == "$OUR_TAG" ]]; then
+            is_new_release="false"
+          elif [[ "$OUR_TAG" =~ ^(.*)-[0-9]{12}$ ]] && [[ "${BASH_REMATCH[1]}" == "$UPSTREAM_TAG" ]]; then
+            is_new_release="false"
+          fi
+
+          if [[ "$is_new_release" == "true" ]]; then
             echo "has_new_release=true" >> $GITHUB_OUTPUT
             echo "upstream_tag=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
             
@@ -108,13 +120,13 @@ jobs:
           mkdir -p final-apks
           # 拿到刚刚编译出来的未签名发行版安装包
           APK_PATH=$(find android/app/build/outputs/apk/release -name "*-unsigned.apk" -o -name "app-release.apk" | head -n 1)
-          
+
           # 获取系统安装的 Android 签名工具 (zipalign & apksigner)
           BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/$(ls -1 $ANDROID_HOME/build-tools | sort -r | head -n 1)"
-          
+
           # 先进行应用优化对齐
           $BUILD_TOOLS_DIR/zipalign -v -p 4 "$APK_PATH" final-apks/NHApp-Release-ARM-aligned.apk
-          
+
           # 【这才是封神的一步】：使用我们的万年缓存且不会变的测试密钥，去盖章并激活正式版的发行层 APK！
           $BUILD_TOOLS_DIR/apksigner sign --ks ~/.android/debug.keystore \
             --ks-pass pass:android --key-pass pass:android \
