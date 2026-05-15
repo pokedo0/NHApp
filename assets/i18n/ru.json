@@ -61,7 +61,8 @@
     "avatarUploadNotImplemented": "Загрузка аватара пока не реализована на сервере."
   },
   "bookcard": {
-    "collectingInfo": "Собирается информация"
+    "collectingInfo": "Собирается информация",
+    "hiddenByBlacklist": "Скрыто чёрным списком"
   },
   "comments": {
     "title": "Комментарии",
@@ -120,6 +121,32 @@
     "apply": "Применить"
   },
   "explore": {
+    "filter": {
+      "language": "Выбор языка",
+      "pages": "Страницы",
+      "sortTitle": "Сортировать",
+      "dateTitle": "Поиск по дате"
+    },
+    "pages": {
+      "mode": {
+        "eq": "Равно",
+        "gt": "Больше",
+        "lt": "Меньше",
+        "range": "Диапазон"
+      },
+      "input": {
+        "primary": "Страниц",
+        "secondary": "До"
+      }
+    },
+    "language": {
+      "all": "Все языки",
+      "english": "English",
+      "japanese": "Japanese",
+      "chinese": "Chinese",
+      "translated": "Translated",
+      "other": "Другие / неизвестно"
+    },
     "sort": {
       "latest": "Новое",
       "popular": "Популярное",
@@ -129,7 +156,7 @@
     },
     "dateRange": "Фильтр по дате",
     "date": {
-      "1h": "1 час",
+      "2h": "2 часа",
       "24h": "24 часа",
       "3d": "3 дня",
       "7d": "Неделя",
@@ -166,7 +193,10 @@
   },
   "historyNotFound": "История пуста ¯\\_(ツ)_/¯",
   "lobby": {
-    "peersTitle": "Ваши девайсы",
+    "cloudTitle": "Облако",
+    "cloudStatusConnecting": "Подключение к облаку…",
+    "cloudStatusReconnecting": "Переподключение к облаку… Данные пока только на этом устройстве.",
+    "cloudStatusLocalOnly": "Нет связи с облаком. Данные только на этом устройстве; при появлении сети синхронизация возобновится.",
     "noPeers": "Нет подключённых устройств"
   },
   "profile": {
@@ -320,7 +350,17 @@
     "results": "Результаты",
     "placeholder": "Поиск по названию или тегу",
     "recent": "Недавние поиски",
-    "clearHistory": "Очистить историю"
+    "clearHistory": "Очистить историю",
+    "searchByImage": "Поиск по картинке",
+    "imageSearchBusy": "Поиск по изображению…",
+    "imageSearchNoMatches": "Нет совпадений на nhentai для этого изображения.",
+    "imageSearchOpenedBest": "Найдено совпадений: {count} — открыто лучшее.",
+    "imageSearchResultsTitle": "Поиск по картинке",
+    "imageSearchSimilarity": "Схожесть",
+    "imageSearchNoPayload": "Изображение не передано. Открой поиск и выбери файл снова.",
+    "imageSearchRetry": "Повторить",
+    "imageSearchGoBack": "Назад",
+    "imageSearchPickOther": "Другая картинка"
   },
   "searchBar": {
     "backHome": "Назад на главную",
@@ -334,7 +374,9 @@
       "presets": "Пресеты",
       "fullPalette": "Полная палитра",
       "infiniteScroll": "Бесконечная прокрутка",
-      "infiniteScrollDesc": "Автоматическая загрузка следующей страницы при прокрутке вниз вместо пагинации"
+      "infiniteScrollDesc": "Автоматическая загрузка следующей страницы при прокрутке вниз вместо пагинации",
+      "includeTagsOnBookTagNav": "Учитывать теги при переходе по тегам в книге?",
+      "includeTagsOnBookTagNavDesc": "Если включено, переход по тегу из книги учитывает текущие фильтры. Если выключено — открывает поиск по тегу без текущих фильтров."
     },
     "display": {
       "androidNote": "На Android системные панели можно открыть свайпом снизу даже в полноэкранном режиме.",

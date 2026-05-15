@@ -61,7 +61,8 @@
     "avatarUploadNotImplemented": "サーバー側でアバターのアップロードがまだ実装されていません。"
   },
   "bookcard": {
-    "collectingInfo": "情報を取得中"
+    "collectingInfo": "情報を取得中",
+    "hiddenByBlacklist": "ブラックリストにより非表示"
   },
   "comments": {
     "title": "コメント",
@@ -166,7 +167,10 @@
   },
   "historyNotFound": "履歴は空です ¯\\_(ツ)_/¯",
   "lobby": {
-    "peersTitle": "あなたのデバイス",
+    "cloudTitle": "クラウド",
+    "cloudStatusConnecting": "クラウドに接続中…",
+    "cloudStatusReconnecting": "クラウドに再接続中… 同期までこの端末のみで保存されます。",
+    "cloudStatusLocalOnly": "クラウドに接続できません。この端末のみで動作中。復帰後に同期します。",
     "noPeers": "接続されたデバイスはありません"
   },
   "profile": {
@@ -320,7 +324,17 @@
     "results": "結果",
     "placeholder": "タイトルやタグで検索",
     "recent": "最近の検索",
-    "clearHistory": "履歴を消去"
+    "clearHistory": "履歴を消去",
+    "searchByImage": "画像で検索",
+    "imageSearchBusy": "画像検索中…",
+    "imageSearchNoMatches": "この画像に一致する nhentai はありません。",
+    "imageSearchOpenedBest": "{count} 件見つかりました — 最も近いものを開きました。",
+    "imageSearchResultsTitle": "画像検索",
+    "imageSearchSimilarity": "一致度",
+    "imageSearchNoPayload": "画像がありません。検索からもう一度選んでください。",
+    "imageSearchRetry": "再試行",
+    "imageSearchGoBack": "戻る",
+    "imageSearchPickOther": "別の画像を選ぶ"
   },
   "searchBar": {
     "backHome": "ホームに戻る",
@@ -334,7 +348,9 @@
       "presets": "プリセット",
       "fullPalette": "フルパレット",
       "infiniteScroll": "無限スクロール",
-      "infiniteScrollDesc": "ページネーションの代わりに下にスクロールすると次のページを自動的に読み込む"
+      "infiniteScrollDesc": "ページネーションの代わりに下にスクロールすると次のページを自動的に読み込む",
+      "includeTagsOnBookTagNav": "本のタグから開くとき、現在のタグ条件を引き継ぐ？",
+      "includeTagsOnBookTagNavDesc": "オンの場合、本のタグを開くと現在のタグフィルターを保持します。オフの場合、そのタグのみで開き、現在のフィルターは無視します。"
     },
     "display": {
       "androidNote": "Androidではフルスクリーン中でも下からスワイプでシステムバーを表示できます。",

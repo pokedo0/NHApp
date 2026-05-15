@@ -61,7 +61,8 @@
     "avatarUploadNotImplemented": "服务器端尚未实现头像上传功能。"
   },
   "bookcard": {
-    "collectingInfo": "信息收集中"
+    "collectingInfo": "信息收集中",
+    "hiddenByBlacklist": "已被黑名单隐藏"
   },
   "comments": {
     "title": "评论",
@@ -166,7 +167,10 @@
   },
   "historyNotFound": "历史为空 ¯\\_(ツ)_/¯",
   "lobby": {
-    "peersTitle": "你的设备",
+    "cloudTitle": "云端",
+    "cloudStatusConnecting": "正在连接云端…",
+    "cloudStatusReconnecting": "正在重新连接云端… 恢复前更改仅保存在本机。",
+    "cloudStatusLocalOnly": "无法连接云端。仅在本机使用；网络恢复后会自动同步。",
     "noPeers": "没有已连接的设备"
   },
   "profile": {
@@ -320,7 +324,17 @@
     "results": "结果",
     "placeholder": "按标题或标签搜索",
     "recent": "最近搜索",
-    "clearHistory": "清除历史"
+    "clearHistory": "清除历史",
+    "searchByImage": "以图搜本",
+    "imageSearchBusy": "正在以图搜索…",
+    "imageSearchNoMatches": "没有与此图匹配的 nhentai 结果。",
+    "imageSearchOpenedBest": "找到 {count} 个结果 — 已打开最相似的一个。",
+    "imageSearchResultsTitle": "以图搜本",
+    "imageSearchSimilarity": "相似度",
+    "imageSearchNoPayload": "未选择图片。请从搜索页重新选择。",
+    "imageSearchRetry": "重试",
+    "imageSearchGoBack": "返回",
+    "imageSearchPickOther": "换一张图"
   },
   "searchBar": {
     "backHome": "返回首页",
@@ -334,7 +348,9 @@
       "presets": "预设",
       "fullPalette": "完整调色板",
       "infiniteScroll": "无限滚动",
-      "infiniteScrollDesc": "向下滚动时自动加载下一页，而不是使用分页"
+      "infiniteScrollDesc": "向下滚动时自动加载下一页，而不是使用分页",
+      "includeTagsOnBookTagNav": "从书籍标签跳转时，是否保留当前标签筛选？",
+      "includeTagsOnBookTagNavDesc": "开启后，从书籍标签跳转会保留当前标签筛选；关闭后，只按该标签打开，不保留当前筛选。"
     },
     "display": {
       "androidNote": "在 Android 上，即使全屏模式下，也可以通过底部上滑显示系统栏。",
