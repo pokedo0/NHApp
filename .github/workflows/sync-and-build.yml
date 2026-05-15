@@ -111,7 +111,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          # 编译成原生的 Release 版！彻底移除 Expo Dev 工具！
+          # 编译成原生的 Release 版！彻底移除 Expo Dev 工具！ 
           ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a --no-daemon --build-cache --parallel
 
       - name: Sign & Align Release APK
