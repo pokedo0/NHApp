@@ -92,6 +92,16 @@ jobs:
       - name: Prebuild Android
         run: npx expo prebuild --platform android
 
+      - name: Patch Gradle Compatibility
+        run: |
+          echo "🔧 Replacing jcenter() with mavenCentral() in all build.gradle files..."
+          find node_modules -name "build.gradle" -exec grep -l "jcenter()" {} \; | while read f; do
+            sed -i 's/jcenter()/mavenCentral()/g' "$f"
+            echo "  Patched: $f"
+          done
+          echo "🔧 Running fixGradle.js for TLS fixes..."
+          node scripts/fixGradle.js
+
       - name: Cache Android Debug Keystore
         uses: actions/cache@v5
         with:
