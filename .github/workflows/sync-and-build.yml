@@ -102,19 +102,11 @@ jobs:
           echo "🔧 Running fixGradle.js for TLS fixes..."
           node scripts/fixGradle.js
 
-      - name: Cache Android Debug Keystore
-        uses: actions/cache@v5
-        with:
-          path: ~/.android/debug.keystore
-          key: android-debug-keystore-permanent
-
-      - name: Ensure Keystore Exists
+      - name: Decode Signing Keystore
         run: |
           mkdir -p ~/.android
-          if [ ! -f ~/.android/debug.keystore ]; then
-            echo "Keystore not found in cache, generating a permanent one..."
-            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "O=Android, C=US"
-          fi
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > ~/.android/debug.keystore
+          echo "✅ Keystore decoded from repository secret"
 
       - name: Build Release APK
         if: success()
